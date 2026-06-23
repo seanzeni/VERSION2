@@ -169,7 +169,7 @@ def test_found_location_status() -> None:
 
 
 def test_prod_archive_location_status_looks_for_archive_in_prod() -> None:
-    element = make_element(type_="OAPS", package="")
+    element = make_element(type_="OAPS", package="ARCHIVE")
     make_service().apply_location_status(
         [element],
         FakeLocationServiceWithLocations(
@@ -205,7 +205,7 @@ def test_qual_location_status_uses_act_region_source_env() -> None:
 
 
 def test_qual_archive_location_status_is_not_flagged() -> None:
-    element = make_element(type_="OAPS")
+    element = make_element(type_="OAPS", package="ARCHIVE")
     make_service().apply_location_status([element], FakeLocationService(set()), "QUAL")
     assert element.location_status == LocationStatus.OK
     assert element.reasons == []
@@ -228,7 +228,7 @@ def test_qual_archive_package_with_sql_issue_still_runs_location_status() -> Non
 
 
 def test_qual_archive_row_is_hidden_and_unselected() -> None:
-    element = make_element(type_="OAPS")
+    element = make_element(type_="OAPS", package="ARCHIVE")
     make_service().apply_selection_rules([element], mode="QUAL")
     assert element.visible is False
     assert element.selected is False
@@ -288,6 +288,17 @@ def test_missing_archive_rule_opposite_type_exists_in_prod_and_missing_inventory
     assert element.archive_status == ArchiveStatus.POTENTIAL_MISSING_ARCHIVE
 
 
+def test_do_not_move_suppresses_missing_archive_rule() -> None:
+    element = make_element(type_="OCOB")
+    element.movement_status = MovementStatus.DO_NOT_MOVE
+
+    make_service().apply_archive_status(
+        [element], FakeLocationService({("PGM001", "OAPS", "PROD1")}), "PROD"
+    )
+
+    assert element.archive_status == ArchiveStatus.OK
+
+
 def test_missing_archive_rule_does_not_fire_when_opposite_type_in_inventory() -> None:
     elements = [make_element(type_="OCOB"), make_element(type_="OAPS")]
     make_service().apply_archive_status(
@@ -299,11 +310,43 @@ def test_missing_archive_rule_does_not_fire_when_opposite_type_in_inventory() ->
 def test_missing_program_move_archive_side_in_inventory_program_side_in_qual_missing_inventory() -> (
     None
 ):
-    element = make_element(type_="OAPS")
+    element = make_element(type_="OAPS", package="ARCHIVE")
     make_service().apply_archive_status(
         [element], FakeLocationService({("PGM001", "OCOB", "QUAL1")}), "PROD"
     )
     assert element.archive_status == ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+
+
+def test_missing_program_move_archive_side_missing_inventory_even_when_program_not_in_qual() -> None:
+    element = make_element(type_="OAPS", package="ARCHIVE")
+
+    make_service().apply_archive_status([element], FakeLocationService(set()), "PROD")
+
+    assert element.archive_status == ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+    assert "Expected opposite program type" in element.reasons[0]
+
+
+def test_program_type_without_archive_package_does_not_trigger_missing_program_move() -> None:
+    element = make_element(type_="OAPS")
+
+    make_service().apply_archive_status(
+        [element],
+        FakeLocationService({("PGM001", "OCOB", "QUAL1")}),
+        "PROD",
+    )
+
+    assert element.archive_status == ArchiveStatus.OK
+
+
+def test_do_not_move_suppresses_missing_program_move_rule() -> None:
+    element = make_element(type_="OAPS", package="ARCHIVE")
+    element.movement_status = MovementStatus.DO_NOT_MOVE
+
+    make_service().apply_archive_status(
+        [element], FakeLocationService({("PGM001", "OCOB", "QUAL1")}), "PROD"
+    )
+
+    assert element.archive_status == ArchiveStatus.OK
 
 
 def test_missing_program_move_only_prod() -> None:

@@ -5,6 +5,7 @@ from app.core.models import ArchiveStatus, Element, InventoryIssue, ReleaseEffor
 from app.reports.effort_summary_report import EffortSummaryReport
 from app.reports.issues_report import IssuesReport
 from app.reports.osg_cops_report import OsgCopsReport
+from app.reports.report_utils import make_writable
 from app.reports.release_estimate_report import ReleaseEstimateReport
 from app.reports.release_inventory_report import ReleaseInventoryReport
 from app.services.stats_service import StatsService
@@ -24,21 +25,26 @@ def test_issues_report_excludes_hidden(tmp_path: Path) -> None:
     output=IssuesReport().generate([make_element(archive_status=ArchiveStatus.POTENTIAL_MISSING_ARCHIVE), make_element(name='OPGM002', visible=False, archive_status=ArchiveStatus.POTENTIAL_MISSING_ARCHIVE)], tmp_path, False)
     rows=read_csv(output)
     assert len(rows)==1 and rows[0]['Element']=='OPGM001'
+    make_writable(output)
 
 def test_effort_summary_report_generates_rows(tmp_path: Path) -> None:
     output=EffortSummaryReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB'), make_element(project='ABC', type_='OAPS')], tmp_path, 'PROD', 1)
     rows=read_csv(output)
     assert len(rows)==1 and rows[0]['Project']=='ABC' and rows[0]['Selected Elements']=='2'
+    make_writable(output)
 
 def test_release_estimate_report_generates_total(tmp_path: Path) -> None:
     output=ReleaseEstimateReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB')], {'ABC':'2026-06-22'}, tmp_path, 'PROD', 1)
     assert read_csv(output)[-1]['Move Date'] == 'TOTAL'
+    make_writable(output)
 
 def test_release_inventory_report_missing_inventory(tmp_path: Path) -> None:
     output=ReleaseInventoryReport().generate('REL1','PROD',1,[],[InventoryIssue(release='REL1', effort_id='ABC', issue_type=ScheduleStatus.SQL_EXPECTED_INVENTORY_MISSING, reason='Missing inventory')],[ReleaseEffort(effort_id='ABC')],tmp_path)
     assert read_csv(output)[0]['Inventory Status'] == 'Missing Inventory'
+    make_writable(output)
 
 def test_osg_cops_report_filters_selected_visible_o_or_x(tmp_path: Path) -> None:
     output=OsgCopsReport().generate([make_element(name='OPGM001', type_='OCOB'), make_element(name='APGM001', type_='JCL'), make_element(name='XPGM001', type_='XCOB', visible=False)], tmp_path, 'PROD')
     rows=read_csv(output)
     assert len(rows)==1 and rows[0]['Element']=='OPGM001'
+    make_writable(output)

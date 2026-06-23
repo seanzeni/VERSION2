@@ -4,6 +4,7 @@ import pytest
 from app.core.app_state import AppState
 from app.core.models import Element
 from app.reports.report_registry import ReportRegistry
+from app.reports.report_utils import make_writable
 from app.services.stats_service import StatsService
 
 def make_registry() -> ReportRegistry:
@@ -21,6 +22,7 @@ def test_generate_issues_report_csv(tmp_path: Path) -> None:
     state=AppState(release='REL1', mode='PROD', thread_count=1); state.loaded_elements=[Element(release='REL1', project='ABC', element='PGM001', type='OCOB')]
     output=make_registry().generate('Issues Report','csv',state,tmp_path,True)
     assert output is not None and output.exists()
+    make_writable(output)
 
 def test_generate_pdf_not_implemented() -> None:
     with pytest.raises(NotImplementedError): make_registry().generate('Issues Report','pdf',AppState(),Path('.'),True)
