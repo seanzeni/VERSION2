@@ -35,6 +35,7 @@ from app.core.models import LocationStatus
 from app.core.models import MovementStatus
 from app.core.models import ReleaseEffort
 from app.core.models import ScheduleStatus
+from app.core.package_rules import is_archive_package
 from app.core.status_messages import ReasonBuilder
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.status_marker_service import StatusMarkerService
@@ -99,6 +100,7 @@ class ValidationService:
 
         self.apply_selection_rules(
             elements=elements,
+            mode=mode,
         )
 
         inventory_issues = self.build_inventory_issues(
@@ -130,6 +132,10 @@ class ValidationService:
 
         for group in grouped.values():
             projects = {element.project for element in group}
+            project_counts: dict[str, int] = defaultdict(int)
+
+            for element in group:
+                project_counts[element.project] += 1
 
             if len(projects) > 1:
                 for element in group:
@@ -149,9 +155,17 @@ class ValidationService:
                         ),
                     )
 
-                continue
+                    if project_counts[element.project] > 1:
+                        self.add_reason(
+                            element=element,
+                            reason=ReasonBuilder.duplicate(
+                                element=element.element,
+                                type_=element.type,
+                                project=element.project,
+                            ),
+                        )
 
-            if len(group) > 1:
+            elif len(group) > 1:
                 for element in group:
                     element.inventory_status = InventoryStatus.DUPLICATE
 
@@ -236,18 +250,55 @@ class ValidationService:
         if location_service is None:
             return
 
-        expected_env = self.get_target_env(
-            mode=mode,
-        )
-
         for element in elements:
-            if location_service.exists_in_env(
+            if element.movement_status == MovementStatus.DO_NOT_MOVE:
+                continue
+
+            if self.is_archive_type_for_qual_move(
+                mode=mode,
+                element=element,
+            ) and element.schedule_status == ScheduleStatus.OK:
+                continue
+
+            expected_env = self.get_source_env_for_move(
+                mode=mode,
+                element=element,
+            )
+            expected_system = self.get_expected_system_for_move(
+                mode=mode,
+                element=element,
+            )
+            expected_subsystem = self.get_expected_subsystem_for_move(
+                mode=mode,
+                element=element,
+            )
+
+            if location_service.exists_in_location(
                 element=element.element,
                 type_=element.type,
                 env=expected_env,
+                system=expected_system,
+                subsystem=expected_subsystem,
             ):
                 element.location_status = LocationStatus.FOUND
                 continue
+
+            expected_level = self.get_env_level(
+                env=expected_env,
+            )
+
+            found_records = [
+                record
+                for record in location_service.find(
+                    element=element.element,
+                    type_=element.type,
+                )
+                if self.get_env_level(record.env) < expected_level
+            ]
+            found_locations = [
+                f"{record.env} / {record.system} / {record.subsystem}"
+                for record in found_records
+            ]
 
             element.location_status = LocationStatus.NOT_FOUND
 
@@ -257,6 +308,9 @@ class ValidationService:
                     element=element.element,
                     type_=element.type,
                     expected_env=expected_env,
+                    expected_system=expected_system,
+                    expected_subsystem=expected_subsystem,
+                    found_locations=found_locations,
                 ),
             )
 
@@ -275,15 +329,15 @@ class ValidationService:
         inventory_lookup = {element.key for element in elements}
 
         for element in elements:
+            if element.movement_status == MovementStatus.DO_NOT_MOVE:
+                continue
+
             element_name = element.element.strip().upper()
             element_type = element.type.strip().upper()
 
             opposite_type = self.get_opposite_type(
                 type_name=element_type,
             )
-
-            if opposite_type is None:
-                continue
 
             # Rule 1:
             # Moving to PROD.
@@ -293,6 +347,9 @@ class ValidationService:
             #   Moving OCOB
             #   PROD1 has OAPS
             #   Inventory missing OAPS
+            if opposite_type is None:
+                continue
+
             if location_service.exists_in_env(
                 element=element_name,
                 type_=opposite_type,
@@ -317,41 +374,44 @@ class ValidationService:
             # Rule 2:
             # Moving to PROD.
             # Current inventory row is the archive side.
-            # Opposite program type exists in QUAL1.
             # Opposite program type is not present in selected inventory.
             # Example:
             #   Moving OAPS archive
-            #   QUAL1 has OCOB
             #   Inventory missing OCOB
             program_type = self.get_program_type_for_archive(
                 archive_type=element_type,
             )
 
-            if program_type is None:
+            if program_type is None or not self.is_archive_move(element):
                 continue
 
-            if location_service.exists_in_env(
-                element=element_name,
-                type_=program_type,
-                env="QUAL1",
-            ):
-                if (
-                    element_name,
-                    program_type,
-                ) not in inventory_lookup:
-                    element.archive_status = (
-                        ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
-                    )
+            if (
+                element_name,
+                program_type,
+            ) in inventory_lookup:
+                continue
 
-                    self.add_reason(
-                        element=element,
-                        reason=ReasonBuilder.potential_missing_program_move(
-                            element=element.element,
-                            archive_type=element.type,
-                            program_type=program_type,
-                            env="QUAL1",
-                        ),
-                    )
+            found_env = (
+                "QUAL1"
+                if location_service.exists_in_env(
+                    element=element_name,
+                    type_=program_type,
+                    env="QUAL1",
+                )
+                else ""
+            )
+
+            element.archive_status = ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+
+            self.add_reason(
+                element=element,
+                reason=ReasonBuilder.potential_missing_program_move(
+                    element=element.element,
+                    archive_type=element.type,
+                    program_type=program_type,
+                    env=found_env,
+                ),
+            )
 
     def apply_fixp1_status(
         self,
@@ -484,10 +544,20 @@ class ValidationService:
     def apply_selection_rules(
         self,
         elements: list[Element],
+        mode: str = "",
     ) -> None:
         for element in elements:
             element.selected = True
             element.selectable = True
+
+            if self.is_archive_type_for_qual_move(
+                mode=mode,
+                element=element,
+            ) and element.schedule_status == ScheduleStatus.OK:
+                element.selected = False
+                element.selectable = False
+                element.visible = False
+                continue
 
             if element.inventory_status == InventoryStatus.OVERLAP:
                 element.selected = False
@@ -503,15 +573,6 @@ class ValidationService:
                 element.selectable = bool(
                     self.selection_rules.get(
                         "duplicate_selectable",
-                        False,
-                    )
-                )
-
-            if element.location_status == LocationStatus.NOT_FOUND:
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "missing_ndvr_selectable",
                         False,
                     )
                 )
@@ -587,10 +648,19 @@ class ValidationService:
 
             if self.is_confirmed_already_in_target(
                 element=element,
-            ):
+            ) and element.schedule_status == ScheduleStatus.OK:
                 element.selected = False
                 element.selectable = False
                 element.visible = False
+
+            if element.location_status == LocationStatus.NOT_FOUND:
+                element.selected = False
+                element.selectable = bool(
+                    self.selection_rules.get(
+                        "missing_ndvr_selectable",
+                        False,
+                    )
+                )
 
     def is_confirmed_already_in_target(
         self,
@@ -611,6 +681,97 @@ class ValidationService:
             return "PROD1"
 
         return "QUAL1"
+
+    def get_env_level(
+        self,
+        env: str,
+    ) -> int:
+        return MainframeLocationService.ENV_LEVELS.get(
+            str(env).strip().upper(),
+            0,
+        )
+
+    def get_source_env_for_move(
+        self,
+        mode: str,
+        element: Element,
+    ) -> str:
+        if mode.upper() == "PROD":
+            if self.is_archive_move(element):
+                return "PROD1"
+
+            return "QUAL1"
+
+        act_region = str(
+            element.source_row.get(
+                "Act Rgn",
+                "",
+            )
+        ).strip().upper()
+
+        if act_region.startswith("DV"):
+            return "DEVL1"
+
+        if act_region.startswith("LO"):
+            return "MAIN1"
+
+        return "QUAL1"
+
+    def is_archive_type_for_qual_move(
+        self,
+        mode: str,
+        element: Element,
+    ) -> bool:
+        return (
+            mode.upper() == "QUAL"
+            and bool(
+                self.selection_rules.get(
+                    "hide_archive_rows_in_qual",
+                    True,
+                )
+            )
+            and self.is_archive_move(element)
+        )
+
+    def is_archive_move(
+        self,
+        element: Element,
+    ) -> bool:
+        package_value = element.source_row.get(
+            "Package",
+            "",
+        )
+
+        return is_archive_package(package_value)
+
+    def get_expected_system_for_move(
+        self,
+        mode: str,
+        element: Element,
+    ) -> str:
+        system_value = str(
+            element.source_row.get(
+                "System",
+                "",
+            )
+        ).strip().upper()
+
+        if mode.upper() == "PROD" and system_value:
+            return system_value[:7] + "1"
+
+        return system_value
+
+    def get_expected_subsystem_for_move(
+        self,
+        mode: str,
+        element: Element,
+    ) -> str:
+        return str(
+            element.source_row.get(
+                "Subsys",
+                "",
+            )
+        ).strip().upper()
 
     def get_opposite_type(
         self,
