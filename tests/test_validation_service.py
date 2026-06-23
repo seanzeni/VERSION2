@@ -18,12 +18,55 @@ class FakeLocationService:
         self.env_records = {
             (e.upper(), t.upper(), v.upper()) for e, t, v in env_records
         }
+        self.location_records: set[tuple[str, str, str, str, str]] = set()
 
     def exists_in_env(self, element: str, type_: str, env: str) -> bool:
         return (element.upper(), type_.upper(), env.upper()) in self.env_records
 
+    def exists_in_location(
+        self,
+        element: str,
+        type_: str,
+        env: str,
+        system: str,
+        subsystem: str,
+    ) -> bool:
+        return (
+            element.upper(),
+            type_.upper(),
+            env.upper(),
+            system.upper(),
+            subsystem.upper(),
+        ) in self.location_records
+
+    def find(self, element: str, type_: str) -> list:
+        return []
+
     def exists_in_fixp1(self, element: str, type_: str) -> bool:
         return self.exists_in_env(element, type_, "FIXP1")
+
+
+class FakeLocationServiceWithLocations(FakeLocationService):
+    def __init__(
+        self,
+        location_records: set[tuple[str, str, str, str, str]],
+    ) -> None:
+        super().__init__(
+            {
+                (element, type_, env)
+                for element, type_, env, _system, _subsystem in location_records
+            }
+        )
+        self.location_records = {
+            (
+                element.upper(),
+                type_.upper(),
+                env.upper(),
+                system.upper(),
+                subsystem.upper(),
+            )
+            for element, type_, env, system, subsystem in location_records
+        }
 
 
 def make_service() -> ValidationService:
@@ -43,6 +86,7 @@ def make_service() -> ValidationService:
             "inventory_not_in_release_selectable": True,
             "inventory_when_sql_no_inventory_selectable": True,
             "effort_release_mismatch_selectable": True,
+            "hide_archive_rows_in_qual": True,
             "potential_missing_archive_selectable": False,
             "potential_missing_program_move_selectable": True,
             "do_not_move_selectable": False,
@@ -61,7 +105,12 @@ def make_element(
         project=project,
         element=element,
         type=type_,
-        source_row={"Package": package},
+        source_row={
+            "Package": package,
+            "Act Rgn": "DV01",
+            "System": "PRIVATE0",
+            "Subsys": "SYS1",
+        },
     )
 
 
@@ -110,9 +159,123 @@ def test_missing_location_status() -> None:
 def test_found_location_status() -> None:
     element = make_element()
     make_service().apply_location_status(
-        [element], FakeLocationService({("PGM001", "OCOB", "PROD1")}), "PROD"
+        [element],
+        FakeLocationServiceWithLocations(
+            {("PGM001", "OCOB", "QUAL1", "PRIVATE1", "SYS1")}
+        ),
+        "PROD",
     )
     assert element.location_status == LocationStatus.FOUND
+
+
+def test_prod_archive_location_status_looks_for_archive_in_prod() -> None:
+    element = make_element(type_="OAPS", package="")
+    make_service().apply_location_status(
+        [element],
+        FakeLocationServiceWithLocations(
+            {("PGM001", "OAPS", "PROD1", "PRIVATE1", "SYS1")}
+        ),
+        "PROD",
+    )
+    assert element.location_status == LocationStatus.FOUND
+
+
+def test_prod_archive_package_location_status_looks_in_prod() -> None:
+    element = make_element(type_="OCOB", package="ARCHIVE")
+    make_service().apply_location_status(
+        [element],
+        FakeLocationServiceWithLocations(
+            {("PGM001", "OCOB", "PROD1", "PRIVATE1", "SYS1")}
+        ),
+        "PROD",
+    )
+    assert element.location_status == LocationStatus.FOUND
+
+
+def test_qual_location_status_uses_act_region_source_env() -> None:
+    element = make_element()
+    make_service().apply_location_status(
+        [element],
+        FakeLocationServiceWithLocations(
+            {("PGM001", "OCOB", "DEVL1", "PRIVATE0", "SYS1")}
+        ),
+        "QUAL",
+    )
+    assert element.location_status == LocationStatus.FOUND
+
+
+def test_qual_archive_location_status_is_not_flagged() -> None:
+    element = make_element(type_="OAPS")
+    make_service().apply_location_status([element], FakeLocationService(set()), "QUAL")
+    assert element.location_status == LocationStatus.OK
+    assert element.reasons == []
+
+
+def test_qual_archive_package_location_status_is_not_flagged() -> None:
+    element = make_element(type_="OCOB", package="ARCHIVE")
+    make_service().apply_location_status([element], FakeLocationService(set()), "QUAL")
+    assert element.location_status == LocationStatus.OK
+    assert element.reasons == []
+
+
+def test_qual_archive_package_with_sql_issue_still_runs_location_status() -> None:
+    element = make_element(type_="OCOB", package="ARCHIVE")
+    element.schedule_status = ScheduleStatus.INVENTORY_NOT_IN_RELEASE
+
+    make_service().apply_location_status([element], FakeLocationService(set()), "QUAL")
+
+    assert element.location_status == LocationStatus.NOT_FOUND
+
+
+def test_qual_archive_row_is_hidden_and_unselected() -> None:
+    element = make_element(type_="OAPS")
+    make_service().apply_selection_rules([element], mode="QUAL")
+    assert element.visible is False
+    assert element.selected is False
+    assert element.selectable is False
+
+
+def test_qual_archive_package_row_is_hidden_and_unselected() -> None:
+    element = make_element(type_="OCOB", package="ARCHIVE")
+    make_service().apply_selection_rules([element], mode="QUAL")
+    assert element.visible is False
+    assert element.selected is False
+    assert element.selectable is False
+
+
+def test_qual_archive_package_row_with_sql_issue_stays_visible() -> None:
+    element = make_element(type_="OCOB", package="ARCHIVE")
+    element.schedule_status = ScheduleStatus.INVENTORY_NOT_IN_RELEASE
+
+    make_service().apply_selection_rules([element], mode="QUAL")
+
+    assert element.visible is True
+    assert element.selected is False
+    assert element.selectable is True
+
+
+def test_missing_location_overrides_not_in_sql_selectable_rule() -> None:
+    element = make_element()
+    element.schedule_status = ScheduleStatus.INVENTORY_NOT_IN_RELEASE
+    element.location_status = LocationStatus.NOT_FOUND
+
+    make_service().apply_selection_rules([element], mode="PROD")
+
+    assert element.visible is True
+    assert element.selected is False
+    assert element.selectable is False
+
+
+def test_qual_archive_hide_rule_can_be_disabled() -> None:
+    element = make_element(type_="OCOB", package="ARCHIVE")
+    service = make_service()
+    service.selection_rules["hide_archive_rows_in_qual"] = False
+
+    service.apply_location_status([element], FakeLocationService(set()), "QUAL")
+    service.apply_selection_rules([element], mode="QUAL")
+
+    assert element.location_status == LocationStatus.NOT_FOUND
+    assert element.visible is True
 
 
 def test_missing_archive_rule_opposite_type_exists_in_prod_and_missing_inventory() -> (
@@ -184,6 +347,22 @@ def test_confirmed_already_in_target_hidden() -> None:
         and element.selected is False
         and element.selectable is False
     )
+
+
+def test_confirmed_already_in_target_with_sql_issue_stays_visible() -> None:
+    element = make_element(package="QUAL")
+    element.schedule_status = ScheduleStatus.INVENTORY_NOT_IN_RELEASE
+    service = make_service()
+
+    service.apply_movement_status(
+        [element], FakeLocationService({("PGM001", "OCOB", "QUAL1")}), "QUAL"
+    )
+    service.apply_selection_rules([element], mode="QUAL")
+
+    assert element.source_row["_confirmed_already_in_target"] is True
+    assert element.visible is True
+    assert element.selected is False
+    assert element.selectable is True
 
 
 def test_marked_already_there_but_missing_warning_selectable() -> None:

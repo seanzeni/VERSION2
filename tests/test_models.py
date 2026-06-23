@@ -1,5 +1,5 @@
 from __future__ import annotations
-from app.core.models import ArchiveStatus, Element, MovementStatus, Severity
+from app.core.models import ArchiveStatus, Element, FixStatus, MovementStatus, Severity
 
 def test_element_key_is_uppercase_element_type() -> None:
     element = Element(release="rel", project="abc", element="pgm001", type="ocob")
@@ -17,6 +17,11 @@ def test_missing_archive_is_error() -> None:
 
 def test_missing_program_move_is_warning() -> None:
     element = Element(release="REL", project="ABC", element="PGM001", type="OAPS", archive_status=ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE)
+    assert element.severity == Severity.WARNING
+    assert element.color == "warning"
+
+def test_exists_in_fixp1_is_warning() -> None:
+    element = Element(release="REL", project="ABC", element="PGM001", type="OCOB", fix_status=FixStatus.EXISTS_IN_FIXP1)
     assert element.severity == Severity.WARNING
     assert element.color == "warning"
 
