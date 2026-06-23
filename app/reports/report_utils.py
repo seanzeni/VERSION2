@@ -19,7 +19,9 @@ Notes:
 """
 
 import csv
+import os
 import shutil
+import stat
 from datetime import datetime
 from pathlib import Path
 
@@ -75,6 +77,47 @@ def get_date_folder(
     return date_folder
 
 
+def make_writable(
+    file_path: Path,
+) -> None:
+    if file_path.exists():
+        os.chmod(
+            file_path,
+            stat.S_IREAD | stat.S_IWRITE,
+        )
+
+
+def make_read_only(
+    file_path: Path,
+) -> None:
+    if file_path.exists():
+        os.chmod(
+            file_path,
+            stat.S_IREAD,
+        )
+
+
+def get_unique_path(
+    path: Path,
+) -> Path:
+    if not path.exists():
+        return path
+
+    timestamp = datetime.now().strftime("%H%M%S")
+    candidate = path.with_name(
+        f"{path.stem}_{timestamp}{path.suffix}"
+    )
+
+    counter = 1
+    while candidate.exists():
+        candidate = path.with_name(
+            f"{path.stem}_{timestamp}_{counter}{path.suffix}"
+        )
+        counter += 1
+
+    return candidate
+
+
 def archive_existing_reports(
     target_folder: Path,
 ) -> None:
@@ -88,15 +131,21 @@ def archive_existing_reports(
         if not file_path.is_file():
             continue
 
-        destination = history_folder / file_path.name
+        destination = get_unique_path(
+            history_folder / file_path.name,
+        )
 
         try:
+            make_writable(file_path)
             shutil.move(
                 str(file_path),
                 str(destination),
             )
-        except Exception:
-            pass
+            make_read_only(destination)
+        except PermissionError as exc:
+            raise PermissionError(
+                f"Unable to archive {file_path.name}. Close the file if it is open and try again."
+            ) from exc
 
 
 def sort_elements(
@@ -145,6 +194,7 @@ def export_csv(
         parents=True,
         exist_ok=True,
     )
+    make_writable(output_path)
 
     with output_path.open(
         "w",
@@ -156,3 +206,5 @@ def export_csv(
         writer.writerow(headers)
 
         writer.writerows(rows)
+
+    make_read_only(output_path)
