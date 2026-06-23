@@ -23,6 +23,9 @@ from typing import Any
 
 from app.core.formatter import build_record
 from app.core.models import Element
+from app.reports.report_utils import get_date_folder
+from app.reports.report_utils import make_read_only
+from app.reports.report_utils import make_writable
 
 
 class Exporter:
@@ -65,8 +68,20 @@ class Exporter:
         release: str,
     ) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_folder = self.base_dir / str(
+            self.settings.get(
+                "files",
+                {},
+            ).get(
+                "default_output_folder",
+                "Output",
+            )
+        )
 
-        return self.base_dir / f"{release}_export_{timestamp}.txt"
+        return get_date_folder(
+            release=release,
+            base_path=output_folder,
+        ) / f"{release}_export_{timestamp}.txt"
 
     def export(
         self,
@@ -90,11 +105,14 @@ class Exporter:
             parents=True,
             exist_ok=True,
         )
+        make_writable(path)
 
         with path.open(
             "w",
             encoding="utf-8",
         ) as file:
             file.write("\n".join(lines))
+
+        make_read_only(path)
 
         return path
