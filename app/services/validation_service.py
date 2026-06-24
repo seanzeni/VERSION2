@@ -28,7 +28,6 @@ from app.core.models import ArchiveStatus
 from app.core.models import Element
 from app.core.models import FixStatus
 from app.core.models import InventoryIssue
-from app.core.models import LocationStatus
 from app.core.models import MovementStatus
 from app.core.models import ReleaseEffort
 from app.core.models import ScheduleStatus
@@ -36,6 +35,8 @@ from app.core.status_messages import ReasonBuilder
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.status_marker_service import StatusMarkerService
 from app.services.validation_rules import inventory_rules as inventory_rule_module
+from app.services.validation_rules import location_rules as location_rule_module
+from app.services.validation_rules import movement_rules as movement_rule_module
 from app.services.validation_rules import schedule_rules as schedule_rule_module
 from app.services.validation_rules import selection_rules as selection_rule_module
 
@@ -150,72 +151,13 @@ class ValidationService:
         location_service: MainframeLocationService | None,
         mode: str,
     ) -> None:
-        if location_service is None:
-            return
-
-        for element in elements:
-            if element.movement_status == MovementStatus.DO_NOT_MOVE:
-                continue
-
-            if self.is_archive_type_for_qual_move(
-                mode=mode,
-                element=element,
-            ) and element.schedule_status == ScheduleStatus.OK:
-                continue
-
-            expected_env = self.get_source_env_for_move(
-                mode=mode,
-                element=element,
-            )
-            expected_system = self.get_expected_system_for_move(
-                mode=mode,
-                element=element,
-            )
-            expected_subsystem = self.get_expected_subsystem_for_move(
-                mode=mode,
-                element=element,
-            )
-
-            if location_service.exists_in_location(
-                element=element.element,
-                type_=element.type,
-                env=expected_env,
-                system=expected_system,
-                subsystem=expected_subsystem,
-            ):
-                element.location_status = LocationStatus.FOUND
-                continue
-
-            expected_level = self.get_env_level(
-                env=expected_env,
-            )
-
-            found_records = [
-                record
-                for record in location_service.find(
-                    element=element.element,
-                    type_=element.type,
-                )
-                if self.get_env_level(record.env) < expected_level
-            ]
-            found_locations = [
-                f"{record.env} / {record.system} / {record.subsystem}"
-                for record in found_records
-            ]
-
-            element.location_status = LocationStatus.NOT_FOUND
-
-            self.add_reason(
-                element=element,
-                reason=ReasonBuilder.missing_ndvr(
-                    element=element.element,
-                    type_=element.type,
-                    expected_env=expected_env,
-                    expected_system=expected_system,
-                    expected_subsystem=expected_subsystem,
-                    found_locations=found_locations,
-                ),
-            )
+        location_rule_module.apply(
+            elements=elements,
+            location_service=location_service,
+            selection_rules_config=self.selection_rules,
+            mode=mode,
+            add_reason=self.add_reason,
+        )
 
     def apply_archive_status(
         self,
@@ -349,60 +291,13 @@ class ValidationService:
         location_service: MainframeLocationService | None,
         mode: str,
     ) -> None:
-        target_env = self.get_target_env(
+        movement_rule_module.apply(
+            elements=elements,
+            location_service=location_service,
+            status_marker_service=self.status_marker_service,
             mode=mode,
+            add_reason=self.add_reason,
         )
-
-        for element in elements:
-            if self.status_marker_service.is_do_not_move(
-                element=element,
-            ):
-                element.movement_status = MovementStatus.DO_NOT_MOVE
-
-                self.add_reason(
-                    element=element,
-                    reason=ReasonBuilder.do_not_move(
-                        element=element.element,
-                        type_=element.type,
-                        marker_text="DO NOT MOVE",
-                    ),
-                )
-
-                continue
-
-            if not self.status_marker_service.is_marked_for_target(
-                element=element,
-                mode=mode,
-            ):
-                continue
-
-            if location_service is not None and location_service.exists_in_env(
-                element=element.element,
-                type_=element.type,
-                env=target_env,
-            ):
-                element.source_row["_confirmed_already_in_target"] = True
-                # Marker says already there and NDVR confirms it.
-                # This should not show as an issue.
-                # Selection rules will hide/unselect it by marker check.
-                continue
-
-            marker_text = self.status_marker_service.get_target_marker_text(
-                element=element,
-                mode=mode,
-            )
-
-            element.movement_status = MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING
-
-            self.add_reason(
-                element=element,
-                reason=ReasonBuilder.marked_already_there_but_missing(
-                    element=element.element,
-                    type_=element.type,
-                    target_env=target_env,
-                    marker_text=marker_text,
-                ),
-            )
 
     def build_inventory_issues(
         self,
@@ -439,10 +334,7 @@ class ValidationService:
         self,
         mode: str,
     ) -> str:
-        if mode.upper() == "PROD":
-            return "PROD1"
-
-        return "QUAL1"
+        return movement_rule_module.get_target_env(mode)
 
     def get_env_level(
         self,
@@ -458,26 +350,10 @@ class ValidationService:
         mode: str,
         element: Element,
     ) -> str:
-        if mode.upper() == "PROD":
-            if self.is_archive_move(element):
-                return "PROD1"
-
-            return "QUAL1"
-
-        act_region = str(
-            element.source_row.get(
-                "Act Rgn",
-                "",
-            )
-        ).strip().upper()
-
-        if act_region.startswith("DV"):
-            return "DEVL1"
-
-        if act_region.startswith("LO"):
-            return "MAIN1"
-
-        return "QUAL1"
+        return location_rule_module.get_source_env_for_move(
+            mode=mode,
+            element=element,
+        )
 
     def is_archive_type_for_qual_move(
         self,
@@ -503,29 +379,20 @@ class ValidationService:
         mode: str,
         element: Element,
     ) -> str:
-        system_value = str(
-            element.source_row.get(
-                "System",
-                "",
-            )
-        ).strip().upper()
-
-        if mode.upper() == "PROD" and system_value:
-            return system_value[:7] + "1"
-
-        return system_value
+        return location_rule_module.get_expected_system_for_move(
+            mode=mode,
+            element=element,
+        )
 
     def get_expected_subsystem_for_move(
         self,
         mode: str,
         element: Element,
     ) -> str:
-        return str(
-            element.source_row.get(
-                "Subsys",
-                "",
-            )
-        ).strip().upper()
+        return location_rule_module.get_expected_subsystem_for_move(
+            mode=mode,
+            element=element,
+        )
 
     def get_opposite_type(
         self,
