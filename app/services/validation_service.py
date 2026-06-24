@@ -35,10 +35,10 @@ from app.core.models import LocationStatus
 from app.core.models import MovementStatus
 from app.core.models import ReleaseEffort
 from app.core.models import ScheduleStatus
-from app.core.package_rules import is_archive_package
 from app.core.status_messages import ReasonBuilder
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.status_marker_service import StatusMarkerService
+from app.services.validation_rules import selection_rules as selection_rule_module
 
 
 class ValidationService:
@@ -548,131 +548,18 @@ class ValidationService:
         elements: list[Element],
         mode: str = "",
     ) -> None:
-        for element in elements:
-            element.selected = True
-            element.selectable = True
-
-            if self.is_archive_type_for_qual_move(
-                mode=mode,
-                element=element,
-            ) and element.schedule_status == ScheduleStatus.OK:
-                element.selected = False
-                element.selectable = False
-                element.visible = False
-                continue
-
-            if element.inventory_status == InventoryStatus.OVERLAP:
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "overlap_selectable",
-                        False,
-                    )
-                )
-
-            if element.inventory_status == InventoryStatus.DUPLICATE:
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "duplicate_selectable",
-                        False,
-                    )
-                )
-
-            if element.schedule_status == ScheduleStatus.INVENTORY_NOT_IN_RELEASE:
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "inventory_not_in_release_selectable",
-                        True,
-                    )
-                )
-
-            if (
-                element.schedule_status
-                == ScheduleStatus.INVENTORY_WHEN_SQL_NO_INVENTORY
-            ):
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "inventory_when_sql_no_inventory_selectable",
-                        True,
-                    )
-                )
-
-            if element.schedule_status == ScheduleStatus.EFFORT_RELEASE_MISMATCH:
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "effort_release_mismatch_selectable",
-                        True,
-                    )
-                )
-
-            if element.archive_status == ArchiveStatus.POTENTIAL_MISSING_ARCHIVE:
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "potential_missing_archive_selectable",
-                        False,
-                    )
-                )
-
-            if element.archive_status == ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE:
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "potential_missing_program_move_selectable",
-                        True,
-                    )
-                )
-
-            if element.movement_status == MovementStatus.DO_NOT_MOVE:
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "do_not_move_selectable",
-                        False,
-                    )
-                )
-
-            if (
-                element.movement_status
-                == MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING
-            ):
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "marked_already_there_missing_selectable",
-                        True,
-                    )
-                )
-
-            if self.is_confirmed_already_in_target(
-                element=element,
-            ) and element.schedule_status == ScheduleStatus.OK:
-                element.selected = False
-                element.selectable = False
-                element.visible = False
-
-            if element.location_status == LocationStatus.NOT_FOUND:
-                element.selected = False
-                element.selectable = bool(
-                    self.selection_rules.get(
-                        "missing_ndvr_selectable",
-                        False,
-                    )
-                )
+        selection_rule_module.apply(
+            elements=elements,
+            selection_rules=self.selection_rules,
+            mode=mode,
+        )
 
     def is_confirmed_already_in_target(
         self,
         element: Element,
     ) -> bool:
         return bool(
-            element.source_row.get(
-                "_confirmed_already_in_target",
-                False,
-            )
+            selection_rule_module.is_confirmed_already_in_target(element)
         )
 
     def get_target_env(
@@ -725,26 +612,18 @@ class ValidationService:
         element: Element,
     ) -> bool:
         return (
-            mode.upper() == "QUAL"
-            and bool(
-                self.selection_rules.get(
-                    "hide_archive_rows_in_qual",
-                    True,
-                )
+            selection_rule_module.is_archive_type_for_qual_move(
+                mode=mode,
+                element=element,
+                selection_rules=self.selection_rules,
             )
-            and self.is_archive_move(element)
         )
 
     def is_archive_move(
         self,
         element: Element,
     ) -> bool:
-        package_value = element.source_row.get(
-            "Package",
-            "",
-        )
-
-        return is_archive_package(package_value)
+        return selection_rule_module.is_archive_move(element)
 
     def get_expected_system_for_move(
         self,
