@@ -24,13 +24,10 @@ Notes:
     It should not build reports.
 """
 
-from collections import defaultdict
-
 from app.core.models import ArchiveStatus
 from app.core.models import Element
 from app.core.models import FixStatus
 from app.core.models import InventoryIssue
-from app.core.models import InventoryStatus
 from app.core.models import LocationStatus
 from app.core.models import MovementStatus
 from app.core.models import ReleaseEffort
@@ -38,6 +35,8 @@ from app.core.models import ScheduleStatus
 from app.core.status_messages import ReasonBuilder
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.status_marker_service import StatusMarkerService
+from app.services.validation_rules import inventory_rules as inventory_rule_module
+from app.services.validation_rules import schedule_rules as schedule_rule_module
 from app.services.validation_rules import selection_rules as selection_rule_module
 
 
@@ -125,60 +124,10 @@ class ValidationService:
         self,
         elements: list[Element],
     ) -> None:
-        grouped: dict[tuple[str, str], list[Element]] = defaultdict(list)
-
-        for element in elements:
-            if element.movement_status != MovementStatus.DO_NOT_MOVE:
-                # Skip those elements that are marked do not move
-                grouped[element.key].append(element)
-
-        for group in grouped.values():
-            projects = {element.project for element in group}
-            project_counts: dict[str, int] = defaultdict(int)
-
-            for element in group:
-                project_counts[element.project] += 1
-
-            if len(projects) > 1:
-                for element in group:
-                    element.inventory_status = InventoryStatus.OVERLAP
-
-                    self.add_reason(
-                        element=element,
-                        reason=ReasonBuilder.overlap(
-                            element=element.element,
-                            type_=element.type,
-                            project=element.project,
-                            other_projects=sorted(
-                                project
-                                for project in projects
-                                if project != element.project
-                            ),
-                        ),
-                    )
-
-                    if project_counts[element.project] > 1:
-                        self.add_reason(
-                            element=element,
-                            reason=ReasonBuilder.duplicate(
-                                element=element.element,
-                                type_=element.type,
-                                project=element.project,
-                            ),
-                        )
-
-            elif len(group) > 1:
-                for element in group:
-                    element.inventory_status = InventoryStatus.DUPLICATE
-
-                    self.add_reason(
-                        element=element,
-                        reason=ReasonBuilder.duplicate(
-                            element=element.element,
-                            type_=element.type,
-                            project=element.project,
-                        ),
-                    )
+        inventory_rule_module.apply(
+            elements=elements,
+            add_reason=self.add_reason,
+        )
 
     def apply_schedule_status(
         self,
@@ -187,61 +136,13 @@ class ValidationService:
         effort_release_lookup: dict[str, str],
         release: str,
     ) -> None:
-        release_effort_ids = {
-            effort.effort_id.strip()
-            for effort in release_efforts
-            if effort.effort_id.strip()
-        }
-
-        no_inventory_effort_ids = {
-            effort.effort_id.strip()
-            for effort in release_efforts
-            if effort.no_inventory and effort.effort_id.strip()
-        }
-
-        for element in elements:
-            effort_id = element.project.strip()
-            sql_release = effort_release_lookup.get(
-                effort_id,
-            )
-
-            if sql_release and sql_release.upper() != element.release.upper():
-                element.schedule_status = ScheduleStatus.EFFORT_RELEASE_MISMATCH
-
-                self.add_reason(
-                    element=element,
-                    reason=ReasonBuilder.effort_release_mismatch(
-                        project=element.project,
-                        inventory_release=element.release,
-                        sql_release=sql_release,
-                    ),
-                )
-
-                continue
-
-            if effort_id in no_inventory_effort_ids:
-                element.schedule_status = ScheduleStatus.INVENTORY_WHEN_SQL_NO_INVENTORY
-
-                self.add_reason(
-                    element=element,
-                    reason=ReasonBuilder.inventory_when_sql_no_inventory(
-                        project=element.project,
-                        release=release,
-                    ),
-                )
-
-                continue
-
-            if effort_id not in release_effort_ids:
-                element.schedule_status = ScheduleStatus.INVENTORY_NOT_IN_RELEASE
-
-                self.add_reason(
-                    element=element,
-                    reason=ReasonBuilder.inventory_not_in_release(
-                        project=element.project,
-                        release=release,
-                    ),
-                )
+        schedule_rule_module.apply(
+            elements=elements,
+            release_efforts=release_efforts,
+            effort_release_lookup=effort_release_lookup,
+            release=release,
+            add_reason=self.add_reason,
+        )
 
     def apply_location_status(
         self,
@@ -509,39 +410,11 @@ class ValidationService:
         all_release_elements: list[Element],
         release_efforts: list[ReleaseEffort],
     ) -> list[InventoryIssue]:
-        inventory_effort_ids = {
-            element.project.strip()
-            for element in all_release_elements
-            if element.project.strip()
-        }
-
-        issues: list[InventoryIssue] = []
-
-        for effort in release_efforts:
-            effort_id = effort.effort_id.strip()
-
-            if not effort_id:
-                continue
-
-            if effort.no_inventory:
-                continue
-
-            if effort_id not in inventory_effort_ids:
-                issues.append(
-                    InventoryIssue(
-                        release=release,
-                        effort_id=effort_id,
-                        issue_type=ScheduleStatus.SQL_EXPECTED_INVENTORY_MISSING,
-                        reason=ReasonBuilder.sql_expected_inventory_missing(
-                            project=effort_id,
-                            release=release,
-                        ),
-                        expected_release=release,
-                        inventory_release="",
-                    )
-                )
-
-        return issues
+        return schedule_rule_module.build_inventory_issues(
+            release=release,
+            all_release_elements=all_release_elements,
+            release_efforts=release_efforts,
+        )
 
     def apply_selection_rules(
         self,
