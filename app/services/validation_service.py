@@ -31,6 +31,7 @@ from app.core.models import ScheduleStatus
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.status_marker_service import StatusMarkerService
 from app.services.validation_rules import archive_rules as archive_rule_module
+from app.services.validation_rules.base import require_rule_module
 from app.services.validation_rules import fix_rules as fix_rule_module
 from app.services.validation_rules import inventory_rules as inventory_rule_module
 from app.services.validation_rules import location_rules as location_rule_module
@@ -49,6 +50,24 @@ class ValidationService:
         self.selection_rules = selection_rules
         self.archive_pairs = archive_pairs
         self.status_marker_service = status_marker_service
+        self._validate_rule_contracts()
+
+    def _validate_rule_contracts(
+        self,
+    ) -> None:
+        for rule_name, rule_module in {
+            "archive_rules": archive_rule_module,
+            "fix_rules": fix_rule_module,
+            "inventory_rules": inventory_rule_module,
+            "location_rules": location_rule_module,
+            "movement_rules": movement_rule_module,
+            "schedule_rules": schedule_rule_module,
+            "selection_rules": selection_rule_module,
+        }.items():
+            require_rule_module(
+                rule_module=rule_module,
+                rule_name=rule_name,
+            )
 
     def validate_elements(
         self,
