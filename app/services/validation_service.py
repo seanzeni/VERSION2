@@ -24,16 +24,14 @@ Notes:
     It should not build reports.
 """
 
-from app.core.models import ArchiveStatus
 from app.core.models import Element
-from app.core.models import FixStatus
 from app.core.models import InventoryIssue
-from app.core.models import MovementStatus
 from app.core.models import ReleaseEffort
 from app.core.models import ScheduleStatus
-from app.core.status_messages import ReasonBuilder
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.status_marker_service import StatusMarkerService
+from app.services.validation_rules import archive_rules as archive_rule_module
+from app.services.validation_rules import fix_rules as fix_rule_module
 from app.services.validation_rules import inventory_rules as inventory_rule_module
 from app.services.validation_rules import location_rules as location_rule_module
 from app.services.validation_rules import movement_rules as movement_rule_module
@@ -165,98 +163,13 @@ class ValidationService:
         location_service: MainframeLocationService | None,
         mode: str,
     ) -> None:
-        if mode.upper() != "PROD":
-            return
-
-        if location_service is None:
-            return
-
-        inventory_lookup = {element.key for element in elements}
-
-        for element in elements:
-            if element.movement_status == MovementStatus.DO_NOT_MOVE:
-                continue
-
-            element_name = element.element.strip().upper()
-            element_type = element.type.strip().upper()
-
-            opposite_type = self.get_opposite_type(
-                type_name=element_type,
-            )
-
-            # Rule 1:
-            # Moving to PROD.
-            # Opposite type exists in PROD1.
-            # Opposite type is not present in selected inventory.
-            # Example:
-            #   Moving OCOB
-            #   PROD1 has OAPS
-            #   Inventory missing OAPS
-            if opposite_type is None:
-                continue
-
-            if location_service.exists_in_env(
-                element=element_name,
-                type_=opposite_type,
-                env="PROD1",
-            ):
-                if (
-                    element_name,
-                    opposite_type,
-                ) not in inventory_lookup:
-                    element.archive_status = ArchiveStatus.POTENTIAL_MISSING_ARCHIVE
-
-                    self.add_reason(
-                        element=element,
-                        reason=ReasonBuilder.potential_missing_archive(
-                            element=element.element,
-                            moving_type=element.type,
-                            opposite_type=opposite_type,
-                            env="PROD1",
-                        ),
-                    )
-
-            # Rule 2:
-            # Moving to PROD.
-            # Current inventory row is the archive side.
-            # Opposite program type is not present in selected inventory.
-            # Example:
-            #   Moving OAPS archive
-            #   Inventory missing OCOB
-            program_type = self.get_program_type_for_archive(
-                archive_type=element_type,
-            )
-
-            if program_type is None or not self.is_archive_move(element):
-                continue
-
-            if (
-                element_name,
-                program_type,
-            ) in inventory_lookup:
-                continue
-
-            found_env = (
-                "QUAL1"
-                if location_service.exists_in_env(
-                    element=element_name,
-                    type_=program_type,
-                    env="QUAL1",
-                )
-                else ""
-            )
-
-            element.archive_status = ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
-
-            self.add_reason(
-                element=element,
-                reason=ReasonBuilder.potential_missing_program_move(
-                    element=element.element,
-                    archive_type=element.type,
-                    program_type=program_type,
-                    env=found_env,
-                ),
-            )
+        archive_rule_module.apply(
+            elements=elements,
+            location_service=location_service,
+            mode=mode,
+            archive_pairs=self.archive_pairs,
+            add_reason=self.add_reason,
+        )
 
     def apply_fixp1_status(
         self,
@@ -264,26 +177,12 @@ class ValidationService:
         location_service: MainframeLocationService | None,
         mode: str,
     ) -> None:
-        if mode.upper() != "PROD":
-            return
-
-        if location_service is None:
-            return
-
-        for element in elements:
-            if location_service.exists_in_fixp1(
-                element=element.element,
-                type_=element.type,
-            ):
-                element.fix_status = FixStatus.EXISTS_IN_FIXP1
-
-                self.add_reason(
-                    element=element,
-                    reason=ReasonBuilder.exists_in_fixp1(
-                        element=element.element,
-                        type_=element.type,
-                    ),
-                )
+        fix_rule_module.apply(
+            elements=elements,
+            location_service=location_service,
+            mode=mode,
+            add_reason=self.add_reason,
+        )
 
     def apply_movement_status(
         self,
@@ -398,40 +297,17 @@ class ValidationService:
         self,
         type_name: str,
     ) -> str | None:
-        clean_type = str(type_name).strip().upper()
-
-        for pair in self.archive_pairs:
-            if len(pair) != 2:
-                continue
-
-            archive_type = str(pair[0]).strip().upper()
-
-            program_type = str(pair[1]).strip().upper()
-
-            if clean_type == archive_type:
-                return program_type
-
-            if clean_type == program_type:
-                return archive_type
-
-        return None
+        return archive_rule_module.get_opposite_type(
+            type_name=type_name,
+            archive_pairs=self.archive_pairs,
+        )
 
     def get_program_type_for_archive(
         self,
         archive_type: str,
     ) -> str | None:
-        clean_type = str(archive_type).strip().upper()
-
-        for pair in self.archive_pairs:
-            if len(pair) != 2:
-                continue
-
-            archive_side = str(pair[0]).strip().upper()
-
-            program_side = str(pair[1]).strip().upper()
-
-            if clean_type == archive_side:
-                return program_side
-
-        return None
+        return archive_rule_module.get_program_type_for_archive(
+            archive_type=archive_type,
+            archive_pairs=self.archive_pairs,
+        )
 
