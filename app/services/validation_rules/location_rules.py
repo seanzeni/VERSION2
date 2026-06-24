@@ -1,5 +1,27 @@
 from __future__ import annotations
 
+"""
+Purpose:
+    Validate that each movable element exists in its expected NDVR location.
+
+Annotations:
+    Uses postponed annotations for consistent validation rule typing.
+
+Used By:
+    ValidationService.apply_location_status
+    ValidationService location helper methods
+
+Responsibilities:
+    - Determine expected source environment, system, and subsystem.
+    - Confirm element/type presence in the expected mainframe location.
+    - Record lower-environment locations when the expected location is missing.
+    - Suppress QUAL archive rows that are intentionally hidden from movement.
+
+Notes:
+    PROD moves normally validate from QUAL1, except archive moves which validate
+    from PROD1.
+"""
+
 from app.core.models import Element
 from app.core.models import LocationStatus
 from app.core.models import MovementStatus

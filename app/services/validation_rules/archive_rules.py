@@ -1,5 +1,26 @@
 from __future__ import annotations
 
+"""
+Purpose:
+    Apply archive/program counterpart validation for PROD moves.
+
+Annotations:
+    Uses postponed annotations for consistent validation rule typing.
+
+Used By:
+    ValidationService.apply_archive_status
+
+Responsibilities:
+    - Detect potential missing archive rows when a program counterpart exists.
+    - Detect potential missing program moves when an archive row is present.
+    - Use configured archive/program type pairs from ValidatorContext.
+    - Skip archive warnings for elements marked DO NOT MOVE.
+
+Notes:
+    This module only runs archive checks for PROD because archive movement is
+    suppressed for normal QUAL processing.
+"""
+
 from app.core.models import ArchiveStatus
 from app.core.models import Element
 from app.core.models import MovementStatus

@@ -2,13 +2,26 @@ from __future__ import annotations
 
 """
 Purpose:
-    Shared contract helpers for validation rules.
+    Define the shared validation rule contract and execution context.
+
+Annotations:
+    Uses postponed annotations so rule context type hints can reference
+    application models without runtime ordering issues.
+
+Used By:
+    ValidationService
+    validation rule modules
+    validation rule tests
+
+Responsibilities:
+    - Carry shared validation inputs through ValidatorContext.
+    - Define the ValidationRule abstract class for class-based rules.
+    - Define the RuleModule protocol for module-based rules.
+    - Validate that rule modules expose an apply(context) entry point.
 
 Notes:
-    Current validation rules are module-level functions because each rule
-    needs a slightly different set of inputs. ValidationRule is available
-    for future class-based rules, while require_rule_module protects the
-    current module-style convention at startup.
+    Current rules are module-level functions. ValidationRule is available
+    when a rule grows enough behavior to justify a class.
 """
 
 from abc import ABC
