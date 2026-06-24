@@ -4,9 +4,18 @@ from __future__ import annotations
 Purpose:
     Build and hold application-wide services and settings.
 
+Annotations:
+    Uses postponed annotations for service and path type hints.
+
 Used By:
     main.py
     MainWindow
+
+Responsibilities:
+    - Load settings and resolve configured file paths.
+    - Prompt for missing required or optional startup files.
+    - Construct shared services used by the UI and reports.
+    - Persist remembered file selections back to settings.json.
 
 Notes:
     MainWindow should create UI widgets only.
@@ -38,8 +47,25 @@ class AppContext:
             self.settings_path,
         ).load()
 
-        input_path = self.resolve_path(self.settings["files"]["default_input_file"])
-        ndvr_path = self.resolve_path(self.settings["files"]["default_ndvr_file"])
+        input_path = self.resolve_startup_file(
+            key="default_input_file",
+            title="Select Inventory Spreadsheet",
+            filetypes=[
+                ("Excel Files", "*.xlsx *.xls"),
+                ("All Files", "*.*"),
+            ],
+            required=True,
+            missing_message="No inventory spreadsheet was selected.",
+        )
+        ndvr_path = self.resolve_startup_file(
+            key="default_ndvr_file",
+            title="Select NDVR/Mainframe Location File",
+            filetypes=[
+                ("Text Files", "*.txt *.dat *.csv"),
+                ("All Files", "*.*"),
+            ],
+            required=False,
+        )
         output_path = self.resolve_path(
             self.settings["files"].get(
                 "default_output_folder",
@@ -47,24 +73,8 @@ class AppContext:
             )
         )
 
-        if not input_path.exists():
-            selected_file = self.prompt_for_file(
-                title="Select Inventory Spreadsheet",
-                filetypes=[
-                    ("Excel Files", "*.xlsx *.xls"),
-                    ("All Files", "*.*"),
-                ],
-            )
-
-            if selected_file is None:
-                raise FileNotFoundError("No inventory spreadsheet was selected.")
-
-            input_path = selected_file
-
-            self.save_file_setting_if_needed(
-                key="default_input_file",
-                value=input_path,
-            )
+        if input_path is None:
+            raise FileNotFoundError("No inventory spreadsheet was selected.")
 
         self.input_file = Path(input_path)
         self.output_folder = Path(output_path)
@@ -76,9 +86,7 @@ class AppContext:
 
         self.location_service: MainframeLocationService | None = None
         
-        if (self.state.current_ndvr_path is not None 
-            and self.state.current_ndvr_path.exists()
-        ):
+        if self.state.current_ndvr_path is not None:
             self.load_location_file(self.state.current_ndvr_path)
 
         self.ui_settings = self.settings["ui"]
@@ -128,9 +136,6 @@ class AppContext:
             stats_service=self.stats_service,
         )
 
-        
-
-
     def load_location_file(
         self,
         file_path: str | Path,
@@ -149,6 +154,48 @@ class AppContext:
         )
 
         return service
+
+    def resolve_startup_file(
+        self,
+        key: str,
+        title: str,
+        filetypes: list[tuple[str, str]],
+        required: bool,
+        missing_message: str = "",
+    ) -> Path | None:
+        configured_value = str(
+            self.settings["files"].get(
+                key,
+                "",
+            )
+        ).strip()
+
+        configured_path = (
+            self.resolve_path(configured_value)
+            if configured_value
+            else None
+        )
+
+        if configured_path is not None and configured_path.exists():
+            return configured_path
+
+        selected_file = self.prompt_for_file(
+            title=title,
+            filetypes=filetypes,
+        )
+
+        if selected_file is None:
+            if required:
+                raise FileNotFoundError(missing_message)
+
+            return None
+
+        self.save_file_setting_if_needed(
+            key=key,
+            value=selected_file,
+        )
+
+        return selected_file
 
     def resolve_path(
         self,
