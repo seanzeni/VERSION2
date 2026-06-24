@@ -5,37 +5,34 @@ from app.core.models import InventoryIssue
 from app.core.models import ReleaseEffort
 from app.core.models import ScheduleStatus
 from app.core.status_messages import ReasonBuilder
+from app.services.validation_rules.base import ValidatorContext
 
 
 def apply(
-    elements: list[Element],
-    release_efforts: list[ReleaseEffort],
-    effort_release_lookup: dict[str, str],
-    release: str,
-    add_reason,
+    context: ValidatorContext,
 ) -> None:
     release_effort_ids = {
         effort.effort_id.strip()
-        for effort in release_efforts
+        for effort in context.release_efforts
         if effort.effort_id.strip()
     }
 
     no_inventory_effort_ids = {
         effort.effort_id.strip()
-        for effort in release_efforts
+        for effort in context.release_efforts
         if effort.no_inventory and effort.effort_id.strip()
     }
 
-    for element in elements:
+    for element in context.elements:
         effort_id = element.project.strip()
-        sql_release = effort_release_lookup.get(
+        sql_release = context.effort_release_lookup.get(
             effort_id,
         )
 
         if sql_release and sql_release.upper() != element.release.upper():
             element.schedule_status = ScheduleStatus.EFFORT_RELEASE_MISMATCH
 
-            add_reason(
+            context.add_reason(
                 element=element,
                 reason=ReasonBuilder.effort_release_mismatch(
                     project=element.project,
@@ -49,11 +46,11 @@ def apply(
         if effort_id in no_inventory_effort_ids:
             element.schedule_status = ScheduleStatus.INVENTORY_WHEN_SQL_NO_INVENTORY
 
-            add_reason(
+            context.add_reason(
                 element=element,
                 reason=ReasonBuilder.inventory_when_sql_no_inventory(
                     project=element.project,
-                    release=release,
+                    release=context.release,
                 ),
             )
 
@@ -62,11 +59,11 @@ def apply(
         if effort_id not in release_effort_ids:
             element.schedule_status = ScheduleStatus.INVENTORY_NOT_IN_RELEASE
 
-            add_reason(
+            context.add_reason(
                 element=element,
                 reason=ReasonBuilder.inventory_not_in_release(
                     project=element.project,
-                    release=release,
+                    release=context.release,
                 ),
             )
 

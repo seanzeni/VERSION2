@@ -3,11 +3,14 @@ from __future__ import annotations
 import pytest
 
 from app.services.validation_rules.base import require_rule_module
+from app.services.validation_rules.base import ValidatorContext
 
 
 class ValidRuleModule:
     @staticmethod
-    def apply() -> None:
+    def apply(
+        context: ValidatorContext,
+    ) -> None:
         return None
 
 
@@ -16,7 +19,10 @@ class InvalidRuleModule:
 
 
 def test_require_rule_module_accepts_apply_function() -> None:
-    assert require_rule_module(ValidRuleModule, "valid") is ValidRuleModule
+    rule_module = require_rule_module(ValidRuleModule, "valid")
+
+    assert rule_module is ValidRuleModule
+    assert rule_module.apply(ValidatorContext()) is None
 
 
 def test_require_rule_module_rejects_missing_apply() -> None:

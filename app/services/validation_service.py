@@ -32,6 +32,7 @@ from app.services.mainframe_location_service import MainframeLocationService
 from app.services.status_marker_service import StatusMarkerService
 from app.services.validation_rules import archive_rules as archive_rule_module
 from app.services.validation_rules.base import require_rule_module
+from app.services.validation_rules.base import ValidatorContext
 from app.services.validation_rules import fix_rules as fix_rule_module
 from app.services.validation_rules import inventory_rules as inventory_rule_module
 from app.services.validation_rules import location_rules as location_rule_module
@@ -138,13 +139,38 @@ class ValidationService:
         if reason and reason not in element.reasons:
             element.reasons.append(reason)
 
+    def _build_context(
+        self,
+        elements: list[Element] | None = None,
+        all_release_elements: list[Element] | None = None,
+        release_efforts: list[ReleaseEffort] | None = None,
+        effort_release_lookup: dict[str, str] | None = None,
+        release: str = "",
+        mode: str = "",
+        location_service: MainframeLocationService | None = None,
+    ) -> ValidatorContext:
+        return ValidatorContext(
+            elements=elements or [],
+            all_release_elements=all_release_elements or [],
+            release_efforts=release_efforts or [],
+            effort_release_lookup=effort_release_lookup or {},
+            release=release,
+            mode=mode,
+            selection_rules=self.selection_rules,
+            archive_pairs=self.archive_pairs,
+            location_service=location_service,
+            status_marker_service=self.status_marker_service,
+            add_reason=self.add_reason,
+        )
+
     def apply_overlap_duplicate_status(
         self,
         elements: list[Element],
     ) -> None:
         inventory_rule_module.apply(
-            elements=elements,
-            add_reason=self.add_reason,
+            self._build_context(
+                elements=elements,
+            ),
         )
 
     def apply_schedule_status(
@@ -155,11 +181,12 @@ class ValidationService:
         release: str,
     ) -> None:
         schedule_rule_module.apply(
-            elements=elements,
-            release_efforts=release_efforts,
-            effort_release_lookup=effort_release_lookup,
-            release=release,
-            add_reason=self.add_reason,
+            self._build_context(
+                elements=elements,
+                release_efforts=release_efforts,
+                effort_release_lookup=effort_release_lookup,
+                release=release,
+            ),
         )
 
     def apply_location_status(
@@ -169,11 +196,11 @@ class ValidationService:
         mode: str,
     ) -> None:
         location_rule_module.apply(
-            elements=elements,
-            location_service=location_service,
-            selection_rules_config=self.selection_rules,
-            mode=mode,
-            add_reason=self.add_reason,
+            self._build_context(
+                elements=elements,
+                location_service=location_service,
+                mode=mode,
+            ),
         )
 
     def apply_archive_status(
@@ -183,11 +210,11 @@ class ValidationService:
         mode: str,
     ) -> None:
         archive_rule_module.apply(
-            elements=elements,
-            location_service=location_service,
-            mode=mode,
-            archive_pairs=self.archive_pairs,
-            add_reason=self.add_reason,
+            self._build_context(
+                elements=elements,
+                location_service=location_service,
+                mode=mode,
+            ),
         )
 
     def apply_fixp1_status(
@@ -197,10 +224,11 @@ class ValidationService:
         mode: str,
     ) -> None:
         fix_rule_module.apply(
-            elements=elements,
-            location_service=location_service,
-            mode=mode,
-            add_reason=self.add_reason,
+            self._build_context(
+                elements=elements,
+                location_service=location_service,
+                mode=mode,
+            ),
         )
 
     def apply_movement_status(
@@ -210,11 +238,11 @@ class ValidationService:
         mode: str,
     ) -> None:
         movement_rule_module.apply(
-            elements=elements,
-            location_service=location_service,
-            status_marker_service=self.status_marker_service,
-            mode=mode,
-            add_reason=self.add_reason,
+            self._build_context(
+                elements=elements,
+                location_service=location_service,
+                mode=mode,
+            ),
         )
 
     def build_inventory_issues(
@@ -235,9 +263,10 @@ class ValidationService:
         mode: str = "",
     ) -> None:
         selection_rule_module.apply(
-            elements=elements,
-            selection_rules=self.selection_rules,
-            mode=mode,
+            self._build_context(
+                elements=elements,
+                mode=mode,
+            ),
         )
 
     def is_confirmed_already_in_target(

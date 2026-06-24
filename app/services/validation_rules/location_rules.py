@@ -7,42 +7,41 @@ from app.core.models import ScheduleStatus
 from app.core.status_messages import ReasonBuilder
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.validation_rules import selection_rules
+from app.services.validation_rules.base import ValidatorContext
 
 
 def apply(
-    elements: list[Element],
-    location_service: MainframeLocationService | None,
-    selection_rules_config: dict,
-    mode: str,
-    add_reason,
+    context: ValidatorContext,
 ) -> None:
+    location_service = context.location_service
+
     if location_service is None:
         return
 
-    for element in elements:
+    for element in context.elements:
         if element.movement_status == MovementStatus.DO_NOT_MOVE:
             continue
 
         if (
             selection_rules.is_archive_type_for_qual_move(
-                mode=mode,
+                mode=context.mode,
                 element=element,
-                selection_rules=selection_rules_config,
+                selection_rules=context.selection_rules,
             )
             and element.schedule_status == ScheduleStatus.OK
         ):
             continue
 
         expected_env = get_source_env_for_move(
-            mode=mode,
+            mode=context.mode,
             element=element,
         )
         expected_system = get_expected_system_for_move(
-            mode=mode,
+            mode=context.mode,
             element=element,
         )
         expected_subsystem = get_expected_subsystem_for_move(
-            mode=mode,
+            mode=context.mode,
             element=element,
         )
 
@@ -75,7 +74,7 @@ def apply(
 
         element.location_status = LocationStatus.NOT_FOUND
 
-        add_reason(
+        context.add_reason(
             element=element,
             reason=ReasonBuilder.missing_ndvr(
                 element=element.element,

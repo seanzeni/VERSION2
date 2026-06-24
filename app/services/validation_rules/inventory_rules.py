@@ -6,15 +6,15 @@ from app.core.models import Element
 from app.core.models import InventoryStatus
 from app.core.models import MovementStatus
 from app.core.status_messages import ReasonBuilder
+from app.services.validation_rules.base import ValidatorContext
 
 
 def apply(
-    elements: list[Element],
-    add_reason,
+    context: ValidatorContext,
 ) -> None:
     grouped: dict[tuple[str, str], list[Element]] = defaultdict(list)
 
-    for element in elements:
+    for element in context.elements:
         if element.movement_status != MovementStatus.DO_NOT_MOVE:
             grouped[element.key].append(element)
 
@@ -29,7 +29,7 @@ def apply(
             for element in group:
                 element.inventory_status = InventoryStatus.OVERLAP
 
-                add_reason(
+                context.add_reason(
                     element=element,
                     reason=ReasonBuilder.overlap(
                         element=element.element,
@@ -44,7 +44,7 @@ def apply(
                 )
 
                 if project_counts[element.project] > 1:
-                    add_reason(
+                    context.add_reason(
                         element=element,
                         reason=ReasonBuilder.duplicate(
                             element=element.element,
@@ -57,7 +57,7 @@ def apply(
             for element in group:
                 element.inventory_status = InventoryStatus.DUPLICATE
 
-                add_reason(
+                context.add_reason(
                     element=element,
                     reason=ReasonBuilder.duplicate(
                         element=element.element,

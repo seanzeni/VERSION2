@@ -7,22 +7,23 @@ from app.core.models import LocationStatus
 from app.core.models import MovementStatus
 from app.core.models import ScheduleStatus
 from app.core.package_rules import is_archive_package
+from app.services.validation_rules.base import ValidatorContext
 
 
 def apply(
-    elements: list[Element],
-    selection_rules: dict,
-    mode: str = "",
+    context: ValidatorContext,
 ) -> None:
-    for element in elements:
+    selection_rules = context.selection_rules
+
+    for element in context.elements:
         element.selected = True
         element.selectable = True
 
         if (
             is_archive_type_for_qual_move(
-                mode=mode,
+                mode=context.mode,
                 element=element,
-                selection_rules=selection_rules,
+                selection_rules=context.selection_rules,
             )
             and element.schedule_status == ScheduleStatus.OK
         ):

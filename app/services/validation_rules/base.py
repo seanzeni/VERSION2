@@ -13,8 +13,40 @@ Notes:
 
 from abc import ABC
 from abc import abstractmethod
-from typing import Any
+from collections.abc import Callable
+from dataclasses import dataclass
+from dataclasses import field
 from typing import Protocol
+
+from app.core.models import Element
+from app.core.models import ReleaseEffort
+from app.services.mainframe_location_service import MainframeLocationService
+from app.services.status_marker_service import StatusMarkerService
+
+
+AddReason = Callable[[Element, str], None]
+
+
+def _noop_add_reason(
+    element: Element,
+    reason: str,
+) -> None:
+    return None
+
+
+@dataclass(slots=True)
+class ValidatorContext:
+    elements: list[Element] = field(default_factory=list)
+    all_release_elements: list[Element] = field(default_factory=list)
+    release_efforts: list[ReleaseEffort] = field(default_factory=list)
+    effort_release_lookup: dict[str, str] = field(default_factory=dict)
+    release: str = ""
+    mode: str = ""
+    selection_rules: dict = field(default_factory=dict)
+    archive_pairs: list[list[str]] = field(default_factory=list)
+    location_service: MainframeLocationService | None = None
+    status_marker_service: StatusMarkerService | None = None
+    add_reason: AddReason = _noop_add_reason
 
 
 class ValidationRule(ABC):
@@ -23,8 +55,7 @@ class ValidationRule(ABC):
     @abstractmethod
     def apply(
         self,
-        *args: Any,
-        **kwargs: Any,
+        context: ValidatorContext,
     ) -> None:
         raise NotImplementedError
 
@@ -32,8 +63,7 @@ class ValidationRule(ABC):
 class RuleModule(Protocol):
     def apply(
         self,
-        *args: Any,
-        **kwargs: Any,
+        context: ValidatorContext,
     ) -> None:
         ...
 
