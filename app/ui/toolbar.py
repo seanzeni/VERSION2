@@ -187,10 +187,22 @@ class Toolbar(ctk.CTkFrame):
     ) -> str:
         return self.release_var.get().strip()
 
+    def set_release(
+        self,
+        release: str,
+    ) -> None:
+        self.release_var.set(str(release or ""))
+
     def get_mode(
         self,
     ) -> str:
         return self.mode_var.get().strip().upper()
+
+    def set_mode(
+        self,
+        mode: str,
+    ) -> None:
+        self.mode_var.set(str(mode or "PROD").strip().upper())
 
     def get_thread_count(
         self,

@@ -18,6 +18,7 @@ Notes:
     Keep report content in report classes.
 """
 
+from datetime import date
 from pathlib import Path
 from tkinter import filedialog
 from tkinter import messagebox
@@ -27,6 +28,10 @@ import customtkinter as ctk
 
 from app.core.app_context import AppContext
 from app.core.app_state import AppState
+from app.core.release_rules import all_prod_dates_before_today
+from app.core.release_rules import is_regular_release_name
+from app.core.release_rules import next_available_effort_ids
+from app.core.release_rules import parse_release_month
 from app.services.mainframe_location_service import MainframeLocationService
 from app.ui.action_bar import ActionBar
 from app.ui.element_table import ElementTable
@@ -179,8 +184,6 @@ class MainWindow(ctk.CTk):
         try:
             releases = self.context.data_loader.get_releases()
             self.toolbar.set_releases(releases)
-            if releases and self.context.ui_settings.get("auto_select_first_release", True):
-                self.on_release_changed(releases[0])
 
             self.status_bar.set_source_status(
                 source_name="Excel",
@@ -194,7 +197,7 @@ class MainWindow(ctk.CTk):
             if releases and self.context.ui_settings.get(
                 "auto_select_first_release", True
             ):
-                self.on_release_changed(releases[0])
+                self.select_default_release(releases)
 
         except Exception as exc:
             self.status_bar.set_source_status(
@@ -327,6 +330,59 @@ class MainWindow(ctk.CTk):
             inventory_effort_ids=self.app_state.inventory_effort_ids,
             inventory_not_in_sql_ids=inventory_not_in_sql_ids,
         )
+
+    def select_default_release(
+        self,
+        releases: list[str],
+    ) -> None:
+        today = date.today()
+        selected_release = self._find_default_release(
+            releases=releases,
+            today=today,
+        )
+
+        if selected_release is None:
+            selected_release = releases[0]
+
+        self.toolbar.set_release(selected_release)
+        self.on_release_changed(selected_release)
+        self.select_next_available_efforts(today)
+
+    def _find_default_release(
+        self,
+        releases: list[str],
+        today: date,
+    ) -> str | None:
+        candidates = [
+            release
+            for release in releases
+            if is_regular_release_name(release)
+            and parse_release_month(release) is not None
+            and parse_release_month(release) >= (today.year, today.month)
+        ]
+
+        for release in sorted(candidates, key=lambda item: parse_release_month(item) or (9999, 99)):
+            efforts = self.context.db_service.get_efforts_for_release(release)
+
+            if all_prod_dates_before_today(efforts, today):
+                continue
+
+            return release
+
+        return None
+
+    def select_next_available_efforts(
+        self,
+        today: date,
+    ) -> None:
+        effort_ids = next_available_effort_ids(
+            efforts=self.app_state.release_efforts,
+            mode=self.app_state.mode,
+            today=today,
+        )
+
+        if effort_ids:
+            self.release_tree.select_efforts(effort_ids)
 
     def _build_effort_dates(
         self,
@@ -466,6 +522,7 @@ class MainWindow(ctk.CTk):
             report_registry=self.context.report_registry,
             app_state=self.app_state,
             base_output_folder=self.context.output_folder,
+            context=self.context,
         )
 
     def on_refresh(

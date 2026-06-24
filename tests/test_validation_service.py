@@ -170,6 +170,22 @@ def test_missing_location_status() -> None:
     assert element.location_status == LocationStatus.NOT_FOUND
 
 
+def test_validate_elements_can_skip_location_validation_for_forecast() -> None:
+    element = make_element()
+    validated, _issues = make_service().validate_elements(
+        elements=[element],
+        all_release_elements=[element],
+        release_efforts=[ReleaseEffort(effort_id="ABC")],
+        effort_release_lookup={},
+        location_service=FakeLocationService(set()),
+        mode="PROD",
+        release="REL1",
+        skip_location_validation=True,
+    )
+
+    assert validated[0].location_status == LocationStatus.OK
+
+
 def test_found_location_status() -> None:
     element = make_element()
     make_service().apply_location_status(

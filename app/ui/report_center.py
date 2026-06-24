@@ -29,6 +29,7 @@ import customtkinter as ctk
 
 from app.reports.report_utils import get_date_folder
 from app.reports.report_utils import archive_existing_reports
+from app.services.forecast_service import ForecastService
 
 
 class ReportCenter(ctk.CTkToplevel):
@@ -38,12 +39,14 @@ class ReportCenter(ctk.CTkToplevel):
         report_registry,
         app_state,
         base_output_folder: Path,
+        context=None,
     ) -> None:
         super().__init__(parent)
 
         self.report_registry = report_registry
         self.app_state = app_state
         self.base_output_folder = Path(base_output_folder)
+        self.context = context
 
         self.title("Report Center")
         self.geometry("720x620")
@@ -108,6 +111,13 @@ class ReportCenter(ctk.CTkToplevel):
             button_bar,
             text="Generate Selected",
             command=self.generate_selected,
+            width=160,
+        ).pack(side="left", padx=(0, 8))
+
+        ctk.CTkButton(
+            button_bar,
+            text="Generate Forecast",
+            command=self.generate_forecast,
             width=160,
         ).pack(side="left", padx=(0, 8))
 
@@ -353,3 +363,72 @@ class ReportCenter(ctk.CTkToplevel):
             result_text = "No report files were generated."
 
         self.results_var.set(result_text)
+
+    def generate_forecast(
+        self,
+    ) -> None:
+        if self.context is None:
+            messagebox.showerror(
+                "Forecast Error",
+                "Forecast generation is not available without application context.",
+            )
+            return
+
+        formats = self.get_selected_formats()
+        if not formats:
+            messagebox.showwarning(
+                "No Output Format Selected",
+                "Select CSV, PDF, or both.",
+            )
+            return
+
+        service = ForecastService(
+            context=self.context,
+            report_registry=self.report_registry,
+        )
+
+        report_names = service.get_enabled_report_names()
+        if not report_names:
+            messagebox.showwarning(
+                "No Forecast Reports Enabled",
+                "Enable at least one report in settings.json reports.forecast_reports.",
+            )
+            return
+
+        self.progress_bar.set(0)
+        self.current_report_var.set("Generating 3 month forecast...")
+        self.results_var.set("")
+        self.update_idletasks()
+
+        try:
+            results = service.generate_forecast(
+                base_output_folder=Path(self.output_folder_var.get()),
+                formats=formats,
+                include_empty=self.include_empty_var.get(),
+            )
+        except PermissionError as exc:
+            messagebox.showerror(
+                "Report File In Use",
+                str(exc),
+            )
+            return
+
+        self.progress_bar.set(1)
+        self.current_report_var.set("Forecast Complete")
+
+        generated_files = [
+            path
+            for result in results
+            for path in result.generated_files
+        ]
+
+        if generated_files:
+            self.results_var.set(
+                "Forecast generated:\n"
+                + "\n".join(
+                    f"{result.release} {result.mode}: {len(result.generated_files)} files"
+                    for result in results
+                )
+            )
+        else:
+            self.results_var.set("No forecast report files were generated.")

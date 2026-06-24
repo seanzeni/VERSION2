@@ -61,6 +61,7 @@ class ValidationService:
         location_service: MainframeLocationService | None,
         mode: str,
         release: str,
+        skip_location_validation: bool = False,
     ) -> tuple[list[Element], list[InventoryIssue]]:
 
         self.apply_movement_status(
@@ -80,11 +81,12 @@ class ValidationService:
             release=release,
         )
 
-        self.apply_location_status(
-            elements=elements,
-            location_service=location_service,
-            mode=mode,
-        )
+        if not skip_location_validation:
+            self.apply_location_status(
+                elements=elements,
+                location_service=location_service,
+                mode=mode,
+            )
 
         self.apply_archive_status(
             elements=elements,

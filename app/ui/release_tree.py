@@ -275,6 +275,22 @@ class ReleaseTree(ctk.CTkFrame):
             )
             return
 
+    def select_efforts(
+        self,
+        effort_ids: set[str],
+    ) -> None:
+        self.tree.selection_remove(
+            self.tree.selection(),
+        )
+
+        for item_id, effort_id in self.effort_lookup.items():
+            if effort_id in effort_ids:
+                self.tree.selection_add(item_id)
+
+        self.on_selection_changed(
+            self.get_selected_efforts(),
+        )
+
     def _selection_changed(
         self,
         _event,
