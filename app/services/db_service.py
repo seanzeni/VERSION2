@@ -186,7 +186,7 @@ class DBService:
         FROM Efforts e
         INNER JOIN Bundles b
             ON CAST(e.BundleSequence AS VARCHAR(50)) = CAST(b.Sequence AS VARCHAR(50))
-        WHERE LOWER(LTRIM(RTRIM(e.Id))) = LOWER(?)
+        WHERE LOWER(LTRIM(RTRIM(e.Id))) = LOWER(?) AND e.BundleExitDate is Null
         """
 
         with self.get_connection() as conn:
