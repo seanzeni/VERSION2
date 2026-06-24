@@ -44,6 +44,9 @@ def apply(
         if element.movement_status == MovementStatus.DO_NOT_MOVE:
             continue
 
+        if element.project.strip() in context.skip_location_validation_effort_ids:
+            continue
+
         if (
             selection_rules.is_archive_type_for_qual_move(
                 mode=context.mode,

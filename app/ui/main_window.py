@@ -28,10 +28,8 @@ import customtkinter as ctk
 
 from app.core.app_context import AppContext
 from app.core.app_state import AppState
-from app.core.release_rules import all_prod_dates_before_today
-from app.core.release_rules import is_regular_release_name
+from app.core.release_rules import next_release_choice
 from app.core.release_rules import next_available_effort_ids
-from app.core.release_rules import parse_release_month
 from app.services.mainframe_location_service import MainframeLocationService
 from app.ui.action_bar import ActionBar
 from app.ui.element_table import ElementTable
@@ -336,50 +334,40 @@ class MainWindow(ctk.CTk):
         releases: list[str],
     ) -> None:
         today = date.today()
-        selected_release = self._find_default_release(
+        selected_choice = next_release_choice(
             releases=releases,
+            get_efforts_for_release=self.context.db_service.get_efforts_for_release,
             today=today,
         )
 
-        if selected_release is None:
+        if selected_choice is None:
             selected_release = releases[0]
+            selected_mode = self.toolbar.get_mode()
+            selected_effort_ids: set[str] = set()
+        else:
+            selected_release = selected_choice.release
+            selected_mode = selected_choice.mode
+            selected_effort_ids = selected_choice.effort_ids
 
+        self.toolbar.set_mode(selected_mode)
         self.toolbar.set_release(selected_release)
         self.on_release_changed(selected_release)
-        self.select_next_available_efforts(today)
-
-    def _find_default_release(
-        self,
-        releases: list[str],
-        today: date,
-    ) -> str | None:
-        candidates = [
-            release
-            for release in releases
-            if is_regular_release_name(release)
-            and parse_release_month(release) is not None
-            and parse_release_month(release) >= (today.year, today.month)
-        ]
-
-        for release in sorted(candidates, key=lambda item: parse_release_month(item) or (9999, 99)):
-            efforts = self.context.db_service.get_efforts_for_release(release)
-
-            if all_prod_dates_before_today(efforts, today):
-                continue
-
-            return release
-
-        return None
+        self.select_next_available_efforts(
+            today=today,
+            effort_ids=selected_effort_ids,
+        )
 
     def select_next_available_efforts(
         self,
         today: date,
+        effort_ids: set[str] | None = None,
     ) -> None:
-        effort_ids = next_available_effort_ids(
-            efforts=self.app_state.release_efforts,
-            mode=self.app_state.mode,
-            today=today,
-        )
+        if effort_ids is None:
+            effort_ids = next_available_effort_ids(
+                efforts=self.app_state.release_efforts,
+                mode=self.app_state.mode,
+                today=today,
+            )
 
         if effort_ids:
             self.release_tree.select_efforts(effort_ids)

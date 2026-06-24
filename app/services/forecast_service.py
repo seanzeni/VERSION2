@@ -7,10 +7,8 @@ from typing import Any
 
 from app.core.app_state import AppState
 from app.core.release_rules import ForecastRelease
-from app.core.release_rules import all_prod_dates_before_today
 from app.core.release_rules import forecast_months
-from app.core.release_rules import has_future_or_today_date
-from app.core.release_rules import is_regular_release_name
+from app.core.release_rules import is_forecast_release_name
 from app.core.release_rules import mode_date
 from app.core.release_rules import month_key
 from app.core.release_rules import parse_release_month
@@ -59,24 +57,9 @@ class ForecastService:
         today: date,
     ) -> list[ForecastRelease]:
         releases = self.context.data_loader.get_releases()
-        include_current_month = True
-
-        current_regular_releases = [
-            release
-            for release in releases
-            if is_regular_release_name(release)
-            and parse_release_month(release) == (today.year, today.month)
-        ]
-
-        for release in current_regular_releases:
-            efforts = self.context.db_service.get_efforts_for_release(release)
-            if all_prod_dates_before_today(efforts, today):
-                include_current_month = False
-                break
 
         wanted_months = forecast_months(
             today=today,
-            include_current_month=include_current_month,
         )
 
         forecast_items: list[ForecastRelease] = []
@@ -89,7 +72,7 @@ class ForecastService:
             if release_month not in wanted_months:
                 continue
 
-            if not is_regular_release_name(release):
+            if not is_forecast_release_name(release):
                 continue
 
             efforts = self.context.db_service.get_efforts_for_release(release)
@@ -118,6 +101,7 @@ class ForecastService:
                         month_key=month_key(*release_month),
                         mode="QUAL",
                         bypass_location_validation=False,
+                        bypass_location_validation_effort_ids=set(),
                         effort_ids=qual_ids | inventory_not_in_sql_ids,
                     )
                 )
@@ -131,15 +115,23 @@ class ForecastService:
             }
 
             if prod_ids or inventory_not_in_sql_ids:
+                bypass_location_validation_effort_ids = {
+                    effort.effort_id.strip()
+                    for effort in efforts
+                    if effort.effort_id.strip()
+                    and effort.effort_id.strip() in prod_ids
+                    and (mode_date(effort, "QUAL") is not None)
+                    and mode_date(effort, "QUAL") >= today
+                }
+
                 forecast_items.append(
                     ForecastRelease(
                         release=release,
                         month_key=month_key(*release_month),
                         mode="PROD",
-                        bypass_location_validation=has_future_or_today_date(
-                            efforts=efforts,
-                            mode="QUAL",
-                            today=today,
+                        bypass_location_validation=False,
+                        bypass_location_validation_effort_ids=(
+                            bypass_location_validation_effort_ids
                         ),
                         effort_ids=prod_ids | inventory_not_in_sql_ids,
                     )
@@ -239,6 +231,9 @@ class ForecastService:
                 mode=mode,
                 release=release,
                 skip_location_validation=forecast_release.bypass_location_validation,
+                skip_location_validation_effort_ids=(
+                    forecast_release.bypass_location_validation_effort_ids
+                ),
             )
         )
 

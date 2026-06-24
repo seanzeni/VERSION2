@@ -18,6 +18,14 @@ class ForecastRelease:
     month_key: str
     mode: str
     bypass_location_validation: bool
+    bypass_location_validation_effort_ids: set[str]
+    effort_ids: set[str]
+
+
+@dataclass(frozen=True, slots=True)
+class NextReleaseChoice:
+    release: str
+    mode: str
     effort_ids: set[str]
 
 
@@ -56,16 +64,14 @@ def add_months(
 
 def forecast_months(
     today: date,
-    include_current_month: bool = True,
 ) -> set[tuple[int, int]]:
-    start_offset = 0 if include_current_month else 1
     first_month = date(today.year, today.month, 1)
     return {
         (
-            add_months(first_month, start_offset + offset).year,
-            add_months(first_month, start_offset + offset).month,
+            add_months(first_month, offset).year,
+            add_months(first_month, offset).month,
         )
-        for offset in range(3)
+        for offset in range(4)
     }
 
 
@@ -76,6 +82,16 @@ def is_regular_release_name(
     return (
         parse_release_month(clean_release) is not None
         and "release" in clean_release
+        and "special" not in clean_release
+    )
+
+
+def is_forecast_release_name(
+    release: str,
+) -> bool:
+    clean_release = str(release).strip().lower()
+    return (
+        parse_release_month(clean_release) is not None
         and "special" not in clean_release
     )
 
@@ -152,22 +168,69 @@ def next_available_effort_ids(
     }
 
 
-def has_future_or_today_date(
-    efforts: list[ReleaseEffort],
-    mode: str,
+def next_release_choice(
+    releases: list[str],
+    get_efforts_for_release,
     today: date,
-) -> bool:
-    return bool(next_available_effort_ids(efforts, mode, today))
+) -> NextReleaseChoice | None:
+    choices: list[tuple[date, tuple[int, int], int, str, str, set[str]]] = []
 
+    for release in releases:
+        release_month = parse_release_month(release)
+        if release_month is None or not is_regular_release_name(release):
+            continue
 
-def all_prod_dates_before_today(
-    efforts: list[ReleaseEffort],
-    today: date,
-) -> bool:
-    prod_dates = [
-        mode_date(effort, "PROD")
-        for effort in efforts
-        if effort.effort_id.strip()
-    ]
-    prod_dates = [value for value in prod_dates if value is not None]
-    return bool(prod_dates) and all(value < today for value in prod_dates)
+        efforts = get_efforts_for_release(release)
+
+        for mode_priority, mode in enumerate(("QUAL", "PROD")):
+            effort_ids = next_available_effort_ids(
+                efforts=efforts,
+                mode=mode,
+                today=today,
+            )
+
+            if not effort_ids:
+                continue
+
+            move_dates = [
+                mode_date(
+                    effort=effort,
+                    mode=mode,
+                )
+                for effort in efforts
+                if effort.effort_id.strip() in effort_ids
+            ]
+            move_dates = [value for value in move_dates if value is not None]
+
+            if not move_dates:
+                continue
+
+            choices.append(
+                (
+                    min(move_dates),
+                    release_month,
+                    mode_priority,
+                    release,
+                    mode,
+                    effort_ids,
+                )
+            )
+
+    if not choices:
+        return None
+
+    _move_date, _release_month, _mode_priority, release, mode, effort_ids = min(
+        choices,
+        key=lambda item: (
+            item[0],
+            item[1],
+            item[2],
+            item[3],
+        ),
+    )
+
+    return NextReleaseChoice(
+        release=release,
+        mode=mode,
+        effort_ids=effort_ids,
+    )

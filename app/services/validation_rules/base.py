@@ -57,6 +57,7 @@ class ValidatorContext:
     mode: str = ""
     selection_rules: dict = field(default_factory=dict)
     archive_pairs: list[list[str]] = field(default_factory=list)
+    skip_location_validation_effort_ids: set[str] = field(default_factory=set)
     location_service: MainframeLocationService | None = None
     status_marker_service: StatusMarkerService | None = None
     add_reason: AddReason = _noop_add_reason

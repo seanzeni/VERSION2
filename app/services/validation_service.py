@@ -86,6 +86,7 @@ class ValidationService:
         mode: str,
         release: str,
         skip_location_validation: bool = False,
+        skip_location_validation_effort_ids: set[str] | None = None,
     ) -> tuple[list[Element], list[InventoryIssue]]:
 
         self.apply_movement_status(
@@ -110,6 +111,9 @@ class ValidationService:
                 elements=elements,
                 location_service=location_service,
                 mode=mode,
+                skip_location_validation_effort_ids=(
+                    skip_location_validation_effort_ids or set()
+                ),
             )
 
         self.apply_archive_status(
@@ -154,6 +158,7 @@ class ValidationService:
         release: str = "",
         mode: str = "",
         location_service: MainframeLocationService | None = None,
+        skip_location_validation_effort_ids: set[str] | None = None,
     ) -> ValidatorContext:
         return ValidatorContext(
             elements=elements or [],
@@ -164,6 +169,9 @@ class ValidationService:
             mode=mode,
             selection_rules=self.selection_rules,
             archive_pairs=self.archive_pairs,
+            skip_location_validation_effort_ids=(
+                skip_location_validation_effort_ids or set()
+            ),
             location_service=location_service,
             status_marker_service=self.status_marker_service,
             add_reason=self.add_reason,
@@ -200,12 +208,16 @@ class ValidationService:
         elements: list[Element],
         location_service: MainframeLocationService | None,
         mode: str,
+        skip_location_validation_effort_ids: set[str] | None = None,
     ) -> None:
         location_rule_module.apply(
             self._build_context(
                 elements=elements,
                 location_service=location_service,
                 mode=mode,
+                skip_location_validation_effort_ids=(
+                    skip_location_validation_effort_ids or set()
+                ),
             ),
         )
 
