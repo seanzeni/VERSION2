@@ -43,6 +43,13 @@ def test_release_inventory_report_missing_inventory(tmp_path: Path) -> None:
     assert read_csv(output)[0]['Inventory Status'] == 'Missing Inventory'
     make_writable(output)
 
+def test_release_inventory_report_withdrawn_inventory_notification(tmp_path: Path) -> None:
+    output=ReleaseInventoryReport().generate('REL1','PROD',1,[make_element(project='ABC')],[],[ReleaseEffort(effort_id='ABC', exit_date='2026-06-24')],tmp_path)
+    rows=read_csv(output)
+    assert rows[0]['Inventory Status'] == 'Unexpected Inventory'
+    assert 'withdrawn' in rows[0]['Reason']
+    make_writable(output)
+
 def test_osg_cops_report_filters_selected_visible_o_or_x(tmp_path: Path) -> None:
     output=OsgCopsReport().generate([make_element(name='OPGM001', type_='OCOB'), make_element(name='APGM001', type_='JCL'), make_element(name='XPGM001', type_='XCOB', visible=False)], tmp_path, 'PROD')
     rows=read_csv(output)

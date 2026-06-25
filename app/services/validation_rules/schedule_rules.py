@@ -45,6 +45,12 @@ def apply(
         if effort.no_inventory and effort.effort_id.strip()
     }
 
+    withdrawn_effort_ids = {
+        effort.effort_id.strip()
+        for effort in context.release_efforts
+        if effort.withdrawn and effort.effort_id.strip()
+    }
+
     for element in context.elements:
         effort_id = element.project.strip()
         sql_release = context.effort_release_lookup.get(
@@ -65,7 +71,7 @@ def apply(
 
             continue
 
-        if effort_id in no_inventory_effort_ids:
+        if effort_id in no_inventory_effort_ids or effort_id in withdrawn_effort_ids:
             element.schedule_status = ScheduleStatus.INVENTORY_WHEN_SQL_NO_INVENTORY
 
             context.add_reason(
@@ -110,6 +116,9 @@ def build_inventory_issues(
             continue
 
         if effort.no_inventory:
+            continue
+
+        if effort.withdrawn:
             continue
 
         if effort_id not in inventory_effort_ids:

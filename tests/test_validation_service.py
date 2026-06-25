@@ -156,6 +156,14 @@ def test_no_inventory_with_inventory_status() -> None:
     assert element.schedule_status == ScheduleStatus.INVENTORY_WHEN_SQL_NO_INVENTORY
 
 
+def test_withdrawn_effort_with_inventory_status() -> None:
+    element = make_element(project="ABC")
+    make_service().apply_schedule_status(
+        [element], [ReleaseEffort(effort_id="ABC", exit_date="2026-06-24")], {}, "REL1"
+    )
+    assert element.schedule_status == ScheduleStatus.INVENTORY_WHEN_SQL_NO_INVENTORY
+
+
 def test_wrong_release_status() -> None:
     element = make_element(project="ABC", release="REL1")
     make_service().apply_schedule_status(
@@ -453,3 +461,10 @@ def test_build_inventory_issues_for_missing_expected_inventory() -> None:
     )
     assert len(issues) == 1
     assert issues[0].issue_type == ScheduleStatus.SQL_EXPECTED_INVENTORY_MISSING
+
+
+def test_build_inventory_issues_ignores_withdrawn_missing_inventory() -> None:
+    issues = make_service().build_inventory_issues(
+        "REL1", [], [ReleaseEffort(effort_id="ABC", exit_date="2026-06-24")]
+    )
+    assert issues == []

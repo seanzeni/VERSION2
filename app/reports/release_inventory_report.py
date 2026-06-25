@@ -96,7 +96,7 @@ class ReleaseInventoryReport:
             element_count = len(project_elements)
             effort = efforts_by_id.get(project)
 
-            if effort is not None and effort.no_inventory:
+            if effort is not None and (effort.no_inventory or effort.withdrawn):
                 rows.append(
                     [
                         generated_at,
@@ -106,7 +106,11 @@ class ReleaseInventoryReport:
                         project,
                         "Unexpected Inventory",
                         element_count,
-                        "SQL marks this project as no inventory, but inventory rows were found.",
+                        (
+                            "SQL marks this project as withdrawn, but inventory rows were found."
+                            if effort.withdrawn
+                            else "SQL marks this project as no inventory, but inventory rows were found."
+                        ),
                         release,
                         first_element.release,
                     ]
@@ -305,7 +309,7 @@ class ReleaseInventoryReport:
             element_count = len(project_elements)
             effort = efforts_by_id.get(project)
 
-            if effort is not None and effort.no_inventory:
+            if effort is not None and (effort.no_inventory or effort.withdrawn):
                 rows.append(
                     [
                         generated_at,
@@ -315,7 +319,11 @@ class ReleaseInventoryReport:
                         project,
                         "Unexpected Inventory",
                         element_count,
-                        "SQL marks this project as no inventory, but inventory rows were found.",
+                        (
+                            "SQL marks this project as withdrawn, but inventory rows were found."
+                            if effort.withdrawn
+                            else "SQL marks this project as no inventory, but inventory rows were found."
+                        ),
                         release,
                         first_element.release,
                     ]
@@ -386,3 +394,5 @@ class ReleaseInventoryReport:
             grouped[element.project].append(element)
 
         return dict(grouped)
+
+

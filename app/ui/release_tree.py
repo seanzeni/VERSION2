@@ -178,6 +178,7 @@ class ReleaseTree(ctk.CTkFrame):
                     parent=withdrawn_node,
                     effort=effort,
                     inventory_effort_ids=inventory_effort_ids,
+                    show_status_children=False,
                 )
 
         if inventory_not_in_sql_ids:
