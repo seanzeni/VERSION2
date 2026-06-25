@@ -1,7 +1,12 @@
 from __future__ import annotations
 from pathlib import Path
 import csv
-from app.core.models import ArchiveStatus, Element, InventoryIssue, ReleaseEffort, ScheduleStatus
+from app.core.models import ArchiveStatus
+from app.core.models import Element
+from app.core.models import InventoryIssue
+from app.core.models import MovementStatus
+from app.core.models import ReleaseEffort
+from app.core.models import ScheduleStatus
 from app.reports.effort_summary_report import EffortSummaryReport
 from app.reports.issues_report import IssuesReport
 from app.reports.osg_cops_report import OsgCopsReport
@@ -42,6 +47,45 @@ def test_effort_summary_report_generates_rows(tmp_path: Path) -> None:
     assert len(detail_rows)==2
     assert {row['Type'] for row in detail_rows} == {'OCOB', 'OAPS'}
     assert all(row['Schedule Status']=='OK' for row in detail_rows)
+    make_writable(output)
+
+def test_effort_summary_report_includes_hidden_inventory_details(tmp_path: Path) -> None:
+    hidden = make_element(
+        name='OPGM003',
+        project='ABC',
+        selected=False,
+        visible=False,
+    )
+    hidden.movement_status = MovementStatus.DO_NOT_MOVE
+    hidden.reasons.append('Hidden from this move by marker')
+
+    output=EffortSummaryReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB'), hidden], tmp_path, 'PROD', 1)
+    rows=read_csv(output)
+    summary_rows=[row for row in rows if row['Row Type']=='Effort Summary']
+    detail_rows=[row for row in rows if row['Row Type']=='Inventory Detail']
+
+    assert summary_rows[0]['Selected Elements']=='1'
+    assert {row['Element'] for row in detail_rows} == {'OPGM001', 'OPGM003'}
+    hidden_row=next(row for row in detail_rows if row['Element']=='OPGM003')
+    assert hidden_row['Selected']=='False'
+    assert hidden_row['Visible']=='False'
+    assert hidden_row['Movement Status']=='DO_NOT_MOVE'
+    assert hidden_row['Reasons']=='Hidden from this move by marker'
+    make_writable(output)
+
+def test_effort_summary_report_includes_hidden_only_effort(tmp_path: Path) -> None:
+    hidden = make_element(
+        name='OPGM004',
+        project='HIDDEN',
+        selected=False,
+        visible=False,
+    )
+
+    output=EffortSummaryReport(make_stats_service()).generate([hidden], tmp_path, 'PROD', 1)
+    rows=read_csv(output)
+
+    assert [row['Project'] for row in rows if row['Row Type']=='Effort Summary'] == ['HIDDEN']
+    assert [row['Element'] for row in rows if row['Row Type']=='Inventory Detail'] == ['OPGM004']
     make_writable(output)
 
 def test_release_estimate_report_generates_total(tmp_path: Path) -> None:

@@ -8,11 +8,12 @@ Used By:
     Reports dialog
 
 Responsibilities:
-    - Group visible elements by effort/project.
+    - Group inventory elements by effort/project.
     - Count selected elements.
     - Count errors, warnings, and info statuses.
     - Count selected elements by workload category.
     - Calculate estimated time per effort.
+    - Include hidden inventory rows in detail output for auditability.
 """
 
 from collections import defaultdict
@@ -55,9 +56,6 @@ class EffortSummaryReport:
         grouped: dict[str, list[Element]] = defaultdict(list)
 
         for element in elements:
-            if not element.visible:
-                continue
-
             grouped[element.project].append(element)
 
         rows: list[list[object]] = []
@@ -69,7 +67,7 @@ class EffortSummaryReport:
                 element for element in project_elements if element.selected
             ]
 
-            if not selected_elements and not include_empty:
+            if not project_elements and not include_empty:
                 continue
 
             estimate = self.stats_service.build_estimate(
@@ -182,7 +180,7 @@ class EffortSummaryReport:
                 element for element in project_elements if element.selected
             ]
 
-            if not selected_elements and not include_empty:
+            if not project_elements and not include_empty:
                 continue
 
             detail_projects.append(project)
@@ -252,7 +250,7 @@ class EffortSummaryReport:
                     element.display_reason,
                 ]
                 for element in project_elements
-                if element.visible and element.display_reason
+                if element.display_reason
             ]
             story.append(
                 build_table(
@@ -271,9 +269,6 @@ class EffortSummaryReport:
         grouped: dict[str, list[Element]] = defaultdict(list)
 
         for element in elements:
-            if not element.visible:
-                continue
-
             grouped[element.project].append(element)
 
         return grouped
@@ -286,5 +281,5 @@ class EffortSummaryReport:
         return sum(
             1
             for element in elements
-            if element.visible and element.severity == severity
+            if element.severity == severity
         )
