@@ -118,6 +118,7 @@ class ReleaseEstimateReport:
             rows.append(
                 [
                     move_date,
+                    thread_count,
                     selected_count,
                     category_counts.get("JCL", 0),
                     category_counts.get("NON_COMPILE", 0),
@@ -139,6 +140,7 @@ class ReleaseEstimateReport:
             rows.append(
                 [
                     "TOTAL",
+                    thread_count,
                     total_selected,
                     total_category_counts.get("JCL", 0),
                     total_category_counts.get("NON_COMPILE", 0),
@@ -160,6 +162,7 @@ class ReleaseEstimateReport:
             output_path=report_path,
             headers=[
                 "Move Date",
+                "Thread Count",
                 "Selected Elements",
                 "JCL Count",
                 "Non Compile Count",
@@ -220,6 +223,7 @@ class ReleaseEstimateReport:
                 [
                     project,
                     effort_dates.get(project, "Unknown"),
+                    thread_count,
                     selected_count,
                     category_counts.get("JCL", 0),
                     category_counts.get("NON_COMPILE", 0),
@@ -236,6 +240,7 @@ class ReleaseEstimateReport:
                 [
                     "TOTAL",
                     "",
+                    thread_count,
                     total_selected,
                     "",
                     "",
@@ -254,6 +259,7 @@ class ReleaseEstimateReport:
                 headers=[
                     "Effort",
                     "Move Date",
+                    "Thread Count",
                     "Selected",
                     "JCL",
                     "Non Compile",
@@ -263,7 +269,7 @@ class ReleaseEstimateReport:
                     "Linkdeck",
                     "Estimate",
                 ],
-                rows=rows or [["", "", 0, "", "", "", "", "", "", "00:00"]],
+                rows=rows or [["", "", thread_count, 0, "", "", "", "", "", "", "00:00"]],
             ),
         ]
 

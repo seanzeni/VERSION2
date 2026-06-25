@@ -45,13 +45,17 @@ def test_effort_summary_report_generates_rows(tmp_path: Path) -> None:
     make_writable(output)
 
 def test_release_estimate_report_generates_total(tmp_path: Path) -> None:
-    output=ReleaseEstimateReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB')], {'ABC':'2026-06-22'}, tmp_path, 'PROD', 1)
-    assert read_csv(output)[-1]['Move Date'] == 'TOTAL'
+    output=ReleaseEstimateReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB')], {'ABC':'2026-06-22'}, tmp_path, 'PROD', 3)
+    rows=read_csv(output)
+    assert rows[-1]['Move Date'] == 'TOTAL'
+    assert rows[-1]['Thread Count'] == '3'
     make_writable(output)
 
 def test_release_inventory_report_missing_inventory(tmp_path: Path) -> None:
     output=ReleaseInventoryReport().generate('REL1','PROD',1,[],[InventoryIssue(release='REL1', effort_id='ABC', issue_type=ScheduleStatus.SQL_EXPECTED_INVENTORY_MISSING, reason='Missing inventory')],[ReleaseEffort(effort_id='ABC')],tmp_path)
-    assert read_csv(output)[0]['Inventory Status'] == 'Missing Inventory'
+    rows=read_csv(output)
+    assert rows[0]['Inventory Status'] == 'Missing Inventory'
+    assert 'Thread Count' not in rows[0]
     make_writable(output)
 
 def test_release_inventory_report_withdrawn_inventory_notification(tmp_path: Path) -> None:

@@ -52,6 +52,19 @@ class ForecastService:
             if bool(configured.get(report_name, False))
         ]
 
+    def get_forecast_thread_count(
+        self,
+    ) -> int:
+        return int(
+            self.context.settings.get(
+                "reports",
+                {},
+            ).get(
+                "forecast_thread_count",
+                5,
+            )
+        )
+
     def build_forecast_releases(
         self,
         today: date,
@@ -240,7 +253,7 @@ class ForecastService:
         state = AppState(
             release=release,
             mode=mode,
-            thread_count=self.context.state.thread_count,
+            thread_count=self.get_forecast_thread_count(),
             current_xls_path=self.context.state.current_xls_path,
             current_ndvr_path=self.context.state.current_ndvr_path,
             selected_effort_ids=set(forecast_release.effort_ids),

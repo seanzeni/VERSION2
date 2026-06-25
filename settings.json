@@ -9,6 +9,7 @@
 
   "reports": {
     "include_empty_reports_default": true,
+    "forecast_thread_count": 5,
     "forecast_reports": {
       "Effort Summary Report": true,
       "Issues Report": true,

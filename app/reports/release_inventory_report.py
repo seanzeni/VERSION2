@@ -73,7 +73,6 @@ class ReleaseInventoryReport:
                     generated_at,
                     release,
                     mode,
-                    thread_count,
                     issue.effort_id,
                     "Missing Inventory",
                     0,
@@ -102,7 +101,6 @@ class ReleaseInventoryReport:
                         generated_at,
                         release,
                         mode,
-                        thread_count,
                         project,
                         "Unexpected Inventory",
                         element_count,
@@ -123,7 +121,6 @@ class ReleaseInventoryReport:
                         generated_at,
                         release,
                         mode,
-                        thread_count,
                         project,
                         "Inventory Not In Release",
                         element_count,
@@ -140,7 +137,6 @@ class ReleaseInventoryReport:
                         generated_at,
                         release,
                         mode,
-                        thread_count,
                         project,
                         "Potential Wrong Release",
                         element_count,
@@ -156,7 +152,6 @@ class ReleaseInventoryReport:
                     generated_at,
                     release,
                     mode,
-                    thread_count,
                     "",
                     "No Issues",
                     0,
@@ -172,7 +167,6 @@ class ReleaseInventoryReport:
                 "Generated At",
                 "Release",
                 "Mode",
-                "Thread Count",
                 "Project",
                 "Inventory Status",
                 "Element Count",
@@ -219,7 +213,7 @@ class ReleaseInventoryReport:
 
         pdf_rows = []
         for row in rows:
-            project = row[4]
+            project = row[3]
             move_date = effort_dates.get(project, "")
             if hasattr(move_date, "strftime"):
                 move_date = move_date.strftime("%Y-%m-%d")
@@ -227,19 +221,19 @@ class ReleaseInventoryReport:
                 [
                     project,
                     str(move_date or ""),
+                    row[4],
                     row[5],
                     row[6],
                     row[7],
                     row[8],
-                    row[9],
                 ]
             )
 
         story = [
             heading("Release Inventory Report"),
             build_table(
-                headers=["Release", "Mode", "Thread Count", "Generated At"],
-                rows=[[release, mode, thread_count, generated_at]],
+                headers=["Release", "Mode", "Generated At"],
+                rows=[[release, mode, generated_at]],
             ),
             spacer(),
             build_table(
@@ -289,7 +283,6 @@ class ReleaseInventoryReport:
                     generated_at,
                     release,
                     mode,
-                    thread_count,
                     issue.effort_id,
                     "Missing Inventory",
                     0,
@@ -315,7 +308,6 @@ class ReleaseInventoryReport:
                         generated_at,
                         release,
                         mode,
-                        thread_count,
                         project,
                         "Unexpected Inventory",
                         element_count,
@@ -336,7 +328,6 @@ class ReleaseInventoryReport:
                         generated_at,
                         release,
                         mode,
-                        thread_count,
                         project,
                         "Inventory Not In Release",
                         element_count,
@@ -353,7 +344,6 @@ class ReleaseInventoryReport:
                         generated_at,
                         release,
                         mode,
-                        thread_count,
                         project,
                         "Potential Wrong Release",
                         element_count,
@@ -369,7 +359,6 @@ class ReleaseInventoryReport:
                     generated_at,
                     release,
                     mode,
-                    thread_count,
                     "",
                     "No Issues",
                     0,

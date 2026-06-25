@@ -35,3 +35,19 @@ When adding a new status:
 2. Add the user-facing reason in `app/core/status_messages.py`.
 3. Add the glossary row in `app/reports/status_glossary.py`.
 4. Add or update tests that generate the report.
+
+## Release Estimate Report
+
+`Release_Estimate_Report.csv` includes `Thread Count` because estimated time is
+calculated from selected inventory volume and the active thread count.
+
+Forecast generation uses `settings.json`:
+
+`reports.forecast_thread_count`
+
+The default is `5` when the setting is not present.
+
+## Release Inventory Report
+
+`Release_Inventory_Report.csv` does not include thread count because it reports
+inventory schedule issues, not workload estimates.

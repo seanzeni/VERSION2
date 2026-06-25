@@ -100,3 +100,29 @@ def test_prod_forecast_bypasses_location_only_for_efforts_with_future_qual() -> 
 
     assert item.bypass_location_validation is False
     assert item.bypass_location_validation_effort_ids == {"SQL1"}
+
+
+def test_forecast_thread_count_defaults_to_five() -> None:
+    service = ForecastService(
+        context=FakeContext(),
+        report_registry=FakeReportRegistry(),
+    )
+
+    assert service.get_forecast_thread_count() == 5
+
+
+def test_forecast_thread_count_uses_settings_value() -> None:
+    class ContextWithForecastThreads(FakeContext):
+        settings = {
+            "reports": {
+                "forecast_reports": {},
+                "forecast_thread_count": 7,
+            }
+        }
+
+    service = ForecastService(
+        context=ContextWithForecastThreads(),
+        report_registry=FakeReportRegistry(),
+    )
+
+    assert service.get_forecast_thread_count() == 7
