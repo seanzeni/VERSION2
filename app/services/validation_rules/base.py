@@ -52,6 +52,15 @@ class RulePhase(str, Enum):
     SELECTION = "selection"
 
 
+RULE_PHASE_ORDER = {
+    phase: order
+    for order, phase in enumerate(
+        RulePhase,
+        start=1,
+    )
+}
+
+
 @dataclass(frozen=True, slots=True)
 class RuleDefinition:
     name: str
@@ -141,10 +150,19 @@ def require_rule_module(
 def validate_rule_modules(
     rule_modules: Iterable[object],
 ) -> tuple[RuleDefinition, ...]:
-    seen_rules: set[str] = set()
-    definitions: list[RuleDefinition] = []
+    return tuple(
+        rule_module.RULE for rule_module in resolve_rule_modules(rule_modules)
+    )
 
-    for rule_module in rule_modules:
+
+def resolve_rule_modules(
+    rule_modules: Iterable[object],
+) -> tuple[RuleModule, ...]:
+    validated_modules: list[RuleModule] = []
+    original_order: dict[str, int] = {}
+    rules_by_name: dict[str, RuleDefinition] = {}
+
+    for index, rule_module in enumerate(rule_modules):
         rule_name = getattr(
             rule_module,
             "__name__",
@@ -156,25 +174,64 @@ def validate_rule_modules(
         )
         rule = validated_module.RULE
 
-        if rule.name in seen_rules:
+        if rule.name in rules_by_name:
             raise TypeError(f"Duplicate validation rule name: {rule.name}")
 
+        validated_modules.append(validated_module)
+        original_order[rule.name] = index
+        rules_by_name[rule.name] = rule
+
+    for rule in rules_by_name.values():
         missing_dependencies = [
             dependency
             for dependency in rule.dependencies
-            if dependency not in seen_rules
+            if dependency not in rules_by_name
         ]
 
         if missing_dependencies:
             raise TypeError(
-                f"Validation rule {rule.name!r} depends on rules that have not run: "
+                f"Validation rule {rule.name!r} depends on unknown rules: "
                 + ", ".join(missing_dependencies)
             )
 
-        seen_rules.add(rule.name)
-        definitions.append(rule)
+    remaining = {
+        rule_module.RULE.name: rule_module
+        for rule_module in validated_modules
+    }
+    resolved_names: set[str] = set()
+    resolved_modules: list[RuleModule] = []
 
-    return tuple(definitions)
+    while remaining:
+        ready_modules = [
+            rule_module
+            for rule_module in remaining.values()
+            if all(
+                dependency in resolved_names
+                for dependency in rule_module.RULE.dependencies
+            )
+        ]
+
+        if not ready_modules:
+            cycle_names = ", ".join(sorted(remaining.keys()))
+            raise TypeError(
+                "Validation rule dependencies contain a cycle involving: "
+                + cycle_names
+            )
+
+        ready_modules.sort(
+            key=lambda rule_module: (
+                RULE_PHASE_ORDER[rule_module.RULE.phase],
+                original_order[rule_module.RULE.name],
+                rule_module.RULE.name,
+            )
+        )
+        selected_module = ready_modules[0]
+
+        resolved_modules.append(selected_module)
+        resolved_names.add(selected_module.RULE.name)
+        del remaining[selected_module.RULE.name]
+
+    return tuple(resolved_modules)
 
 
 def build_rule_registry_rows(

@@ -38,8 +38,8 @@ from app.services.mainframe_location_service import MainframeLocationService
 from app.services.status_marker_service import StatusMarkerService
 from app.services.validation_rules import archive_rules as archive_rule_module
 from app.services.validation_rules.base import build_rule_registry_rows
-from app.services.validation_rules.base import RuleDefinition
-from app.services.validation_rules.base import validate_rule_modules
+from app.services.validation_rules.base import resolve_rule_modules
+from app.services.validation_rules.base import RuleModule
 from app.services.validation_rules.base import ValidatorContext
 from app.services.validation_rules import fix_rules as fix_rule_module
 from app.services.validation_rules import inventory_rules as inventory_rule_module
@@ -70,12 +70,15 @@ class ValidationService:
         self.selection_rules = selection_rules
         self.archive_pairs = archive_pairs
         self.status_marker_service = status_marker_service
-        self.rule_definitions = self._validate_rule_contracts()
+        self.rule_modules = self._resolve_rule_modules()
+        self.rule_definitions = tuple(
+            rule_module.RULE for rule_module in self.rule_modules
+        )
 
-    def _validate_rule_contracts(
+    def _resolve_rule_modules(
         self,
-    ) -> tuple[RuleDefinition, ...]:
-        return validate_rule_modules(VALIDATION_RULE_MODULES)
+    ) -> tuple[RuleModule, ...]:
+        return resolve_rule_modules(VALIDATION_RULE_MODULES)
 
     def get_rule_registry_rows(
         self,
@@ -94,50 +97,24 @@ class ValidationService:
         skip_location_validation: bool = False,
         skip_location_validation_effort_ids: set[str] | None = None,
     ) -> tuple[list[Element], list[InventoryIssue]]:
-
-        self.apply_movement_status(
+        context = self._build_context(
             elements=elements,
-            location_service=location_service,
-            mode=mode,
-        )
-
-        self.apply_overlap_duplicate_status(
-            elements=elements,
-        )
-
-        self.apply_schedule_status(
-            elements=elements,
+            all_release_elements=all_release_elements,
             release_efforts=release_efforts,
             effort_release_lookup=effort_release_lookup,
+            location_service=location_service,
+            mode=mode,
             release=release,
+            skip_location_validation_effort_ids=(
+                skip_location_validation_effort_ids or set()
+            ),
         )
 
-        if not skip_location_validation:
-            self.apply_location_status(
-                elements=elements,
-                location_service=location_service,
-                mode=mode,
-                skip_location_validation_effort_ids=(
-                    skip_location_validation_effort_ids or set()
-                ),
-            )
+        for rule_module in self.rule_modules:
+            if skip_location_validation and rule_module.RULE.name == "location":
+                continue
 
-        self.apply_archive_status(
-            elements=elements,
-            location_service=location_service,
-            mode=mode,
-        )
-
-        self.apply_fixp1_status(
-            elements=elements,
-            location_service=location_service,
-            mode=mode,
-        )
-
-        self.apply_selection_rules(
-            elements=elements,
-            mode=mode,
-        )
+            rule_module.apply(context)
 
         inventory_issues = self.build_inventory_issues(
             release=release,

@@ -23,6 +23,7 @@ import pytest
 
 from app.services.validation_rules.base import require_rule_module
 from app.services.validation_rules.base import build_rule_registry_rows
+from app.services.validation_rules.base import resolve_rule_modules
 from app.services.validation_rules.base import RuleDefinition
 from app.services.validation_rules.base import RulePhase
 from app.services.validation_rules.base import validate_rule_modules
@@ -81,6 +82,34 @@ class DuplicateRuleModule:
         return None
 
 
+class CycleStartRuleModule:
+    RULE = RuleDefinition(
+        name="cycle_start",
+        phase=RulePhase.MOVEMENT,
+        dependencies=("cycle_end",),
+    )
+
+    @staticmethod
+    def apply(
+        context: ValidatorContext,
+    ) -> None:
+        return None
+
+
+class CycleEndRuleModule:
+    RULE = RuleDefinition(
+        name="cycle_end",
+        phase=RulePhase.SELECTION,
+        dependencies=("cycle_start",),
+    )
+
+    @staticmethod
+    def apply(
+        context: ValidatorContext,
+    ) -> None:
+        return None
+
+
 def test_require_rule_module_accepts_apply_function() -> None:
     rule_module = require_rule_module(ValidRuleModule, "valid")
 
@@ -98,10 +127,19 @@ def test_require_rule_module_rejects_missing_apply() -> None:
         require_rule_module(MissingApplyRuleModule, "invalid")
 
 
-def test_validate_rule_modules_accepts_ordered_dependencies() -> None:
-    definitions = validate_rule_modules([ValidRuleModule, DependencyRuleModule])
+def test_validate_rule_modules_orders_dependencies() -> None:
+    definitions = validate_rule_modules([DependencyRuleModule, ValidRuleModule])
 
     assert [definition.name for definition in definitions] == ["valid", "dependent"]
+
+
+def test_resolve_rule_modules_returns_modules_in_dependency_order() -> None:
+    rule_modules = resolve_rule_modules([DependencyRuleModule, ValidRuleModule])
+
+    assert [rule_module.RULE.name for rule_module in rule_modules] == [
+        "valid",
+        "dependent",
+    ]
 
 
 def test_validate_rule_modules_rejects_duplicate_names() -> None:
@@ -109,9 +147,14 @@ def test_validate_rule_modules_rejects_duplicate_names() -> None:
         validate_rule_modules([ValidRuleModule, DuplicateRuleModule])
 
 
-def test_validate_rule_modules_rejects_missing_prior_dependency() -> None:
+def test_validate_rule_modules_rejects_unknown_dependency() -> None:
     with pytest.raises(TypeError):
         validate_rule_modules([DependencyRuleModule])
+
+
+def test_validate_rule_modules_rejects_dependency_cycle() -> None:
+    with pytest.raises(TypeError):
+        validate_rule_modules([CycleStartRuleModule, CycleEndRuleModule])
 
 
 def test_build_rule_registry_rows_formats_dependencies() -> None:

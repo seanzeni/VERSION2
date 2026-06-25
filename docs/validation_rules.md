@@ -9,7 +9,11 @@ reports all explain the same decisions.
 
 Each rule module must define `RULE = RuleDefinition(...)`. Startup validation
 fails if a rule is missing `RULE`, missing `apply(context)`, duplicates another
-rule name, or lists a dependency that has not already run.
+rule name, lists an unknown dependency, or creates a dependency cycle.
+
+`VALIDATION_RULE_MODULES` is a registration list. Execution order is resolved
+from each rule's dependency list. `RulePhase` is used only as a tie-breaker when
+two rules are otherwise independent.
 
 | Order | Rule | Phase | Dependencies |
 | --- | --- | --- | --- |
@@ -83,16 +87,15 @@ rule name, or lists a dependency that has not already run.
    tuple, and short description.
 5. Expose the rule through an `apply(context: ValidatorContext) -> None`
    function.
-6. Add the module to `VALIDATION_RULE_MODULES` in
+6. Add the module to the `VALIDATION_RULE_MODULES` registration list in
    `app/services/validation_service.py`.
-7. Call the rule from `ValidationService.validate_elements()` in the correct
-   hierarchy position.
-8. Update selection behavior in `selection_rules.py` if the status should change
+7. Update selection behavior in `selection_rules.py` if the status should change
    visibility or selectability.
-9. Add tests in `tests/test_validation_service.py` or a focused rule test.
+8. Add tests in `tests/test_validation_service.py` or a focused rule test.
 
 The registry guard lives in `app/services/validation_rules/base.py`. Use
-`validate_rule_modules(...)` in tests when checking a new dependency shape.
+`resolve_rule_modules(...)` or `validate_rule_modules(...)` in tests when
+checking a new dependency shape.
 
 ## Report Glossary
 
