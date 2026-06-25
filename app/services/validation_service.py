@@ -37,7 +37,9 @@ from app.core.models import ScheduleStatus
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.status_marker_service import StatusMarkerService
 from app.services.validation_rules import archive_rules as archive_rule_module
-from app.services.validation_rules.base import require_rule_module
+from app.services.validation_rules.base import build_rule_registry_rows
+from app.services.validation_rules.base import RuleDefinition
+from app.services.validation_rules.base import validate_rule_modules
 from app.services.validation_rules.base import ValidatorContext
 from app.services.validation_rules import fix_rules as fix_rule_module
 from app.services.validation_rules import inventory_rules as inventory_rule_module
@@ -68,36 +70,17 @@ class ValidationService:
         self.selection_rules = selection_rules
         self.archive_pairs = archive_pairs
         self.status_marker_service = status_marker_service
-        self._validate_rule_contracts()
+        self.rule_definitions = self._validate_rule_contracts()
 
     def _validate_rule_contracts(
         self,
-    ) -> None:
-        seen_rules: set[str] = set()
+    ) -> tuple[RuleDefinition, ...]:
+        return validate_rule_modules(VALIDATION_RULE_MODULES)
 
-        for rule_module in VALIDATION_RULE_MODULES:
-            validated_module = require_rule_module(
-                rule_module=rule_module,
-                rule_name=rule_module.__name__,
-            )
-            rule = validated_module.RULE
-
-            if rule.name in seen_rules:
-                raise TypeError(f"Duplicate validation rule name: {rule.name}")
-
-            missing_dependencies = [
-                dependency
-                for dependency in rule.dependencies
-                if dependency not in seen_rules
-            ]
-
-            if missing_dependencies:
-                raise TypeError(
-                    f"Validation rule {rule.name!r} depends on rules that have not run: "
-                    + ", ".join(missing_dependencies)
-                )
-
-            seen_rules.add(rule.name)
+    def get_rule_registry_rows(
+        self,
+    ) -> list[dict[str, str]]:
+        return build_rule_registry_rows(self.rule_definitions)
 
     def validate_elements(
         self,

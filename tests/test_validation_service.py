@@ -120,6 +120,24 @@ def test_overlap_status() -> None:
     assert all(e.inventory_status == InventoryStatus.OVERLAP for e in elements)
 
 
+def test_rule_registry_rows_show_configured_hierarchy() -> None:
+    rows = make_service().get_rule_registry_rows()
+
+    assert [row["name"] for row in rows] == [
+        "movement",
+        "inventory",
+        "schedule",
+        "location",
+        "archive",
+        "fixp1",
+        "selection",
+    ]
+    assert rows[0]["dependencies"] == "None"
+    assert rows[-1]["dependencies"] == (
+        "movement, inventory, schedule, location, archive, fixp1"
+    )
+
+
 def test_duplicate_status() -> None:
     elements = [make_element(project="ABC"), make_element(project="ABC")]
     make_service().apply_overlap_duplicate_status(elements)

@@ -22,8 +22,10 @@ Notes:
 import pytest
 
 from app.services.validation_rules.base import require_rule_module
+from app.services.validation_rules.base import build_rule_registry_rows
 from app.services.validation_rules.base import RuleDefinition
 from app.services.validation_rules.base import RulePhase
+from app.services.validation_rules.base import validate_rule_modules
 from app.services.validation_rules.base import ValidatorContext
 
 
@@ -51,6 +53,34 @@ class MissingDefinitionRuleModule:
     pass
 
 
+class DependencyRuleModule:
+    RULE = RuleDefinition(
+        name="dependent",
+        phase=RulePhase.SCHEDULE,
+        dependencies=("valid",),
+        description="Depends on a prior rule.",
+    )
+
+    @staticmethod
+    def apply(
+        context: ValidatorContext,
+    ) -> None:
+        return None
+
+
+class DuplicateRuleModule:
+    RULE = RuleDefinition(
+        name="valid",
+        phase=RulePhase.INVENTORY,
+    )
+
+    @staticmethod
+    def apply(
+        context: ValidatorContext,
+    ) -> None:
+        return None
+
+
 def test_require_rule_module_accepts_apply_function() -> None:
     rule_module = require_rule_module(ValidRuleModule, "valid")
 
@@ -66,3 +96,30 @@ def test_require_rule_module_rejects_missing_rule_definition() -> None:
 def test_require_rule_module_rejects_missing_apply() -> None:
     with pytest.raises(TypeError):
         require_rule_module(MissingApplyRuleModule, "invalid")
+
+
+def test_validate_rule_modules_accepts_ordered_dependencies() -> None:
+    definitions = validate_rule_modules([ValidRuleModule, DependencyRuleModule])
+
+    assert [definition.name for definition in definitions] == ["valid", "dependent"]
+
+
+def test_validate_rule_modules_rejects_duplicate_names() -> None:
+    with pytest.raises(TypeError):
+        validate_rule_modules([ValidRuleModule, DuplicateRuleModule])
+
+
+def test_validate_rule_modules_rejects_missing_prior_dependency() -> None:
+    with pytest.raises(TypeError):
+        validate_rule_modules([DependencyRuleModule])
+
+
+def test_build_rule_registry_rows_formats_dependencies() -> None:
+    rows = build_rule_registry_rows(
+        validate_rule_modules([ValidRuleModule, DependencyRuleModule])
+    )
+
+    assert rows[0]["order"] == "1"
+    assert rows[0]["dependencies"] == "None"
+    assert rows[1]["dependencies"] == "valid"
+    assert rows[1]["description"] == "Depends on a prior rule."

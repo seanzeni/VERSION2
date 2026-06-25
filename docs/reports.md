@@ -14,8 +14,8 @@ inventory list.
 
 ## Issues Report
 
-`Issues_Report.csv` lists rows with validation reasons. It includes one status
-column per validation area:
+`Issues_Report.csv` and `Issues_Report.xlsx` list rows with validation reasons.
+They include one status column per validation area:
 
 - `Inventory Status`
 - `Schedule Status`
@@ -24,17 +24,22 @@ column per validation area:
 - `Fix Status`
 - `Movement Status`
 
-`Issues_Report_Status_Glossary.csv` is generated with the Issues Report. It
-explains each report column and each known status value.
+`Issues_Report_Status_Glossary.csv` is generated with the Issues Report. In XLSX
+output, the same glossary is included as a second sheet. It explains each report
+column and each known status value.
 
 ## Updating Report Status Meanings
 
 When adding a new status:
 
 1. Add the enum value in `app/core/models.py`.
-2. Add the user-facing reason in `app/core/status_messages.py`.
-3. Add the glossary row in `app/reports/status_glossary.py`.
+2. Add the status `description` in the same enum.
+3. Add the user-facing reason in `app/core/status_messages.py`.
 4. Add or update tests that generate the report.
+
+When adding a report column, update the matching schema in
+`app/reports/report_schemas.py`. CSV and XLSX reports use those schemas, and the
+Issues Report glossary uses the schema descriptions.
 
 ## Release Estimate Report
 

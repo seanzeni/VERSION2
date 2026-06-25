@@ -27,6 +27,7 @@ Notes:
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Callable
+from collections.abc import Iterable
 from dataclasses import dataclass
 from dataclasses import field
 from enum import Enum
@@ -135,3 +136,64 @@ def require_rule_module(
         )
 
     return rule_module
+
+
+def validate_rule_modules(
+    rule_modules: Iterable[object],
+) -> tuple[RuleDefinition, ...]:
+    seen_rules: set[str] = set()
+    definitions: list[RuleDefinition] = []
+
+    for rule_module in rule_modules:
+        rule_name = getattr(
+            rule_module,
+            "__name__",
+            rule_module.__class__.__name__,
+        )
+        validated_module = require_rule_module(
+            rule_module=rule_module,
+            rule_name=rule_name,
+        )
+        rule = validated_module.RULE
+
+        if rule.name in seen_rules:
+            raise TypeError(f"Duplicate validation rule name: {rule.name}")
+
+        missing_dependencies = [
+            dependency
+            for dependency in rule.dependencies
+            if dependency not in seen_rules
+        ]
+
+        if missing_dependencies:
+            raise TypeError(
+                f"Validation rule {rule.name!r} depends on rules that have not run: "
+                + ", ".join(missing_dependencies)
+            )
+
+        seen_rules.add(rule.name)
+        definitions.append(rule)
+
+    return tuple(definitions)
+
+
+def build_rule_registry_rows(
+    definitions: Iterable[RuleDefinition],
+) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for order, definition in enumerate(
+        definitions,
+        start=1,
+    ):
+        rows.append(
+            {
+                "order": str(order),
+                "name": definition.name,
+                "phase": definition.phase.value,
+                "dependencies": ", ".join(definition.dependencies) or "None",
+                "description": definition.description,
+            }
+        )
+
+    return rows

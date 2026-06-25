@@ -7,6 +7,20 @@ reports all explain the same decisions.
 
 ## Current Hierarchy
 
+Each rule module must define `RULE = RuleDefinition(...)`. Startup validation
+fails if a rule is missing `RULE`, missing `apply(context)`, duplicates another
+rule name, or lists a dependency that has not already run.
+
+| Order | Rule | Phase | Dependencies |
+| --- | --- | --- | --- |
+| 1 | `movement` | `movement` | None |
+| 2 | `inventory` | `inventory` | `movement` |
+| 3 | `schedule` | `schedule` | `movement`, `inventory` |
+| 4 | `location` | `location` | `movement`, `schedule` |
+| 5 | `archive` | `archive` | `movement`, `schedule`, `location` |
+| 6 | `fixp1` | `fix` | `movement`, `location` |
+| 7 | `selection` | `selection` | `movement`, `inventory`, `schedule`, `location`, `archive`, `fixp1` |
+
 1. Movement rules
    - File: `app/services/validation_rules/movement_rules.py`
    - Marks rows as `DO_NOT_MOVE`.
@@ -62,20 +76,23 @@ reports all explain the same decisions.
 ## How To Add A Rule
 
 1. Add or update a status enum in `app/core/models.py` if the rule needs a new
-   reportable status.
+   reportable status. Include a `description` entry for the new value.
 2. Add the user-facing reason text in `app/core/status_messages.py`.
 3. Add rule logic under `app/services/validation_rules/`.
-4. Expose the rule through an `apply(context: ValidatorContext) -> None`
+4. Define `RULE = RuleDefinition(...)` with a unique name, phase, dependency
+   tuple, and short description.
+5. Expose the rule through an `apply(context: ValidatorContext) -> None`
    function.
-5. Add the module to `ValidationService._validate_rule_contracts()` if it is a
-   new file.
-6. Call the rule from `ValidationService.validate_elements()` in the correct
+6. Add the module to `VALIDATION_RULE_MODULES` in
+   `app/services/validation_service.py`.
+7. Call the rule from `ValidationService.validate_elements()` in the correct
    hierarchy position.
-7. Update selection behavior in `selection_rules.py` if the status should change
+8. Update selection behavior in `selection_rules.py` if the status should change
    visibility or selectability.
-8. Update `app/reports/status_glossary.py` so the Issues Report glossary explains
-   the new status.
-9. Add tests in `tests/test_validation_service.py` or a focused report test.
+9. Add tests in `tests/test_validation_service.py` or a focused rule test.
+
+The registry guard lives in `app/services/validation_rules/base.py`. Use
+`validate_rule_modules(...)` in tests when checking a new dependency shape.
 
 ## Report Glossary
 
@@ -83,5 +100,6 @@ The Issues Report writes a companion file:
 
 `Issues_Report_Status_Glossary.csv`
 
-Update `app/reports/status_glossary.py` whenever a report column or status value
-is added.
+Status rows are generated from enum `description` properties in
+`app/core/models.py`. Column rows are generated from
+`app/reports/report_schemas.py`.
