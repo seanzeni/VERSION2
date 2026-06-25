@@ -22,10 +22,17 @@ Notes:
 import pytest
 
 from app.services.validation_rules.base import require_rule_module
+from app.services.validation_rules.base import RuleDefinition
+from app.services.validation_rules.base import RulePhase
 from app.services.validation_rules.base import ValidatorContext
 
 
 class ValidRuleModule:
+    RULE = RuleDefinition(
+        name="valid",
+        phase=RulePhase.MOVEMENT,
+    )
+
     @staticmethod
     def apply(
         context: ValidatorContext,
@@ -33,7 +40,14 @@ class ValidRuleModule:
         return None
 
 
-class InvalidRuleModule:
+class MissingApplyRuleModule:
+    RULE = RuleDefinition(
+        name="invalid",
+        phase=RulePhase.MOVEMENT,
+    )
+
+
+class MissingDefinitionRuleModule:
     pass
 
 
@@ -44,6 +58,11 @@ def test_require_rule_module_accepts_apply_function() -> None:
     assert rule_module.apply(ValidatorContext()) is None
 
 
+def test_require_rule_module_rejects_missing_rule_definition() -> None:
+    with pytest.raises(TypeError):
+        require_rule_module(MissingDefinitionRuleModule, "invalid")
+
+
 def test_require_rule_module_rejects_missing_apply() -> None:
     with pytest.raises(TypeError):
-        require_rule_module(InvalidRuleModule, "invalid")
+        require_rule_module(MissingApplyRuleModule, "invalid")

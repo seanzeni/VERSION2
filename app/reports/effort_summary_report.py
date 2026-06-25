@@ -27,6 +27,8 @@ from app.reports.pdf_utils import page_break
 from app.reports.pdf_utils import spacer
 from app.reports.pdf_utils import subheading
 from app.reports.pdf_utils import write_pdf
+from app.reports.report_schemas import EFFORT_SUMMARY_COLUMNS
+from app.reports.report_schemas import names
 from app.reports.report_utils import export_csv
 
 
@@ -154,35 +156,7 @@ class EffortSummaryReport:
 
         export_csv(
             output_path=report_path,
-            headers=[
-                "Row Type",
-                "Project",
-                "Element",
-                "Type",
-                "Selected",
-                "Selectable",
-                "Visible",
-                "Severity",
-                "Inventory Status",
-                "Schedule Status",
-                "Location Status",
-                "Archive Status",
-                "Fix Status",
-                "Movement Status",
-                "Resync Status",
-                "Reasons",
-                "Selected Elements",
-                "Errors",
-                "Warnings",
-                "Info",
-                "JCL Count",
-                "Non Compile Count",
-                "COBOL Count",
-                "APS Count",
-                "X Elements Count",
-                "Linkdeck Count",
-                "Estimated Time",
-            ],
+            headers=names(EFFORT_SUMMARY_COLUMNS),
             rows=rows,
         )
 

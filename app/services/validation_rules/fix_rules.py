@@ -22,7 +22,17 @@ Notes:
 
 from app.core.models import FixStatus
 from app.core.status_messages import ReasonBuilder
+from app.services.validation_rules.base import RuleDefinition
+from app.services.validation_rules.base import RulePhase
 from app.services.validation_rules.base import ValidatorContext
+
+
+RULE = RuleDefinition(
+    name="fixp1",
+    phase=RulePhase.FIX,
+    dependencies=("movement", "location"),
+    description="Warn when element/type also exists in FIXP1.",
+)
 
 
 def apply(

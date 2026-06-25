@@ -23,6 +23,8 @@ from app.reports.pdf_utils import build_table
 from app.reports.pdf_utils import heading
 from app.reports.pdf_utils import spacer
 from app.reports.pdf_utils import write_pdf
+from app.reports.report_schemas import OSG_COPS_COLUMNS
+from app.reports.report_schemas import names
 from app.reports.report_utils import export_csv
 
 
@@ -94,17 +96,7 @@ class OsgCopsReport:
 
         export_csv(
             output_path=report_path,
-            headers=[
-                "Release",
-                "Project",
-                "Element",
-                "Type",
-                "Submitter",
-                "Application",
-                "Package",
-                "Area",
-                "Service",
-            ],
+            headers=names(OSG_COPS_COLUMNS),
             rows=rows,
         )
 

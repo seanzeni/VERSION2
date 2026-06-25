@@ -16,6 +16,9 @@ Responsibilities:
 from pathlib import Path
 
 from app.core.models import Element
+from app.reports.report_schemas import ISSUES_COLUMNS
+from app.reports.report_schemas import ISSUES_GLOSSARY_COLUMNS
+from app.reports.report_schemas import names
 from app.reports.report_utils import export_csv
 from app.reports.report_utils import sort_elements
 from app.reports.status_glossary import get_issues_glossary_rows
@@ -63,34 +66,13 @@ class IssuesReport:
 
         export_csv(
             output_path=report_path,
-            headers=[
-                "Element",
-                "Type",
-                "Project",
-                "Release",
-                "Expected System",
-                "Expected Region",
-                "Severity",
-                "Inventory Status",
-                "Schedule Status",
-                "Location Status",
-                "Archive Status",
-                "Fix Status",
-                "Movement Status",
-                "Reasons",
-            ],
+            headers=names(ISSUES_COLUMNS),
             rows=rows,
         )
 
         export_csv(
             output_path=output_folder / self.GLOSSARY_FILE_NAME,
-            headers=[
-                "Section",
-                "Field",
-                "Value",
-                "Severity",
-                "Meaning",
-            ],
+            headers=names(ISSUES_GLOSSARY_COLUMNS),
             rows=get_issues_glossary_rows(),
         )
 

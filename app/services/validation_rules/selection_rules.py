@@ -29,7 +29,17 @@ from app.core.models import LocationStatus
 from app.core.models import MovementStatus
 from app.core.models import ScheduleStatus
 from app.core.package_rules import is_archive_package
+from app.services.validation_rules.base import RuleDefinition
+from app.services.validation_rules.base import RulePhase
 from app.services.validation_rules.base import ValidatorContext
+
+
+RULE = RuleDefinition(
+    name="selection",
+    phase=RulePhase.SELECTION,
+    dependencies=("movement", "inventory", "schedule", "location", "archive", "fixp1"),
+    description="Apply selected/selectable/visible behavior after statuses are assigned.",
+)
 
 
 def apply(

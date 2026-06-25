@@ -27,7 +27,17 @@ from app.core.models import InventoryIssue
 from app.core.models import ReleaseEffort
 from app.core.models import ScheduleStatus
 from app.core.status_messages import ReasonBuilder
+from app.services.validation_rules.base import RuleDefinition
+from app.services.validation_rules.base import RulePhase
 from app.services.validation_rules.base import ValidatorContext
+
+
+RULE = RuleDefinition(
+    name="schedule",
+    phase=RulePhase.SCHEDULE,
+    dependencies=("movement", "inventory"),
+    description="Compare inventory rows to SQL release schedule data.",
+)
 
 
 def apply(

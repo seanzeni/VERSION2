@@ -29,6 +29,7 @@ from abc import abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field
+from enum import Enum
 from typing import Protocol
 
 from app.core.models import Element
@@ -38,6 +39,24 @@ from app.services.status_marker_service import StatusMarkerService
 
 
 AddReason = Callable[[Element, str], None]
+
+
+class RulePhase(str, Enum):
+    MOVEMENT = "movement"
+    INVENTORY = "inventory"
+    SCHEDULE = "schedule"
+    LOCATION = "location"
+    ARCHIVE = "archive"
+    FIX = "fix"
+    SELECTION = "selection"
+
+
+@dataclass(frozen=True, slots=True)
+class RuleDefinition:
+    name: str
+    phase: RulePhase
+    dependencies: tuple[str, ...] = ()
+    description: str = ""
 
 
 def _noop_add_reason(
@@ -64,7 +83,7 @@ class ValidatorContext:
 
 
 class ValidationRule(ABC):
-    name: str
+    definition: RuleDefinition
 
     @abstractmethod
     def apply(
@@ -75,6 +94,8 @@ class ValidationRule(ABC):
 
 
 class RuleModule(Protocol):
+    RULE: RuleDefinition
+
     def apply(
         self,
         context: ValidatorContext,
@@ -86,6 +107,22 @@ def require_rule_module(
     rule_module: object,
     rule_name: str,
 ) -> RuleModule:
+    definition = getattr(
+        rule_module,
+        "RULE",
+        None,
+    )
+
+    if not isinstance(definition, RuleDefinition):
+        raise TypeError(
+            f"Validation rule module {rule_name!r} must define a RULE RuleDefinition."
+        )
+
+    if not definition.name:
+        raise TypeError(
+            f"Validation rule module {rule_name!r} must define a non-empty rule name."
+        )
+
     apply_function = getattr(
         rule_module,
         "apply",

@@ -24,7 +24,17 @@ Notes:
 
 from app.core.models import MovementStatus
 from app.core.status_messages import ReasonBuilder
+from app.services.validation_rules.base import RuleDefinition
+from app.services.validation_rules.base import RulePhase
 from app.services.validation_rules.base import ValidatorContext
+
+
+RULE = RuleDefinition(
+    name="movement",
+    phase=RulePhase.MOVEMENT,
+    dependencies=(),
+    description="Apply movement marker rules before other validation phases.",
+)
 
 
 def apply(

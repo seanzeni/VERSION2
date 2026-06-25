@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 import pytest
+from openpyxl import load_workbook
 from app.core.app_state import AppState
 from app.core.models import Element, InventoryIssue, ReleaseEffort, ScheduleStatus
 from app.reports.report_registry import ReportRegistry
@@ -23,6 +24,36 @@ def test_generate_issues_report_csv(tmp_path: Path) -> None:
     output=make_registry().generate('Issues Report','csv',state,tmp_path,True)
     assert output is not None and output.exists()
     make_writable(output)
+
+def test_generate_issues_report_xlsx_includes_glossary_sheet(tmp_path: Path) -> None:
+    state = AppState(release="REL1", mode="PROD", thread_count=1)
+    state.loaded_elements = [
+        Element(release="REL1", project="ABC", element="PGM001", type="OCOB")
+    ]
+    output = make_registry().generate("Issues Report", "xlsx", state, tmp_path, True)
+    assert output is not None and output.suffix == ".xlsx" and output.exists()
+    workbook = load_workbook(output, read_only=True)
+    assert "Issues Report" in workbook.sheetnames
+    assert "Issues Report Status Glossary" in workbook.sheetnames
+    workbook.close()
+    make_writable(output)
+
+
+def test_generate_effort_summary_xlsx(tmp_path: Path) -> None:
+    state = AppState(release="REL1", mode="PROD", thread_count=1)
+    state.loaded_elements = [
+        Element(release="REL1", project="ABC", element="PGM001", type="OCOB")
+    ]
+    output = make_registry().generate(
+        "Effort Summary Report",
+        "xlsx",
+        state,
+        tmp_path,
+        True,
+    )
+    assert output is not None and output.suffix == ".xlsx" and output.exists()
+    make_writable(output)
+
 
 def test_generate_pdf_not_implemented() -> None:
     with pytest.raises(NotImplementedError): make_registry().generate('Issues Report','pdf',AppState(),Path('.'),True)

@@ -31,6 +31,8 @@ from app.reports.pdf_utils import build_table
 from app.reports.pdf_utils import heading
 from app.reports.pdf_utils import spacer
 from app.reports.pdf_utils import write_pdf
+from app.reports.report_schemas import RELEASE_INVENTORY_COLUMNS
+from app.reports.report_schemas import names
 from app.reports.report_utils import export_csv
 
 
@@ -163,17 +165,7 @@ class ReleaseInventoryReport:
 
         export_csv(
             output_path=report_path,
-            headers=[
-                "Generated At",
-                "Release",
-                "Mode",
-                "Project",
-                "Inventory Status",
-                "Element Count",
-                "Reason",
-                "Expected Release",
-                "Inventory Release",
-            ],
+            headers=names(RELEASE_INVENTORY_COLUMNS),
             rows=rows,
         )
 

@@ -29,7 +29,17 @@ from app.core.models import ScheduleStatus
 from app.core.status_messages import ReasonBuilder
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.validation_rules import selection_rules
+from app.services.validation_rules.base import RuleDefinition
+from app.services.validation_rules.base import RulePhase
 from app.services.validation_rules.base import ValidatorContext
+
+
+RULE = RuleDefinition(
+    name="location",
+    phase=RulePhase.LOCATION,
+    dependencies=("movement", "schedule"),
+    description="Validate expected NDVR environment, system, and subsystem.",
+)
 
 
 def apply(

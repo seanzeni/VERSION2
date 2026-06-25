@@ -26,6 +26,8 @@ from app.reports.pdf_utils import build_table
 from app.reports.pdf_utils import heading
 from app.reports.pdf_utils import spacer
 from app.reports.pdf_utils import write_pdf
+from app.reports.report_schemas import RELEASE_ESTIMATE_COLUMNS
+from app.reports.report_schemas import names
 from app.reports.report_utils import export_csv
 
 
@@ -160,24 +162,7 @@ class ReleaseEstimateReport:
 
         export_csv(
             output_path=report_path,
-            headers=[
-                "Move Date",
-                "Thread Count",
-                "Selected Elements",
-                "JCL Count",
-                "Non Compile Count",
-                "COBOL Count",
-                "APS Count",
-                "X Elements Count",
-                "Linkdeck Count",
-                "JCL Minutes",
-                "Non Compile Minutes",
-                "COBOL Minutes",
-                "APS Minutes",
-                "X Elements Minutes",
-                "Linkdeck Minutes",
-                "Estimated Time",
-            ],
+            headers=names(RELEASE_ESTIMATE_COLUMNS),
             rows=rows,
         )
 

@@ -27,7 +27,17 @@ from app.core.models import Element
 from app.core.models import InventoryStatus
 from app.core.models import MovementStatus
 from app.core.status_messages import ReasonBuilder
+from app.services.validation_rules.base import RuleDefinition
+from app.services.validation_rules.base import RulePhase
 from app.services.validation_rules.base import ValidatorContext
+
+
+RULE = RuleDefinition(
+    name="inventory",
+    phase=RulePhase.INVENTORY,
+    dependencies=("movement",),
+    description="Detect duplicate and overlapping inventory rows.",
+)
 
 
 def apply(

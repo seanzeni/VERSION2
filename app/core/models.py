@@ -31,6 +31,14 @@ class Severity(StrEnum):
     WARNING = "WARNING"
     ERROR = "ERROR"
 
+    @property
+    def description(self) -> str:
+        return {
+            Severity.INFO: "Informational state. Usually does not block selection by itself.",
+            Severity.WARNING: "Review recommended. Selection depends on the specific rule and settings.",
+            Severity.ERROR: "Blocking or high-risk condition that normally requires correction.",
+        }.get(self, "")
+
 
 class ScheduleStatus(StrEnum):
     OK = "OK"
@@ -59,6 +67,16 @@ class ScheduleStatus(StrEnum):
             ScheduleStatus.EFFORT_RELEASE_MISMATCH: "warning",
         }.get(self, "")
 
+    @property
+    def description(self) -> str:
+        return {
+            ScheduleStatus.OK: "Inventory project matches the SQL release schedule.",
+            ScheduleStatus.INVENTORY_NOT_IN_RELEASE: "Inventory project is not connected to the selected SQL release.",
+            ScheduleStatus.INVENTORY_WHEN_SQL_NO_INVENTORY: "Inventory exists for an effort SQL marks as no-inventory or withdrawn.",
+            ScheduleStatus.SQL_EXPECTED_INVENTORY_MISSING: "SQL expected inventory, but no inventory rows were found.",
+            ScheduleStatus.EFFORT_RELEASE_MISMATCH: "Inventory release does not match the release SQL associates with the effort.",
+        }.get(self, "")
+
 
 class LocationStatus(StrEnum):
     OK = "OK"
@@ -81,6 +99,14 @@ class LocationStatus(StrEnum):
             LocationStatus.NOT_FOUND: "error",
         }.get(self, "")
 
+    @property
+    def description(self) -> str:
+        return {
+            LocationStatus.OK: "Location validation did not find a problem or was not required.",
+            LocationStatus.FOUND: "Element/type was found in the expected NDVR location.",
+            LocationStatus.NOT_FOUND: "Element/type was not found in the expected NDVR location.",
+        }.get(self, "")
+
 
 class InventoryStatus(StrEnum):
     OK = "OK"
@@ -101,6 +127,14 @@ class InventoryStatus(StrEnum):
             InventoryStatus.OK: "",
             InventoryStatus.OVERLAP: "error",
             InventoryStatus.DUPLICATE: "error",
+        }.get(self, "")
+
+    @property
+    def description(self) -> str:
+        return {
+            InventoryStatus.OK: "No duplicate or overlap issue was detected.",
+            InventoryStatus.OVERLAP: "Same element/type appears in more than one selected project.",
+            InventoryStatus.DUPLICATE: "Same element/type appears more than once within the same project.",
         }.get(self, "")
 
 
@@ -128,6 +162,15 @@ class ArchiveStatus(StrEnum):
             ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE: "warning",
         }.get(self, "")
 
+    @property
+    def description(self) -> str:
+        return {
+            ArchiveStatus.OK: "No archive counterpart issue was detected.",
+            ArchiveStatus.ARCHIVE_IN_QUAL: "Archive row is intentionally hidden for normal QUAL movement.",
+            ArchiveStatus.POTENTIAL_MISSING_ARCHIVE: "Program/archive counterpart appears to be missing from selected inventory.",
+            ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE: "Archive move may be missing its corresponding program move.",
+        }.get(self, "")
+
 
 class MovementStatus(StrEnum):
     OK = "OK"
@@ -150,6 +193,14 @@ class MovementStatus(StrEnum):
             MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING: "warning",
         }.get(self, "")
 
+    @property
+    def description(self) -> str:
+        return {
+            MovementStatus.OK: "No movement marker issue was detected.",
+            MovementStatus.DO_NOT_MOVE: "Inventory row is marked do not move and is hidden/unselectable.",
+            MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING: "Row says it is already in target, but NDVR did not confirm it.",
+        }.get(self, "")
+
 
 class FixStatus(StrEnum):
     OK = "OK"
@@ -169,6 +220,13 @@ class FixStatus(StrEnum):
             FixStatus.EXISTS_IN_FIXP1: "warning",
         }.get(self, "")
 
+    @property
+    def description(self) -> str:
+        return {
+            FixStatus.OK: "Element/type was not found in FIXP1.",
+            FixStatus.EXISTS_IN_FIXP1: "Element/type also exists in FIXP1 and should be reviewed.",
+        }.get(self, "")
+
 
 class ResyncStatus(StrEnum):
     OK = "OK"
@@ -186,6 +244,13 @@ class ResyncStatus(StrEnum):
         return {
             ResyncStatus.OK: "",
             ResyncStatus.HIGHER_VERSION_EXISTS: "warning",
+        }.get(self, "")
+
+    @property
+    def description(self) -> str:
+        return {
+            ResyncStatus.OK: "No resync/version warning was detected.",
+            ResyncStatus.HIGHER_VERSION_EXISTS: "A higher version exists in a higher environment.",
         }.get(self, "")
 
 

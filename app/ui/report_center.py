@@ -10,7 +10,7 @@ Used By:
 Responsibilities:
     - Display available reports.
     - Let the user choose one or more reports.
-    - Let the user choose CSV/PDF output.
+    - Let the user choose CSV/XLSX/PDF output.
     - Let the user include/exclude empty reports.
     - Let the user override the output folder.
     - Generate selected reports.
@@ -55,7 +55,8 @@ class ReportCenter(ctk.CTkToplevel):
 
         self.report_vars: dict[str, ctk.BooleanVar] = {}
         self.csv_var = ctk.BooleanVar(value=True)
-        self.pdf_var = ctk.BooleanVar(value=False)
+        self.xlsx_var = ctk.BooleanVar(value=True)
+        self.pdf_var = ctk.BooleanVar(value=True)
         self.include_empty_var = ctk.BooleanVar(value=False)
 
         self.output_folder_var = ctk.StringVar(
@@ -149,6 +150,13 @@ class ReportCenter(ctk.CTkToplevel):
             width=160,
         ).grid(row=0, column=1, sticky="e", padx=12, pady=(10, 4))
 
+        ctk.CTkButton(
+            frame,
+            text="Clear All Reports",
+            command=self.clear_all_reports,
+            width=160,
+        ).grid(row=0, column=2, sticky="e", padx=(0, 12), pady=(10, 4))
+
         for row_index, report_name in enumerate(
             self.report_registry.get_names(), start=1
         ):
@@ -185,6 +193,12 @@ class ReportCenter(ctk.CTkToplevel):
             frame,
             text="PDF where supported",
             variable=self.pdf_var,
+        ).grid(row=1, column=2, sticky="w", padx=8, pady=4)
+
+        ctk.CTkCheckBox(
+            frame,
+            text="XLSX",
+            variable=self.xlsx_var,
         ).grid(row=1, column=1, sticky="w", padx=8, pady=4)
 
         ctk.CTkCheckBox(
@@ -250,6 +264,12 @@ class ReportCenter(ctk.CTkToplevel):
         for var in self.report_vars.values():
             var.set(True)
 
+    def clear_all_reports(
+        self,
+    ) -> None:
+        for var in self.report_vars.values():
+            var.set(False)
+
     def browse_folder(
         self,
     ) -> None:
@@ -276,6 +296,9 @@ class ReportCenter(ctk.CTkToplevel):
         if self.csv_var.get():
             formats.append("csv")
 
+        if self.xlsx_var.get():
+            formats.append("xlsx")
+
         if self.pdf_var.get():
             formats.append("pdf")
 
@@ -297,7 +320,7 @@ class ReportCenter(ctk.CTkToplevel):
         if not formats:
             messagebox.showwarning(
                 "No Output Format Selected",
-                "Select CSV, PDF, or both.",
+                "Select CSV, XLSX, PDF, or any combination.",
             )
             return
 
@@ -357,7 +380,7 @@ class ReportCenter(ctk.CTkToplevel):
 
         if generated_files:
             result_text = "Generated:\n" + "\n".join(
-                f"✓ {path.name}" for path in generated_files
+                f"- {path.name}" for path in generated_files
             )
         else:
             result_text = "No report files were generated."
@@ -378,7 +401,7 @@ class ReportCenter(ctk.CTkToplevel):
         if not formats:
             messagebox.showwarning(
                 "No Output Format Selected",
-                "Select CSV, PDF, or both.",
+                "Select CSV, XLSX, PDF, or any combination.",
             )
             return
 

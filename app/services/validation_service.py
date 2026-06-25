@@ -47,6 +47,17 @@ from app.services.validation_rules import schedule_rules as schedule_rule_module
 from app.services.validation_rules import selection_rules as selection_rule_module
 
 
+VALIDATION_RULE_MODULES = [
+    movement_rule_module,
+    inventory_rule_module,
+    schedule_rule_module,
+    location_rule_module,
+    archive_rule_module,
+    fix_rule_module,
+    selection_rule_module,
+]
+
+
 class ValidationService:
     def __init__(
         self,
@@ -62,19 +73,31 @@ class ValidationService:
     def _validate_rule_contracts(
         self,
     ) -> None:
-        for rule_name, rule_module in {
-            "archive_rules": archive_rule_module,
-            "fix_rules": fix_rule_module,
-            "inventory_rules": inventory_rule_module,
-            "location_rules": location_rule_module,
-            "movement_rules": movement_rule_module,
-            "schedule_rules": schedule_rule_module,
-            "selection_rules": selection_rule_module,
-        }.items():
-            require_rule_module(
+        seen_rules: set[str] = set()
+
+        for rule_module in VALIDATION_RULE_MODULES:
+            validated_module = require_rule_module(
                 rule_module=rule_module,
-                rule_name=rule_name,
+                rule_name=rule_module.__name__,
             )
+            rule = validated_module.RULE
+
+            if rule.name in seen_rules:
+                raise TypeError(f"Duplicate validation rule name: {rule.name}")
+
+            missing_dependencies = [
+                dependency
+                for dependency in rule.dependencies
+                if dependency not in seen_rules
+            ]
+
+            if missing_dependencies:
+                raise TypeError(
+                    f"Validation rule {rule.name!r} depends on rules that have not run: "
+                    + ", ".join(missing_dependencies)
+                )
+
+            seen_rules.add(rule.name)
 
     def validate_elements(
         self,

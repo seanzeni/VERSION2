@@ -25,6 +25,10 @@ import stat
 from datetime import datetime
 from pathlib import Path
 
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from openpyxl.utils import get_column_letter
+
 from app.core.models import Element
 
 
@@ -208,3 +212,63 @@ def export_csv(
         writer.writerows(rows)
 
     make_read_only(output_path)
+
+
+def export_xlsx(
+    output_path: Path,
+    sheets: dict[str, tuple[list[str], list[list[object]]]],
+) -> None:
+    output_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    make_writable(output_path)
+
+    workbook = Workbook()
+    default_sheet = workbook.active
+    workbook.remove(default_sheet)
+
+    for sheet_name, (headers, rows) in sheets.items():
+        worksheet = workbook.create_sheet(
+            title=_safe_sheet_name(sheet_name),
+        )
+        worksheet.append(headers)
+
+        for cell in worksheet[1]:
+            cell.font = Font(bold=True)
+
+        for row in rows:
+            worksheet.append(row)
+
+        worksheet.freeze_panes = "A2"
+        worksheet.auto_filter.ref = worksheet.dimensions
+        _autosize_columns(worksheet)
+
+    workbook.save(output_path)
+    make_read_only(output_path)
+
+
+def _safe_sheet_name(
+    sheet_name: str,
+) -> str:
+    safe_name = str(sheet_name).strip() or "Sheet"
+
+    for char in "[]:*?/\\":
+        safe_name = safe_name.replace(char, "_")
+
+    return safe_name[:31]
+
+
+def _autosize_columns(
+    worksheet,
+) -> None:
+    for column_cells in worksheet.columns:
+        max_length = max(
+            len(str(cell.value or ""))
+            for cell in column_cells
+        )
+        column_letter = get_column_letter(column_cells[0].column)
+        worksheet.column_dimensions[column_letter].width = min(
+            max(max_length + 2, 10),
+            60,
+        )

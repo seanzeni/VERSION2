@@ -26,7 +26,17 @@ from app.core.models import Element
 from app.core.models import MovementStatus
 from app.core.status_messages import ReasonBuilder
 from app.services.validation_rules import selection_rules
+from app.services.validation_rules.base import RuleDefinition
+from app.services.validation_rules.base import RulePhase
 from app.services.validation_rules.base import ValidatorContext
+
+
+RULE = RuleDefinition(
+    name="archive",
+    phase=RulePhase.ARCHIVE,
+    dependencies=("movement", "schedule", "location"),
+    description="Detect missing archive/program counterpart moves.",
+)
 
 
 def apply(
