@@ -25,12 +25,23 @@ def test_issues_report_excludes_hidden(tmp_path: Path) -> None:
     output=IssuesReport().generate([make_element(archive_status=ArchiveStatus.POTENTIAL_MISSING_ARCHIVE), make_element(name='OPGM002', visible=False, archive_status=ArchiveStatus.POTENTIAL_MISSING_ARCHIVE)], tmp_path, False)
     rows=read_csv(output)
     assert len(rows)==1 and rows[0]['Element']=='OPGM001'
+    glossary=tmp_path / IssuesReport.GLOSSARY_FILE_NAME
+    assert glossary.exists()
+    assert any(row['Value']=='POTENTIAL_MISSING_ARCHIVE' for row in read_csv(glossary))
     make_writable(output)
+    make_writable(glossary)
 
 def test_effort_summary_report_generates_rows(tmp_path: Path) -> None:
     output=EffortSummaryReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB'), make_element(project='ABC', type_='OAPS')], tmp_path, 'PROD', 1)
     rows=read_csv(output)
-    assert len(rows)==1 and rows[0]['Project']=='ABC' and rows[0]['Selected Elements']=='2'
+    summary_rows=[row for row in rows if row['Row Type']=='Effort Summary']
+    detail_rows=[row for row in rows if row['Row Type']=='Inventory Detail']
+    assert len(summary_rows)==1
+    assert summary_rows[0]['Project']=='ABC'
+    assert summary_rows[0]['Selected Elements']=='2'
+    assert len(detail_rows)==2
+    assert {row['Type'] for row in detail_rows} == {'OCOB', 'OAPS'}
+    assert all(row['Schedule Status']=='OK' for row in detail_rows)
     make_writable(output)
 
 def test_release_estimate_report_generates_total(tmp_path: Path) -> None:

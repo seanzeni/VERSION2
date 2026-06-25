@@ -18,10 +18,12 @@ from pathlib import Path
 from app.core.models import Element
 from app.reports.report_utils import export_csv
 from app.reports.report_utils import sort_elements
+from app.reports.status_glossary import get_issues_glossary_rows
 
 
 class IssuesReport:
     FILE_NAME = "Issues_Report.csv"
+    GLOSSARY_FILE_NAME = "Issues_Report_Status_Glossary.csv"
 
     def generate(
         self,
@@ -78,6 +80,18 @@ class IssuesReport:
                 "Reasons",
             ],
             rows=rows,
+        )
+
+        export_csv(
+            output_path=output_folder / self.GLOSSARY_FILE_NAME,
+            headers=[
+                "Section",
+                "Field",
+                "Value",
+                "Severity",
+                "Meaning",
+            ],
+            rows=get_issues_glossary_rows(),
         )
 
         return report_path

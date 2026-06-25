@@ -58,7 +58,7 @@ class EffortSummaryReport:
 
             grouped[element.project].append(element)
 
-        rows: list[list[str]] = []
+        rows: list[list[object]] = []
 
         for project in sorted(grouped.keys()):
             project_elements = grouped[project]
@@ -83,7 +83,22 @@ class EffortSummaryReport:
 
             rows.append(
                 [
+                    "Effort Summary",
                     project,
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
                     len(selected_elements),
                     self._count_severity(project_elements, Severity.ERROR),
                     self._count_severity(project_elements, Severity.WARNING),
@@ -98,10 +113,64 @@ class EffortSummaryReport:
                 ]
             )
 
+            for element in sorted(
+                project_elements,
+                key=lambda item: (
+                    item.element.upper(),
+                    item.type.upper(),
+                ),
+            ):
+                rows.append(
+                    [
+                        "Inventory Detail",
+                        project,
+                        element.element,
+                        element.type,
+                        element.selected,
+                        element.selectable,
+                        element.visible,
+                        element.severity.value,
+                        element.inventory_status.value,
+                        element.schedule_status.value,
+                        element.location_status.value,
+                        element.archive_status.value,
+                        element.fix_status.value,
+                        element.movement_status.value,
+                        element.resync_status.value,
+                        element.display_reason,
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                    ]
+                )
+
         export_csv(
             output_path=report_path,
             headers=[
+                "Row Type",
                 "Project",
+                "Element",
+                "Type",
+                "Selected",
+                "Selectable",
+                "Visible",
+                "Severity",
+                "Inventory Status",
+                "Schedule Status",
+                "Location Status",
+                "Archive Status",
+                "Fix Status",
+                "Movement Status",
+                "Resync Status",
+                "Reasons",
                 "Selected Elements",
                 "Errors",
                 "Warnings",
