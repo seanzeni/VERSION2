@@ -585,16 +585,19 @@ class MainWindow(ctk.CTk):
     def refresh_ndvr(
         self,
     ) -> None:
-        selected_file = filedialog.askopenfilename(
-            title="Select NDVR/Mainframe Location File",
-            filetypes=[
-                ("Text Files", "*.txt *.dat *.csv"),
-                ("All Files", "*.*"),
-            ],
-        )
+        selected_file = self.app_state.current_ndvr_path
 
-        if not selected_file:
-            return
+        if selected_file is None or not Path(selected_file).exists():
+            selected_file = filedialog.askopenfilename(
+                title="Select NDVR/Mainframe Location File",
+                filetypes=[
+                    ("Text Files", "*.txt *.dat *.csv"),
+                    ("All Files", "*.*"),
+                ],
+            )
+
+            if not selected_file:
+                return
 
         try:
             self.status_bar.set_source_status(
@@ -611,7 +614,7 @@ class MainWindow(ctk.CTk):
                 status="loaded",
                 detail=(
                     f"NDVR loaded successfully.\n\n"
-                    f"File:\n{selected_file}\n\n"
+                    f"File:\n{self.app_state.current_ndvr_path}\n\n"
                     f"Records loaded:\n{len(service.records)}"
                 ),
             )

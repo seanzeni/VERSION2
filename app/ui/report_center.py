@@ -402,7 +402,7 @@ class ReportCenter(ctk.CTkToplevel):
 
         try:
             results = service.generate_forecast(
-                base_output_folder=Path(self.output_folder_var.get()),
+                base_output_folder=self.base_output_folder,
                 formats=formats,
                 include_empty=self.include_empty_var.get(),
             )
