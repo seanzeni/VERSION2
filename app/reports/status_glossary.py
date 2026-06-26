@@ -26,6 +26,7 @@ from app.core.models import ResyncStatus
 from app.core.models import ScheduleStatus
 from app.core.models import Severity
 from app.reports.report_schemas import ISSUES_COLUMNS
+from app.reports.report_schemas import ReportColumn
 
 
 STATUS_GROUPS = [
@@ -41,6 +42,12 @@ STATUS_GROUPS = [
 
 
 def get_issues_glossary_rows() -> list[list[str]]:
+    return get_report_glossary_rows(ISSUES_COLUMNS)
+
+
+def get_report_glossary_rows(
+    columns: list[ReportColumn],
+) -> list[list[str]]:
     return [
         [
             "Column",
@@ -49,7 +56,7 @@ def get_issues_glossary_rows() -> list[list[str]]:
             "",
             column.description,
         ]
-        for column in ISSUES_COLUMNS
+        for column in columns
     ] + get_status_glossary_rows()
 
 

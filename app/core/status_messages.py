@@ -148,12 +148,13 @@ class ReasonBuilder:
         moving_type: str,
         opposite_type: str,
         env: str,
+        inventory_detail: str,
     ) -> str:
         return (
             f"{StatusMessages.POTENTIAL_MISSING_ARCHIVE} "
             f"Moving {element} {moving_type}. "
             f"Found {element} {opposite_type} in {env}, "
-            f"but {element} {opposite_type} is not present in the selected inventory."
+            f"but {element} {opposite_type} {inventory_detail}"
         )
 
     @staticmethod
@@ -162,6 +163,7 @@ class ReasonBuilder:
         archive_type: str,
         program_type: str,
         env: str,
+        inventory_detail: str,
     ) -> str:
         message = (
             f"{StatusMessages.POTENTIAL_MISSING_PROGRAM_MOVE} "
@@ -175,7 +177,7 @@ class ReasonBuilder:
 
         return (
             message
-            + f"but {element} {program_type} is not present in the selected inventory."
+            + f"but {element} {program_type} {inventory_detail}"
         )
 
     @staticmethod

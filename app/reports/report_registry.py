@@ -41,6 +41,7 @@ class ReportDefinition:
     xlsx_name: str
     csv_generator: ReportGenerator
     pdf_generator: ReportGenerator | None = None
+    xlsx_generator: ReportGenerator | None = None
 
 
 class ReportRegistry:
@@ -70,6 +71,7 @@ class ReportRegistry:
                     xlsx_name="Effort_Summary_Report.xlsx",
                     csv_generator=self._generate_effort_summary_csv,
                     pdf_generator=self._generate_effort_summary_pdf,
+                    xlsx_generator=self._generate_effort_summary_xlsx,
                 ),
                 ReportDefinition(
                     name="Release Estimate Report",
@@ -134,6 +136,13 @@ class ReportRegistry:
             )
 
         if clean_format == "xlsx":
+            if definition.xlsx_generator is not None:
+                return definition.xlsx_generator(
+                    state,
+                    output_folder,
+                    include_empty,
+                )
+
             return self._generate_xlsx_from_csv(
                 output_folder=output_folder,
                 output_name=definition.xlsx_name,
@@ -183,6 +192,20 @@ class ReportRegistry:
         include_empty: bool,
     ) -> Path:
         return EffortSummaryReport(self.stats_service).generate_pdf(
+            elements=state.loaded_elements,
+            output_folder=output_folder,
+            mode=state.mode,
+            thread_count=state.thread_count,
+            include_empty=include_empty,
+        )
+
+    def _generate_effort_summary_xlsx(
+        self,
+        state,
+        output_folder: Path,
+        include_empty: bool,
+    ) -> Path:
+        return EffortSummaryReport(self.stats_service).generate_xlsx(
             elements=state.loaded_elements,
             output_folder=output_folder,
             mode=state.mode,

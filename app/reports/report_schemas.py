@@ -52,23 +52,8 @@ ISSUES_GLOSSARY_COLUMNS = [
     ReportColumn("Meaning"),
 ]
 
-EFFORT_SUMMARY_COLUMNS = [
-    ReportColumn("Row Type"),
+EFFORT_SUMMARY_SUMMARY_COLUMNS = [
     ReportColumn("Project"),
-    ReportColumn("Element"),
-    ReportColumn("Type"),
-    ReportColumn("Selected"),
-    ReportColumn("Selectable"),
-    ReportColumn("Visible"),
-    ReportColumn("Severity"),
-    ReportColumn("Inventory Status"),
-    ReportColumn("Schedule Status"),
-    ReportColumn("Location Status"),
-    ReportColumn("Archive Status"),
-    ReportColumn("Fix Status"),
-    ReportColumn("Movement Status"),
-    ReportColumn("Resync Status"),
-    ReportColumn("Reasons"),
     ReportColumn("Selected Elements"),
     ReportColumn("Errors"),
     ReportColumn("Warnings"),
@@ -81,6 +66,26 @@ EFFORT_SUMMARY_COLUMNS = [
     ReportColumn("Linkdeck Count"),
     ReportColumn("Estimated Time"),
 ]
+
+EFFORT_SUMMARY_INVENTORY_COLUMNS = [
+    ReportColumn("Project", "Inventory project or effort ID."),
+    ReportColumn("Element", "Mainframe element/program name from inventory."),
+    ReportColumn("Type", "Element type."),
+    ReportColumn("Selected", "Whether the row is selected for the current run."),
+    ReportColumn("Selectable", "Whether the UI allows the row to be selected."),
+    ReportColumn("Visible", "Whether the row is visible in the element table."),
+    ReportColumn("Severity", "Highest severity across validation statuses."),
+    ReportColumn("Inventory Status", "Duplicate/overlap inventory status."),
+    ReportColumn("Schedule Status", "SQL schedule comparison status."),
+    ReportColumn("Location Status", "NDVR location validation status."),
+    ReportColumn("Archive Status", "Archive/program counterpart status."),
+    ReportColumn("Fix Status", "FIXP1 warning status."),
+    ReportColumn("Movement Status", "Movement marker status."),
+    ReportColumn("Resync Status", "Resync/version warning status."),
+    ReportColumn("Reasons", "Detailed validation messages."),
+]
+
+EFFORT_SUMMARY_COLUMNS = EFFORT_SUMMARY_INVENTORY_COLUMNS
 
 RELEASE_ESTIMATE_COLUMNS = [
     ReportColumn("Move Date"),

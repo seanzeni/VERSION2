@@ -208,10 +208,12 @@ class ValidationService:
         elements: list[Element],
         location_service: MainframeLocationService | None,
         mode: str,
+        all_release_elements: list[Element] | None = None,
     ) -> None:
         archive_rule_module.apply(
             self._build_context(
                 elements=elements,
+                all_release_elements=all_release_elements,
                 location_service=location_service,
                 mode=mode,
             ),

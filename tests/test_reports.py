@@ -4,6 +4,7 @@ import csv
 from app.core.models import ArchiveStatus
 from app.core.models import Element
 from app.core.models import InventoryIssue
+from app.core.models import InventoryStatus
 from app.core.models import LocationStatus
 from app.core.models import MovementStatus
 from app.core.models import ReleaseEffort
@@ -42,14 +43,10 @@ def test_effort_summary_report_generates_rows(tmp_path: Path) -> None:
     """Verifies effort summary report generates rows."""
     output=EffortSummaryReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB'), make_element(project='ABC', type_='OAPS')], tmp_path, 'PROD', 1)
     rows=read_csv(output)
-    summary_rows=[row for row in rows if row['Row Type']=='Effort Summary']
-    detail_rows=[row for row in rows if row['Row Type']=='Inventory Detail']
-    assert len(summary_rows)==1
-    assert summary_rows[0]['Project']=='ABC'
-    assert summary_rows[0]['Selected Elements']=='2'
-    assert len(detail_rows)==2
-    assert {row['Type'] for row in detail_rows} == {'OCOB', 'OAPS'}
-    assert all(row['Schedule Status']=='OK' for row in detail_rows)
+    assert len(rows)==2
+    assert {row['Type'] for row in rows} == {'OCOB', 'OAPS'}
+    assert all(row['Project']=='ABC' for row in rows)
+    assert all(row['Schedule Status']=='OK' for row in rows)
     make_writable(output)
 
 def test_effort_summary_report_includes_hidden_inventory_details(tmp_path: Path) -> None:
@@ -65,12 +62,9 @@ def test_effort_summary_report_includes_hidden_inventory_details(tmp_path: Path)
 
     output=EffortSummaryReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB'), hidden], tmp_path, 'PROD', 1)
     rows=read_csv(output)
-    summary_rows=[row for row in rows if row['Row Type']=='Effort Summary']
-    detail_rows=[row for row in rows if row['Row Type']=='Inventory Detail']
 
-    assert summary_rows[0]['Selected Elements']=='1'
-    assert {row['Element'] for row in detail_rows} == {'OPGM001', 'OPGM003'}
-    hidden_row=next(row for row in detail_rows if row['Element']=='OPGM003')
+    assert {row['Element'] for row in rows} == {'OPGM001', 'OPGM003'}
+    hidden_row=next(row for row in rows if row['Element']=='OPGM003')
     assert hidden_row['Selected']=='False'
     assert hidden_row['Visible']=='False'
     assert hidden_row['Movement Status']=='DO_NOT_MOVE'
@@ -89,9 +83,30 @@ def test_effort_summary_report_includes_hidden_only_effort(tmp_path: Path) -> No
     output=EffortSummaryReport(make_stats_service()).generate([hidden], tmp_path, 'PROD', 1)
     rows=read_csv(output)
 
-    assert [row['Project'] for row in rows if row['Row Type']=='Effort Summary'] == ['HIDDEN']
-    assert [row['Element'] for row in rows if row['Row Type']=='Inventory Detail'] == ['OPGM004']
+    assert [row['Project'] for row in rows] == ['HIDDEN']
+    assert [row['Element'] for row in rows] == ['OPGM004']
     make_writable(output)
+
+def test_effort_summary_status_count_rows() -> None:
+    """Verifies effort summary counts each warning/error status type."""
+    overlap = make_element()
+    overlap.inventory_status = InventoryStatus.OVERLAP
+    missing_archive = make_element(name='OPGM002')
+    missing_archive.archive_status = ArchiveStatus.POTENTIAL_MISSING_ARCHIVE
+    missing_program = make_element(name='OPGM003')
+    missing_program.archive_status = ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+    not_found = make_element(name='OPGM004')
+    not_found.location_status = LocationStatus.NOT_FOUND
+
+    rows = EffortSummaryReport(make_stats_service())._build_status_count_rows(
+        [overlap, missing_archive, missing_program, not_found]
+    )
+
+    counts = {row[0]: row[1] for row in rows}
+    assert counts['Overlaps'] == 1
+    assert counts['Missing Archives'] == 1
+    assert counts['Missing Programs'] == 1
+    assert counts['Not Found'] == 1
 
 def test_release_estimate_report_generates_total(tmp_path: Path) -> None:
     """Verifies release estimate report generates total."""

@@ -2,20 +2,22 @@
 
 ## Effort Summary Report
 
-`Effort_Summary_Report.csv` contains two row types:
+`Effort_Summary_Report.csv` contains one row per inventory item with every
+status column and the full reason text, including hidden rows such as
+marker-hidden rows. It does not include separate effort-level summary rows.
 
-- `Effort Summary`: one row per effort with selected counts, severity counts,
-  workload category counts, and estimated time.
-- `Inventory Detail`: one row per inventory item with every status column and
-  the full reason text, including hidden rows such as marker-hidden rows.
+`Effort_Summary_Report.xlsx` contains:
 
-This makes the CSV useful both as a summary and as an auditable effort-level
-inventory list.
+- `Summary`: one row per effort with selected counts, severity counts, workload
+  category counts, and estimated time.
+- `Inventory`: one row per inventory item with every status column and reason.
+- `Information`: column and status explanations.
 
 `Effort_Summary_Report.pdf` starts with a summary page and then adds one detail
-page per effort. The PDF detail section only lists warning/error items; INFO-only
-notifications are intentionally omitted to keep the PDF focused on actionable
-work.
+page per effort. The effort detail pages show counts by warning/error status
+type, such as overlaps, duplicates, missing archives, missing programs, not
+found, FIXP1, and resync warnings. Individual element issue rows are omitted to
+keep the PDF focused on effort-level risk.
 
 ## Issues Report
 

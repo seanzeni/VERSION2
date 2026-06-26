@@ -165,7 +165,7 @@ def test_generate_issues_report_xlsx_includes_glossary_sheet(
 
 
 def test_generate_effort_summary_xlsx(tmp_path: Path) -> None:
-    """Verifies Effort Summary Report can generate XLSX output."""
+    """Verifies Effort Summary Report XLSX has separate workbook sheets."""
     output = make_registry().generate(
         "Effort Summary Report",
         "xlsx",
@@ -175,6 +175,12 @@ def test_generate_effort_summary_xlsx(tmp_path: Path) -> None:
     )
 
     assert output is not None and output.suffix == ".xlsx" and output.exists()
+
+    workbook = load_workbook(output, read_only=True)
+    assert "Summary" in workbook.sheetnames
+    assert "Inventory" in workbook.sheetnames
+    assert "Information" in workbook.sheetnames
+    workbook.close()
     make_writable(output)
 
 

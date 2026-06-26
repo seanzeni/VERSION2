@@ -22,7 +22,9 @@ Notes:
 """
 
 from app.core.models import ArchiveStatus
+from app.core.models import Element
 from app.core.models import MovementStatus
+from app.core.models import Severity
 from app.core.status_messages import ReasonBuilder
 from app.services.validation_rules import selection_rules
 from app.services.validation_rules.base import RuleDefinition
@@ -49,7 +51,14 @@ def apply(
     if location_service is None:
         return
 
-    inventory_lookup = {element.key for element in context.elements}
+    selected_inventory_lookup = {
+        element.key: element
+        for element in context.elements
+    }
+    full_inventory_lookup = {
+        element.key: element
+        for element in (context.all_release_elements or context.elements)
+    }
 
     for element in context.elements:
         if element.movement_status == MovementStatus.DO_NOT_MOVE:
@@ -71,10 +80,14 @@ def apply(
             type_=opposite_type,
             env="PROD1",
         ):
-            if (
-                element_name,
-                opposite_type,
-            ) not in inventory_lookup:
+            counterpart_status = get_counterpart_inventory_status(
+                element_name=element_name,
+                type_name=opposite_type,
+                selected_inventory_lookup=selected_inventory_lookup,
+                full_inventory_lookup=full_inventory_lookup,
+            )
+
+            if counterpart_status.should_warn:
                 element.archive_status = ArchiveStatus.POTENTIAL_MISSING_ARCHIVE
 
                 context.add_reason(
@@ -84,6 +97,7 @@ def apply(
                         moving_type=element.type,
                         opposite_type=opposite_type,
                         env="PROD1",
+                        inventory_detail=counterpart_status.reason_detail,
                     ),
                 )
 
@@ -95,10 +109,14 @@ def apply(
         if program_type is None or not selection_rules.is_archive_move(element):
             continue
 
-        if (
-            element_name,
-            program_type,
-        ) in inventory_lookup:
+        counterpart_status = get_counterpart_inventory_status(
+            element_name=element_name,
+            type_name=program_type,
+            selected_inventory_lookup=selected_inventory_lookup,
+            full_inventory_lookup=full_inventory_lookup,
+        )
+
+        if not counterpart_status.should_warn:
             continue
 
         found_env = (
@@ -120,6 +138,7 @@ def apply(
                 archive_type=element.type,
                 program_type=program_type,
                 env=found_env,
+                inventory_detail=counterpart_status.reason_detail,
             ),
         )
 
@@ -145,6 +164,69 @@ def get_opposite_type(
             return archive_type
 
     return None
+
+
+class CounterpartInventoryStatus:
+    def __init__(
+        self,
+        should_warn: bool,
+        reason_detail: str = "",
+    ) -> None:
+        self.should_warn = should_warn
+        self.reason_detail = reason_detail
+
+
+def get_counterpart_inventory_status(
+    element_name: str,
+    type_name: str,
+    selected_inventory_lookup: dict[tuple[str, str], Element],
+    full_inventory_lookup: dict[tuple[str, str], Element],
+) -> CounterpartInventoryStatus:
+    key = (
+        element_name.strip().upper(),
+        type_name.strip().upper(),
+    )
+    selected_counterpart = selected_inventory_lookup.get(key)
+
+    if selected_counterpart is not None:
+        if has_blocking_counterpart_issue(selected_counterpart):
+            return CounterpartInventoryStatus(
+                should_warn=True,
+                reason_detail=(
+                    "is present in inventory but not selectable. "
+                    "See Element related issues."
+                ),
+            )
+
+        if not selected_counterpart.selected:
+            return CounterpartInventoryStatus(
+                should_warn=True,
+                reason_detail="is present in inventory but not selected.",
+            )
+
+        return CounterpartInventoryStatus(
+            should_warn=False,
+        )
+
+    if key in full_inventory_lookup:
+        return CounterpartInventoryStatus(
+            should_warn=True,
+            reason_detail="is present in inventory but not selected.",
+        )
+
+    return CounterpartInventoryStatus(
+        should_warn=True,
+        reason_detail="is not present in inventory at all.",
+    )
+
+
+def has_blocking_counterpart_issue(
+    element: Element,
+) -> bool:
+    return (
+        not element.selectable
+        or element.severity in {Severity.ERROR, Severity.WARNING}
+    )
 
 
 def get_program_type_for_archive(

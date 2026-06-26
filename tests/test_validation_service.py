@@ -366,6 +366,26 @@ def test_missing_archive_rule_opposite_type_exists_in_prod_and_missing_inventory
         [element], FakeLocationService({("PGM001", "OAPS", "PROD1")}), "PROD"
     )
     assert element.archive_status == ArchiveStatus.POTENTIAL_MISSING_ARCHIVE
+    assert "is not present in inventory at all" in element.display_reason
+
+
+def test_missing_archive_rule_reports_opposite_type_not_selected() -> None:
+    """Verifies missing archive reason distinguishes unselected inventory."""
+    selected_element = make_element(type_="OCOB")
+    all_inventory = [
+        selected_element,
+        make_element(type_="OAPS"),
+    ]
+
+    make_service().apply_archive_status(
+        [selected_element],
+        FakeLocationService({("PGM001", "OAPS", "PROD1")}),
+        "PROD",
+        all_release_elements=all_inventory,
+    )
+
+    assert selected_element.archive_status == ArchiveStatus.POTENTIAL_MISSING_ARCHIVE
+    assert "is present in inventory but not selected" in selected_element.display_reason
 
 
 def test_do_not_move_suppresses_missing_archive_rule() -> None:
@@ -398,6 +418,43 @@ def test_missing_program_move_archive_side_in_inventory_program_side_in_qual_mis
         [element], FakeLocationService({("PGM001", "OCOB", "QUAL1")}), "PROD"
     )
     assert element.archive_status == ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+    assert "is not present in inventory at all" in element.display_reason
+
+
+def test_missing_program_move_reports_program_not_selectable() -> None:
+    """Verifies missing program reason distinguishes counterpart issues."""
+    archive_element = make_element(type_="OAPS", package="ARCHIVE")
+    program_element = make_element(type_="OCOB")
+    program_element.location_status = LocationStatus.NOT_FOUND
+
+    make_service().apply_archive_status(
+        [archive_element, program_element],
+        FakeLocationService({("PGM001", "OCOB", "QUAL1")}),
+        "PROD",
+    )
+
+    assert archive_element.archive_status == ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+    assert (
+        "is present in inventory but not selectable"
+        in archive_element.display_reason
+    )
+    assert "See Element related issues" in archive_element.display_reason
+
+
+def test_missing_program_move_reports_program_not_selected() -> None:
+    """Verifies missing program reason distinguishes unselected inventory."""
+    archive_element = make_element(type_="OAPS", package="ARCHIVE")
+    program_element = make_element(type_="OCOB")
+
+    make_service().apply_archive_status(
+        [archive_element],
+        FakeLocationService(set()),
+        "PROD",
+        all_release_elements=[archive_element, program_element],
+    )
+
+    assert archive_element.archive_status == ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+    assert "is present in inventory but not selected" in archive_element.display_reason
 
 
 def test_missing_program_move_archive_side_missing_inventory_even_when_program_not_in_qual() -> None:
