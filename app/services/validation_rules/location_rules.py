@@ -51,11 +51,7 @@ def apply(
         return
 
     for element in context.elements:
-        if (
-            element.movement_status == MovementStatus.DO_NOT_MOVE
-            or element.movement_status == MovementStatus.MARKED_IN_PROD
-            or element.movement_status == MovementStatus.MARKED_IN_QUAL
-        ):
+        if should_skip_for_movement_status(element.movement_status):
             continue
 
         if element.project.strip() in context.skip_location_validation_effort_ids:
@@ -124,6 +120,16 @@ def apply(
                 found_locations=found_locations,
             ),
         )
+
+
+def should_skip_for_movement_status(
+    movement_status: MovementStatus,
+) -> bool:
+    return movement_status in {
+        MovementStatus.DO_NOT_MOVE,
+        MovementStatus.MARKED_IN_PROD,
+        MovementStatus.MARKED_IN_QUAL,
+    }
 
 
 def get_env_level(

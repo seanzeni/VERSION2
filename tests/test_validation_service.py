@@ -549,6 +549,34 @@ def test_prod_run_flags_missing_prod_marker_location() -> None:
     assert "PROD1" in element.display_reason
 
 
+def test_location_status_skips_confirmed_prod_marker() -> None:
+    """Verifies confirmed PROD markers do not get lower-region location checks."""
+    element = make_element(package="IN PROD")
+    service = make_service()
+    location_service = FakeLocationService({("PGM001", "OCOB", "PROD1")})
+
+    service.apply_movement_status([element], location_service, "QUAL")
+    service.apply_location_status([element], FakeLocationService(set()), "QUAL")
+
+    assert element.movement_status == MovementStatus.MARKED_IN_PROD
+    assert element.location_status == LocationStatus.OK
+    assert "Expected NDVR location" not in element.display_reason
+
+
+def test_location_status_runs_for_missing_prod_marker() -> None:
+    """Verifies missing PROD markers still get lower-region location checks."""
+    element = make_element(package="IN PROD")
+    service = make_service()
+
+    service.apply_movement_status([element], FakeLocationService(set()), "QUAL")
+    service.apply_location_status([element], FakeLocationService(set()), "QUAL")
+
+    assert element.movement_status == MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING
+    assert element.location_status == LocationStatus.NOT_FOUND
+    assert "PROD1" in element.display_reason
+    assert "expected NDVR location" in element.display_reason
+
+
 def test_marked_already_there_but_missing_warning_selectable() -> None:
     """Verifies marked already there but missing warning selectable."""
     element = make_element(package="PROD")
