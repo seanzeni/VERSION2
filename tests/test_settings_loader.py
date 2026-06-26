@@ -42,17 +42,20 @@ def make_settings() -> dict:
 
 
 def test_load_settings(tmp_path: Path) -> None:
+    """Verifies load settings."""
     path = tmp_path / "settings.json"
     path.write_text(json.dumps(make_settings()), encoding="utf-8")
     assert "database" in SettingsLoader(path).load()
 
 
 def test_missing_settings_file_raises(tmp_path: Path) -> None:
+    """Verifies missing settings file raises."""
     with pytest.raises(FileNotFoundError):
         SettingsLoader(tmp_path / "missing.json").load()
 
 
 def test_missing_required_section_raises(tmp_path: Path) -> None:
+    """Verifies missing required section raises."""
     settings = make_settings()
     settings.pop("database")
     path = tmp_path / "settings.json"
@@ -62,6 +65,7 @@ def test_missing_required_section_raises(tmp_path: Path) -> None:
 
 
 def test_missing_nested_ui_key_raises(tmp_path: Path) -> None:
+    """Verifies missing nested ui key raises."""
     settings = make_settings()
     settings["ui"].pop("window_width")
 
@@ -76,6 +80,7 @@ def test_missing_nested_ui_key_raises(tmp_path: Path) -> None:
 
 
 def test_missing_nested_workload_key_raises(tmp_path: Path) -> None:
+    """Verifies missing nested workload key raises."""
     settings = make_settings()
     settings["workload"].pop("types_per_hour_per_thread")
 
@@ -90,6 +95,7 @@ def test_missing_nested_workload_key_raises(tmp_path: Path) -> None:
 
 
 def test_save_settings(tmp_path: Path) -> None:
+    """Verifies save settings."""
     path = tmp_path / "settings.json"
     settings = make_settings()
 

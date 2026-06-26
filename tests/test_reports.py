@@ -27,6 +27,7 @@ def read_csv(path: Path) -> list[dict[str,str]]:
     with path.open('r', encoding='utf-8', newline='') as f: return list(csv.DictReader(f))
 
 def test_issues_report_excludes_hidden(tmp_path: Path) -> None:
+    """Verifies issues report excludes hidden."""
     output=IssuesReport().generate([make_element(archive_status=ArchiveStatus.POTENTIAL_MISSING_ARCHIVE), make_element(name='OPGM002', visible=False, archive_status=ArchiveStatus.POTENTIAL_MISSING_ARCHIVE)], tmp_path, False)
     rows=read_csv(output)
     assert len(rows)==1 and rows[0]['Element']=='OPGM001'
@@ -37,6 +38,7 @@ def test_issues_report_excludes_hidden(tmp_path: Path) -> None:
     make_writable(glossary)
 
 def test_effort_summary_report_generates_rows(tmp_path: Path) -> None:
+    """Verifies effort summary report generates rows."""
     output=EffortSummaryReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB'), make_element(project='ABC', type_='OAPS')], tmp_path, 'PROD', 1)
     rows=read_csv(output)
     summary_rows=[row for row in rows if row['Row Type']=='Effort Summary']
@@ -50,6 +52,7 @@ def test_effort_summary_report_generates_rows(tmp_path: Path) -> None:
     make_writable(output)
 
 def test_effort_summary_report_includes_hidden_inventory_details(tmp_path: Path) -> None:
+    """Verifies effort summary report includes hidden inventory details."""
     hidden = make_element(
         name='OPGM003',
         project='ABC',
@@ -74,6 +77,7 @@ def test_effort_summary_report_includes_hidden_inventory_details(tmp_path: Path)
     make_writable(output)
 
 def test_effort_summary_report_includes_hidden_only_effort(tmp_path: Path) -> None:
+    """Verifies effort summary report includes hidden only effort."""
     hidden = make_element(
         name='OPGM004',
         project='HIDDEN',
@@ -89,6 +93,7 @@ def test_effort_summary_report_includes_hidden_only_effort(tmp_path: Path) -> No
     make_writable(output)
 
 def test_release_estimate_report_generates_total(tmp_path: Path) -> None:
+    """Verifies release estimate report generates total."""
     output=ReleaseEstimateReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB')], {'ABC':'2026-06-22'}, tmp_path, 'PROD', 3)
     rows=read_csv(output)
     assert rows[-1]['Move Date'] == 'TOTAL'
@@ -96,6 +101,7 @@ def test_release_estimate_report_generates_total(tmp_path: Path) -> None:
     make_writable(output)
 
 def test_release_inventory_report_missing_inventory(tmp_path: Path) -> None:
+    """Verifies release inventory report missing inventory."""
     output=ReleaseInventoryReport().generate('REL1','PROD',1,[],[InventoryIssue(release='REL1', effort_id='ABC', issue_type=ScheduleStatus.SQL_EXPECTED_INVENTORY_MISSING, reason='Missing inventory')],[ReleaseEffort(effort_id='ABC')],tmp_path)
     rows=read_csv(output)
     assert rows[0]['Inventory Status'] == 'Missing Inventory'
@@ -103,6 +109,7 @@ def test_release_inventory_report_missing_inventory(tmp_path: Path) -> None:
     make_writable(output)
 
 def test_release_inventory_report_withdrawn_inventory_notification(tmp_path: Path) -> None:
+    """Verifies release inventory report withdrawn inventory notification."""
     output=ReleaseInventoryReport().generate('REL1','PROD',1,[make_element(project='ABC')],[],[ReleaseEffort(effort_id='ABC', exit_date='2026-06-24')],tmp_path)
     rows=read_csv(output)
     assert rows[0]['Inventory Status'] == 'Unexpected Inventory'
@@ -110,6 +117,7 @@ def test_release_inventory_report_withdrawn_inventory_notification(tmp_path: Pat
     make_writable(output)
 
 def test_osg_cops_report_filters_selected_visible_o_or_x(tmp_path: Path) -> None:
+    """Verifies OSG COPS report filters selected visible o or x."""
     output=OsgCopsReport().generate([make_element(name='OPGM001', type_='OCOB'), make_element(name='APGM001', type_='JCL'), make_element(name='XPGM001', type_='XCOB', visible=False)], tmp_path, 'PROD')
     rows=read_csv(output)
     assert len(rows)==1 and rows[0]['Element']=='OPGM001'

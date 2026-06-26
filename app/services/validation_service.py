@@ -33,7 +33,6 @@ Notes:
 from app.core.models import Element
 from app.core.models import InventoryIssue
 from app.core.models import ReleaseEffort
-from app.core.models import ScheduleStatus
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.status_marker_service import StatusMarkerService
 from app.services.validation_rules import archive_rules as archive_rule_module

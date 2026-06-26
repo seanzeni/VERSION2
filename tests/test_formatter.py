@@ -17,13 +17,16 @@ def base_row() -> dict[str, str]:
 
 
 def test_build_record_uses_dsn_id_first_four_at_position_18() -> None:
+    """Verifies build record uses dsn id first four at position 18."""
     print(build_record(base_row(), "PROD"))
     assert build_record(base_row(), "PROD")[18:22] == "DSN1"
 
 
 def test_build_record_sets_prod_env() -> None:
+    """Verifies build record sets PROD env."""
     assert build_record(base_row(), "PROD")[60:65] == "PROD1"
 
 
 def test_build_record_sets_qual_env_from_dv_region() -> None:
+    """Verifies build record sets QUAL env from dv region."""
     assert build_record(base_row(), "QUAL")[60:65] == "DEVL1"

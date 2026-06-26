@@ -30,7 +30,6 @@ from app.core.app_context import AppContext
 from app.core.app_state import AppState
 from app.core.release_rules import next_release_choice
 from app.core.release_rules import next_available_effort_ids
-from app.services.mainframe_location_service import MainframeLocationService
 from app.ui.action_bar import ActionBar
 from app.ui.element_table import ElementTable
 from app.ui.release_tree import ReleaseTree

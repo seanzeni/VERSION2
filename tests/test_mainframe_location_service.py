@@ -1,7 +1,11 @@
 from __future__ import annotations
+
 from pathlib import Path
+
 import pytest
+
 from app.services.mainframe_location_service import MainframeLocationService
+
 
 def make_line(
     element: str,
@@ -12,53 +16,199 @@ def make_line(
     version: str,
     ccid: str = "CCID01",
 ) -> str:
-    fields=[(element,8),(type_,8),(system,8),(subsystem,4),(env,5),("2026/06/22",10),("12:00:00:00",11),(version,5),("USER01",8),(ccid,7),("COMMENTS",40)]
-    return " ".join(value.ljust(width)[:width] for value,width in fields)
+    fields = [
+        (element, 8),
+        (type_, 8),
+        (system, 8),
+        (subsystem, 4),
+        (env, 5),
+        ("2026/06/22", 10),
+        ("12:00:00:00", 11),
+        (version, 5),
+        ("USER01", 8),
+        (ccid, 7),
+        ("COMMENTS", 40),
+    ]
+    return " ".join(value.ljust(width)[:width] for value, width in fields)
+
+
+def write_location_file(
+    tmp_path: Path,
+    lines: list[str],
+) -> Path:
+    path = tmp_path / "locations.txt"
+    path.write_text(
+        "\n".join(lines),
+        encoding="cp1252",
+    )
+    return path
+
 
 def test_load_file_and_find(tmp_path: Path) -> None:
-    path=tmp_path/"locations.txt"; path.write_text("\n".join([make_line("PGM001","OCOB","SYSTEM01","SUB1","QUAL1","01.02"), make_line("PGM001","OCOB","SYSTEM01","SUB1","PROD1","01.01")]), encoding="cp1252")
-    service=MainframeLocationService().load_file(path)
-    assert len(service.records)==2
-    assert service.exists("PGM001","OCOB") is True
-    assert service.exists_in_env("PGM001","OCOB","QUAL1") is True
-    assert service.exists_in_env("PGM001","OCOB","FIXP1") is False
+    """Verifies fixed-width NDVR records load and index by element/type."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "QUAL1", "01.02"),
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "PROD1", "01.01"),
+        ],
+    )
 
-def test_parse_line_maps_system_and_subsystem_to_correct_widths(tmp_path: Path) -> None:
-    path=tmp_path/"locations.txt"; path.write_text(make_line("PGM001","OCOB","PRIVATE1","SUB1","QUAL1","01.01"), encoding="cp1252")
+    service = MainframeLocationService().load_file(path)
+
+    assert len(service.records) == 2
+    assert service.exists("PGM001", "OCOB") is True
+    assert service.exists_in_env("PGM001", "OCOB", "QUAL1") is True
+    assert service.exists_in_env("PGM001", "OCOB", "FIXP1") is False
+
+
+def test_parse_line_maps_system_and_subsystem_to_correct_widths(
+    tmp_path: Path,
+) -> None:
+    """Verifies fixed-width parsing keeps system and subsystem separate."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "PRIVATE1", "SUB1", "QUAL1", "01.01"),
+        ],
+    )
+
     record = MainframeLocationService().load_file(path).records[0]
+
     assert record.system == "PRIVATE1"
     assert record.subsystem == "SUB1"
     assert record.env == "QUAL1"
 
-def test_exists_in_fixp1(tmp_path: Path) -> None:
-    path=tmp_path/"locations.txt"; path.write_text(make_line("PGM001","OCOB","SYSTEM01","SUB1","FIXP1","01.01"), encoding="cp1252")
-    assert MainframeLocationService().load_file(path).exists_in_fixp1("PGM001","OCOB") is True
 
-def test_exists_in_location_matches_env_system_and_subsystem(tmp_path: Path) -> None:
-    path=tmp_path/"locations.txt"; path.write_text(make_line("PGM001","OCOB","PRIVATE1","SUB1","QUAL1","01.01"), encoding="cp1252")
+def test_exists_in_fixp1(tmp_path: Path) -> None:
+    """Verifies FIXP1 lookup finds matching element/type records."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "FIXP1", "01.01"),
+        ],
+    )
+
     service = MainframeLocationService().load_file(path)
-    assert service.exists_in_location("pgm001","ocob","qual1","private1","sub1") is True
-    assert service.exists_in_location("PGM001","OCOB","QUAL1","PRIVATE2","SUB1") is False
-    assert service.exists_in_location("PGM001","OCOB","QUAL1","PRIVATE1","SUB2") is False
+
+    assert service.exists_in_fixp1("PGM001", "OCOB") is True
+
+
+def test_exists_in_location_matches_env_system_and_subsystem(
+    tmp_path: Path,
+) -> None:
+    """Verifies location lookup requires env, system, and subsystem match."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "PRIVATE1", "SUB1", "QUAL1", "01.01"),
+        ],
+    )
+
+    service = MainframeLocationService().load_file(path)
+
+    assert service.exists_in_location(
+        "pgm001",
+        "ocob",
+        "qual1",
+        "private1",
+        "sub1",
+    ) is True
+    assert service.exists_in_location(
+        "PGM001",
+        "OCOB",
+        "QUAL1",
+        "PRIVATE2",
+        "SUB1",
+    ) is False
+    assert service.exists_in_location(
+        "PGM001",
+        "OCOB",
+        "QUAL1",
+        "PRIVATE1",
+        "SUB2",
+    ) is False
+
 
 def test_resync_excludes_fixp1(tmp_path: Path) -> None:
-    path=tmp_path/"locations.txt"; path.write_text("\n".join([make_line("PGM001","OCOB","SYSTEM01","SUB1","QUAL1","01.01"), make_line("PGM001","OCOB","SYSTEM01","SUB1","FIXP1","99.99")]), encoding="cp1252")
-    assert MainframeLocationService().load_file(path).has_resync_issue("PGM001","OCOB") is False
+    """Verifies FIXP1 records are ignored for resync comparison."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "QUAL1", "01.01"),
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "FIXP1", "99.99"),
+        ],
+    )
+
+    service = MainframeLocationService().load_file(path)
+
+    assert service.has_resync_issue("PGM001", "OCOB") is False
+
 
 def test_resync_details_include_higher_version(tmp_path: Path) -> None:
-    path=tmp_path/"locations.txt"; path.write_text("\n".join([make_line("PGM001","OCOB","SYSTEM01","SUB1","DEVL1","01.01"), make_line("PGM001","OCOB","SYSTEM01","SUB1","QUAL1","01.02")]), encoding="cp1252")
-    details = MainframeLocationService().load_file(path).get_resync_details("PGM001","OCOB")
+    """Verifies resync details report higher versions in higher environments."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "DEVL1", "01.01"),
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "QUAL1", "01.02"),
+        ],
+    )
+
+    details = MainframeLocationService().load_file(path).get_resync_details(
+        "PGM001",
+        "OCOB",
+    )
+
     assert details[0]["lower_env"] == "DEVL1"
     assert details[0]["higher_env"] == "QUAL1"
     assert "Higher version" in details[0]["reason"]
 
+
 def test_resync_details_include_ccid_mismatch(tmp_path: Path) -> None:
-    path=tmp_path/"locations.txt"; path.write_text("\n".join([make_line("PGM001","OCOB","SYSTEM01","SUB1","DEVL1","01.01","CCID01"), make_line("PGM001","OCOB","SYSTEM01","SUB1","QUAL1","01.01","CCID02")]), encoding="cp1252")
-    details = MainframeLocationService().load_file(path).get_resync_details("PGM001","OCOB")
+    """Verifies resync details report CCID drift across environments."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line(
+                "PGM001",
+                "OCOB",
+                "SYSTEM01",
+                "SUB1",
+                "DEVL1",
+                "01.01",
+                "CCID01",
+            ),
+            make_line(
+                "PGM001",
+                "OCOB",
+                "SYSTEM01",
+                "SUB1",
+                "QUAL1",
+                "01.01",
+                "CCID02",
+            ),
+        ],
+    )
+
+    details = MainframeLocationService().load_file(path).get_resync_details(
+        "PGM001",
+        "OCOB",
+    )
+
     assert details[0]["lower_ccid"] == "CCID01"
     assert details[0]["higher_ccid"] == "CCID02"
     assert "CCID differs" in details[0]["reason"]
 
+
 def test_invalid_version_raises(tmp_path: Path) -> None:
-    path=tmp_path/"locations.txt"; path.write_text(make_line("PGM001","OCOB","SYSTEM01","SUB1","QUAL1","BAD"), encoding="cp1252")
-    with pytest.raises(ValueError): MainframeLocationService().load_file(path)
+    """Verifies invalid version text fails fast during load."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "QUAL1", "BAD"),
+        ],
+    )
+
+    with pytest.raises(ValueError):
+        MainframeLocationService().load_file(path)

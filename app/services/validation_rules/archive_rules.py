@@ -22,7 +22,6 @@ Notes:
 """
 
 from app.core.models import ArchiveStatus
-from app.core.models import Element
 from app.core.models import MovementStatus
 from app.core.status_messages import ReasonBuilder
 from app.services.validation_rules import selection_rules

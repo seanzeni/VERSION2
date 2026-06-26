@@ -12,6 +12,7 @@ from app.core.release_rules import parse_release_month
 
 
 def test_regular_release_name_excludes_special() -> None:
+    """Verifies regular release name excludes special."""
     assert is_regular_release_name("2026/06 release") is True
     assert is_regular_release_name("2026/06 fep r2") is False
     assert is_regular_release_name("2026/06 special") is False
@@ -19,17 +20,20 @@ def test_regular_release_name_excludes_special() -> None:
 
 
 def test_forecast_release_name_includes_non_special_month_names() -> None:
+    """Verifies forecast release name includes non special month names."""
     assert is_forecast_release_name("2026/06 release") is True
     assert is_forecast_release_name("2026/06 fep r2") is True
     assert is_forecast_release_name("2026/06 special") is False
 
 
 def test_parse_release_month() -> None:
+    """Verifies parse release month."""
     assert parse_release_month("2026/07 release") == (2026, 7)
     assert parse_release_month("release 2026/07") is None
 
 
 def test_forecast_months_current_plus_next_three() -> None:
+    """Verifies forecast months current plus next three."""
     assert forecast_months(date(2026, 12, 15)) == {
         (2026, 12),
         (2027, 1),
@@ -39,6 +43,7 @@ def test_forecast_months_current_plus_next_three() -> None:
 
 
 def test_next_available_effort_ids_selects_all_on_next_mode_date() -> None:
+    """Verifies next available effort ids selects all on next mode date."""
     efforts = [
         ReleaseEffort(effort_id="B", prod_date=date(2026, 6, 25)),
         ReleaseEffort(effort_id="A", prod_date=date(2026, 6, 25)),
@@ -52,6 +57,7 @@ def test_next_available_effort_ids_selects_all_on_next_mode_date() -> None:
 
 
 def test_next_release_choice_uses_next_actual_mode_date() -> None:
+    """Verifies next release choice uses next actual mode date."""
     releases = ["2026/06 release", "2026/07 release"]
     effort_lookup = {
         "2026/06 release": [

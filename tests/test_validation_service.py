@@ -115,12 +115,14 @@ def make_element(
 
 
 def test_overlap_status() -> None:
+    """Verifies overlap status."""
     elements = [make_element(project="ABC"), make_element(project="XYZ")]
     make_service().apply_overlap_duplicate_status(elements)
     assert all(e.inventory_status == InventoryStatus.OVERLAP for e in elements)
 
 
 def test_rule_registry_rows_show_configured_hierarchy() -> None:
+    """Verifies rule registry rows show configured hierarchy."""
     rows = make_service().get_rule_registry_rows()
 
     assert [row["name"] for row in rows] == [
@@ -139,12 +141,14 @@ def test_rule_registry_rows_show_configured_hierarchy() -> None:
 
 
 def test_duplicate_status() -> None:
+    """Verifies duplicate status."""
     elements = [make_element(project="ABC"), make_element(project="ABC")]
     make_service().apply_overlap_duplicate_status(elements)
     assert all(e.inventory_status == InventoryStatus.DUPLICATE for e in elements)
 
 
 def test_overlap_keeps_duplicate_reason_for_repeated_project() -> None:
+    """Verifies overlap keeps duplicate reason for repeated project."""
     elements = [
         make_element(project="ABC"),
         make_element(project="ABC"),
@@ -159,6 +163,7 @@ def test_overlap_keeps_duplicate_reason_for_repeated_project() -> None:
 
 
 def test_inventory_not_in_release_status() -> None:
+    """Verifies inventory not in release status."""
     element = make_element(project="NOTSQL")
     make_service().apply_schedule_status(
         [element], [ReleaseEffort(effort_id="ABC")], {}, "REL1"
@@ -167,6 +172,7 @@ def test_inventory_not_in_release_status() -> None:
 
 
 def test_no_inventory_with_inventory_status() -> None:
+    """Verifies no inventory with inventory status."""
     element = make_element(project="ABC")
     make_service().apply_schedule_status(
         [element], [ReleaseEffort(effort_id="ABC", no_inventory=True)], {}, "REL1"
@@ -175,6 +181,7 @@ def test_no_inventory_with_inventory_status() -> None:
 
 
 def test_withdrawn_effort_with_inventory_status() -> None:
+    """Verifies withdrawn effort with inventory status."""
     element = make_element(project="ABC")
     make_service().apply_schedule_status(
         [element], [ReleaseEffort(effort_id="ABC", exit_date="2026-06-24")], {}, "REL1"
@@ -183,6 +190,7 @@ def test_withdrawn_effort_with_inventory_status() -> None:
 
 
 def test_wrong_release_status() -> None:
+    """Verifies wrong release status."""
     element = make_element(project="ABC", release="REL1")
     make_service().apply_schedule_status(
         [element], [ReleaseEffort(effort_id="ABC")], {"ABC": "REL2"}, "REL1"
@@ -191,12 +199,14 @@ def test_wrong_release_status() -> None:
 
 
 def test_missing_location_status() -> None:
+    """Verifies missing location status."""
     element = make_element()
     make_service().apply_location_status([element], FakeLocationService(set()), "PROD")
     assert element.location_status == LocationStatus.NOT_FOUND
 
 
 def test_validate_elements_can_skip_location_validation_for_forecast() -> None:
+    """Verifies validate elements can skip location validation for forecast."""
     element = make_element()
     validated, _issues = make_service().validate_elements(
         elements=[element],
@@ -213,6 +223,7 @@ def test_validate_elements_can_skip_location_validation_for_forecast() -> None:
 
 
 def test_found_location_status() -> None:
+    """Verifies found location status."""
     element = make_element()
     make_service().apply_location_status(
         [element],
@@ -225,6 +236,7 @@ def test_found_location_status() -> None:
 
 
 def test_prod_archive_location_status_looks_for_archive_in_prod() -> None:
+    """Verifies PROD archive location status looks for archive in PROD."""
     element = make_element(type_="OAPS", package="ARCHIVE")
     make_service().apply_location_status(
         [element],
@@ -237,6 +249,7 @@ def test_prod_archive_location_status_looks_for_archive_in_prod() -> None:
 
 
 def test_prod_archive_package_location_status_looks_in_prod() -> None:
+    """Verifies PROD archive package location status looks in PROD."""
     element = make_element(type_="OCOB", package="ARCHIVE")
     make_service().apply_location_status(
         [element],
@@ -249,6 +262,7 @@ def test_prod_archive_package_location_status_looks_in_prod() -> None:
 
 
 def test_qual_location_status_uses_act_region_source_env() -> None:
+    """Verifies QUAL location status uses act region source env."""
     element = make_element()
     make_service().apply_location_status(
         [element],
@@ -261,6 +275,7 @@ def test_qual_location_status_uses_act_region_source_env() -> None:
 
 
 def test_qual_archive_location_status_is_not_flagged() -> None:
+    """Verifies QUAL archive location status is not flagged."""
     element = make_element(type_="OAPS", package="ARCHIVE")
     make_service().apply_location_status([element], FakeLocationService(set()), "QUAL")
     assert element.location_status == LocationStatus.OK
@@ -268,6 +283,7 @@ def test_qual_archive_location_status_is_not_flagged() -> None:
 
 
 def test_qual_archive_package_location_status_is_not_flagged() -> None:
+    """Verifies QUAL archive package location status is not flagged."""
     element = make_element(type_="OCOB", package="ARCHIVE")
     make_service().apply_location_status([element], FakeLocationService(set()), "QUAL")
     assert element.location_status == LocationStatus.OK
@@ -275,6 +291,7 @@ def test_qual_archive_package_location_status_is_not_flagged() -> None:
 
 
 def test_qual_archive_package_with_sql_issue_still_runs_location_status() -> None:
+    """Verifies QUAL archive package with SQL issue still runs location status."""
     element = make_element(type_="OCOB", package="ARCHIVE")
     element.schedule_status = ScheduleStatus.INVENTORY_NOT_IN_RELEASE
 
@@ -284,6 +301,7 @@ def test_qual_archive_package_with_sql_issue_still_runs_location_status() -> Non
 
 
 def test_qual_archive_row_is_hidden_and_unselected() -> None:
+    """Verifies QUAL archive row is hidden and unselected."""
     element = make_element(type_="OAPS", package="ARCHIVE")
     make_service().apply_selection_rules([element], mode="QUAL")
     assert element.visible is False
@@ -292,6 +310,7 @@ def test_qual_archive_row_is_hidden_and_unselected() -> None:
 
 
 def test_qual_archive_package_row_is_hidden_and_unselected() -> None:
+    """Verifies QUAL archive package row is hidden and unselected."""
     element = make_element(type_="OCOB", package="ARCHIVE")
     make_service().apply_selection_rules([element], mode="QUAL")
     assert element.visible is False
@@ -300,6 +319,7 @@ def test_qual_archive_package_row_is_hidden_and_unselected() -> None:
 
 
 def test_qual_archive_package_row_with_sql_issue_stays_visible() -> None:
+    """Verifies QUAL archive package row with SQL issue stays visible."""
     element = make_element(type_="OCOB", package="ARCHIVE")
     element.schedule_status = ScheduleStatus.INVENTORY_NOT_IN_RELEASE
 
@@ -311,6 +331,7 @@ def test_qual_archive_package_row_with_sql_issue_stays_visible() -> None:
 
 
 def test_missing_location_overrides_not_in_sql_selectable_rule() -> None:
+    """Verifies missing location overrides not in SQL selectable rule."""
     element = make_element()
     element.schedule_status = ScheduleStatus.INVENTORY_NOT_IN_RELEASE
     element.location_status = LocationStatus.NOT_FOUND
@@ -323,6 +344,7 @@ def test_missing_location_overrides_not_in_sql_selectable_rule() -> None:
 
 
 def test_qual_archive_hide_rule_can_be_disabled() -> None:
+    """Verifies QUAL archive hide rule can be disabled."""
     element = make_element(type_="OCOB", package="ARCHIVE")
     service = make_service()
     service.selection_rules["hide_archive_rows_in_qual"] = False
@@ -337,6 +359,7 @@ def test_qual_archive_hide_rule_can_be_disabled() -> None:
 def test_missing_archive_rule_opposite_type_exists_in_prod_and_missing_inventory() -> (
     None
 ):
+    """Verifies missing archive rule opposite type exists in PROD and missing inventory."""
     element = make_element(type_="OCOB")
     make_service().apply_archive_status(
         [element], FakeLocationService({("PGM001", "OAPS", "PROD1")}), "PROD"
@@ -345,6 +368,7 @@ def test_missing_archive_rule_opposite_type_exists_in_prod_and_missing_inventory
 
 
 def test_do_not_move_suppresses_missing_archive_rule() -> None:
+    """Verifies do not move suppresses missing archive rule."""
     element = make_element(type_="OCOB")
     element.movement_status = MovementStatus.DO_NOT_MOVE
 
@@ -356,6 +380,7 @@ def test_do_not_move_suppresses_missing_archive_rule() -> None:
 
 
 def test_missing_archive_rule_does_not_fire_when_opposite_type_in_inventory() -> None:
+    """Verifies missing archive rule does not fire when opposite type in inventory."""
     elements = [make_element(type_="OCOB"), make_element(type_="OAPS")]
     make_service().apply_archive_status(
         elements, FakeLocationService({("PGM001", "OAPS", "PROD1")}), "PROD"
@@ -366,6 +391,7 @@ def test_missing_archive_rule_does_not_fire_when_opposite_type_in_inventory() ->
 def test_missing_program_move_archive_side_in_inventory_program_side_in_qual_missing_inventory() -> (
     None
 ):
+    """Verifies missing program move archive side in inventory program side in QUAL missing inventory."""
     element = make_element(type_="OAPS", package="ARCHIVE")
     make_service().apply_archive_status(
         [element], FakeLocationService({("PGM001", "OCOB", "QUAL1")}), "PROD"
@@ -374,6 +400,7 @@ def test_missing_program_move_archive_side_in_inventory_program_side_in_qual_mis
 
 
 def test_missing_program_move_archive_side_missing_inventory_even_when_program_not_in_qual() -> None:
+    """Verifies missing program move archive side missing inventory even when program not in QUAL."""
     element = make_element(type_="OAPS", package="ARCHIVE")
 
     make_service().apply_archive_status([element], FakeLocationService(set()), "PROD")
@@ -383,6 +410,7 @@ def test_missing_program_move_archive_side_missing_inventory_even_when_program_n
 
 
 def test_program_type_without_archive_package_does_not_trigger_missing_program_move() -> None:
+    """Verifies program type without archive package does not trigger missing program move."""
     element = make_element(type_="OAPS")
 
     make_service().apply_archive_status(
@@ -395,6 +423,7 @@ def test_program_type_without_archive_package_does_not_trigger_missing_program_m
 
 
 def test_do_not_move_suppresses_missing_program_move_rule() -> None:
+    """Verifies do not move suppresses missing program move rule."""
     element = make_element(type_="OAPS", package="ARCHIVE")
     element.movement_status = MovementStatus.DO_NOT_MOVE
 
@@ -406,6 +435,7 @@ def test_do_not_move_suppresses_missing_program_move_rule() -> None:
 
 
 def test_missing_program_move_only_prod() -> None:
+    """Verifies missing program move only PROD."""
     element = make_element(type_="OAPS")
     make_service().apply_archive_status(
         [element], FakeLocationService({("PGM001", "OCOB", "QUAL1")}), "QUAL"
@@ -414,6 +444,7 @@ def test_missing_program_move_only_prod() -> None:
 
 
 def test_fixp1_warning_never_blocks_by_itself() -> None:
+    """Verifies FIXP1 warning never blocks by itself."""
     element = make_element()
     service = make_service()
     service.apply_fixp1_status(
@@ -425,6 +456,7 @@ def test_fixp1_warning_never_blocks_by_itself() -> None:
 
 
 def test_do_not_move_marker_info_hidden_unselectable() -> None:
+    """Verifies do not move marker info hidden unselectable."""
     element = make_element(package="DO NOT MOVE")
     service = make_service()
     service.apply_movement_status([element], FakeLocationService(set()), "PROD")
@@ -434,6 +466,7 @@ def test_do_not_move_marker_info_hidden_unselectable() -> None:
 
 
 def test_confirmed_already_in_target_hidden() -> None:
+    """Verifies confirmed already in target hidden."""
     element = make_element(package="PROD")
     service = make_service()
     service.apply_movement_status(
@@ -449,6 +482,7 @@ def test_confirmed_already_in_target_hidden() -> None:
 
 
 def test_confirmed_already_in_target_with_sql_issue_stays_visible() -> None:
+    """Verifies confirmed already in target with SQL issue stays visible."""
     element = make_element(package="QUAL")
     element.schedule_status = ScheduleStatus.INVENTORY_NOT_IN_RELEASE
     service = make_service()
@@ -465,6 +499,7 @@ def test_confirmed_already_in_target_with_sql_issue_stays_visible() -> None:
 
 
 def test_qual_run_confirms_prod_marker_in_prod() -> None:
+    """Verifies QUAL run confirms PROD marker in PROD."""
     element = make_element(package="PROD")
     service = make_service()
 
@@ -482,6 +517,7 @@ def test_qual_run_confirms_prod_marker_in_prod() -> None:
 
 
 def test_qual_run_flags_missing_prod_marker_location() -> None:
+    """Verifies QUAL run flags missing PROD marker location."""
     element = make_element(package="PROD")
 
     make_service().apply_movement_status(
@@ -495,6 +531,7 @@ def test_qual_run_flags_missing_prod_marker_location() -> None:
 
 
 def test_marked_already_there_but_missing_warning_selectable() -> None:
+    """Verifies marked already there but missing warning selectable."""
     element = make_element(package="PROD")
     service = make_service()
     service.apply_movement_status([element], FakeLocationService(set()), "PROD")
@@ -504,6 +541,7 @@ def test_marked_already_there_but_missing_warning_selectable() -> None:
 
 
 def test_build_inventory_issues_for_missing_expected_inventory() -> None:
+    """Verifies build inventory issues for missing expected inventory."""
     issues = make_service().build_inventory_issues(
         "REL1", [], [ReleaseEffort(effort_id="ABC", no_inventory=False)]
     )
@@ -512,6 +550,7 @@ def test_build_inventory_issues_for_missing_expected_inventory() -> None:
 
 
 def test_build_inventory_issues_ignores_withdrawn_missing_inventory() -> None:
+    """Verifies build inventory issues ignores withdrawn missing inventory."""
     issues = make_service().build_inventory_issues(
         "REL1", [], [ReleaseEffort(effort_id="ABC", exit_date="2026-06-24")]
     )

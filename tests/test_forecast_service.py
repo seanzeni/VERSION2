@@ -56,6 +56,7 @@ class FakeReportRegistry:
 
 
 def test_forecast_includes_inventory_not_in_sql_projects() -> None:
+    """Verifies forecast includes inventory not in SQL projects."""
     service = ForecastService(
         context=FakeContext(),
         report_registry=FakeReportRegistry(),
@@ -70,6 +71,7 @@ def test_forecast_includes_inventory_not_in_sql_projects() -> None:
 
 
 def test_forecast_includes_current_plus_next_three_non_special_months() -> None:
+    """Verifies forecast includes current plus next three non special months."""
     service = ForecastService(
         context=FakeContext(),
         report_registry=FakeReportRegistry(),
@@ -87,6 +89,7 @@ def test_forecast_includes_current_plus_next_three_non_special_months() -> None:
 
 
 def test_prod_forecast_bypasses_location_only_for_efforts_with_future_qual() -> None:
+    """Verifies PROD forecast bypasses location only for efforts with future QUAL."""
     service = ForecastService(
         context=FakeContext(),
         report_registry=FakeReportRegistry(),
@@ -103,6 +106,7 @@ def test_prod_forecast_bypasses_location_only_for_efforts_with_future_qual() -> 
 
 
 def test_forecast_thread_count_defaults_to_five() -> None:
+    """Verifies forecast thread count defaults to five."""
     service = ForecastService(
         context=FakeContext(),
         report_registry=FakeReportRegistry(),
@@ -112,6 +116,7 @@ def test_forecast_thread_count_defaults_to_five() -> None:
 
 
 def test_forecast_thread_count_uses_settings_value() -> None:
+    """Verifies forecast thread count uses settings value."""
     class ContextWithForecastThreads(FakeContext):
         settings = {
             "reports": {

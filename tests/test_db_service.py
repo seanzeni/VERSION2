@@ -5,6 +5,7 @@ from app.services.db_service import DBService
 
 
 def test_connection_uses_built_connection_string(monkeypatch) -> None:
+    """Verifies connection uses built connection string."""
     captured: dict[str, str] = {}
 
     def fake_connect(conn_str: str):
@@ -26,6 +27,7 @@ def test_connection_uses_built_connection_string(monkeypatch) -> None:
 
 
 def test_build_effort_lookup_returns_effort_by_uppercase_id() -> None:
+    """Verifies build effort lookup returns effort by uppercase id."""
     effort = ReleaseEffort(effort_id="abc123")
     service = DBService({})
 

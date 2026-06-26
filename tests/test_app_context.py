@@ -58,6 +58,7 @@ def test_missing_optional_startup_file_prompts_and_saves(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies missing optional startup file prompts and saves."""
     selected_file = tmp_path / "ndvr.txt"
     selected_file.write_text(
         "content",
@@ -88,6 +89,7 @@ def test_missing_optional_startup_file_can_be_skipped(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies missing optional startup file can be skipped."""
     context = build_context(tmp_path)
 
     monkeypatch.setattr(
@@ -110,6 +112,7 @@ def test_missing_required_startup_file_raises_when_skipped(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies missing required startup file raises when skipped."""
     context = build_context(tmp_path)
 
     monkeypatch.setattr(

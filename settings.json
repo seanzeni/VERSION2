@@ -1,56 +1,28 @@
 {
+  "database": {
+    "database": "RSET",
+    "driver": "ODBC Driver 17 for SQL Server",
+    "server": "db,1433",
+    "trusted_connection": true
+  },
   "files": {
     "default_input_file": "\\\\rset\\rset\\DB\\Consolidated-Inventory.xls",
-    "default_ndvr_file": "\\\\rset\\rset\\DB\\endevor-inventory\\ndvr-inv.txt",
     "default_input_folder": "\\\\rset\\rset\\DB\\",
+    "default_ndvr_file": "\\\\rset\\rset\\DB\\endevor-inventory\\ndvr-inv.txt",
     "default_output_folder": "Output",
     "remember_last_used_files": true
   },
-
   "reports": {
-    "include_empty_reports_default": true,
-    "forecast_thread_count": 5,
     "forecast_reports": {
       "Effort Summary Report": true,
       "Issues Report": true,
       "OSG/COPS Report": true,
       "Release Estimate Report": true,
       "Release Inventory Report": true
-    }
-  },
-
-  "workload": {
-    "default_thread_count": 5,
-
-    "type_categories": {
-      "JCL": ["JOBDECK", "JOBDECKT", "DOCULIB", "DOCULIBT", "PROCLIB", "PROCLIBT", "PACKBIND", "PLANBIND", "CARDLIB"],
-      "NON_COMPILE": ["APSSTUB", "APSAPPL", "APSREPT", "COPYLIB", "COPYLIBT", "COPYDB2", "DB2SPROC", "NOSOURCE", "RESOURCE", "RESOURC2"],
-      "COBOL": ["BCOB", "BCOBDB2", "BCOBIDB2", "BCOBIMS", "OCOB", "OCOBDB2", "OCOBIMS", "OMAP", "EASY"],
-      "APS": ["OAPS", "OAPSDB2", "OAPSIMS", "OAPSSCRN", "BAPS", "BAPSDB2", "BAPSIMS", "BAPSIDB2"],
-      "X_ELEMENTS": ["XAPS", "XAPSDB2", "XAPSIDB2", "XAPSIMS", "XCOB", "XCOBDB2", "XCOBIDB2", "XCOBIMS"],
-      "LINKDECK": ["LINKDECK"]
     },
-
-    "types_per_hour_per_thread": {
-      "QUAL": {
-        "JCL": 1000,
-        "NON_COMPILE": 1000,
-        "COBOL": 60,
-        "APS": 30,
-        "X_ELEMENTS": 30,
-        "LINKDECK": 500
-      },
-      "PROD": {
-        "JCL": 1000,
-        "NON_COMPILE": 1000,
-        "COBOL": 60,
-        "APS": 30,
-        "X_ELEMENTS": 30,
-        "LINKDECK": 500
-      }
-    }
+    "forecast_thread_count": 5,
+    "include_empty_reports_default": true
   },
-
   "required_columns": [
     "Release",
     "DSN ID",
@@ -68,43 +40,29 @@
     "Area",
     "Service"
   ],
-
   "selection_rules": {
-    "overlap_selectable": false,
-    "duplicate_selectable": false,
-    "missing_ndvr_selectable": false,
-
+    "already_in_environment_selectable": false,
     "archive_in_qual_selectable": false,
+    "do_not_move_selectable": false,
+    "duplicate_selectable": false,
+    "effort_release_mismatch_selectable": true,
     "hide_archive_rows_in_qual": true,
-    "potential_missing_archive_selectable": false,
-    "potential_missing_program_move_selectable": true,
-
     "inventory_not_in_release_selectable": true,
     "inventory_when_sql_no_inventory_selectable": true,
-    "sql_expected_inventory_missing_selectable": false,
-    "effort_release_mismatch_selectable": true,
-
-    "do_not_move_selectable": false,
-    "already_in_environment_selectable": false,
-    "marked_already_there_missing_selectable": true
+    "marked_already_there_missing_selectable": true,
+    "missing_ndvr_selectable": false,
+    "overlap_selectable": false,
+    "potential_missing_archive_selectable": false,
+    "potential_missing_program_move_selectable": true,
+    "sql_expected_inventory_missing_selectable": false
   },
-
-  "type_archive_pairs": [
-    ["BAPS", "BCOB"],
-    ["OAPS", "OCOB"],
-    ["XAPS", "XCOB"],
-    ["BAPSDB2", "BCOBDB2"],
-    ["OAPSDB2", "OCOBDB2"],
-    ["XAPSDB2", "XCOBDB2"],
-    ["BAPSIDB2", "BCOBIDB2"],
-    ["XAPSIDB2", "XCOBIDB2"],
-    ["BAPSIMS", "BCOBIMS"],
-    ["OAPSIMS", "OCOBIMS"],
-    ["XAPSIMS", "XCOBIMS"]
-  ],
-
   "status_markers": {
-    "marker_columns": ["Package"],
+    "already_in_prod": [
+      "PROD"
+    ],
+    "already_in_qual": [
+      "QUAL"
+    ],
     "do_not_move": [
       "DO NOT MOVE",
       "DONOTMOVE",
@@ -112,70 +70,174 @@
       "DON'T MOVE",
       "NO MOVE"
     ],
-
-    "already_in_prod": ["PROD"],
-
-    "already_in_qual": ["QUAL"]
+    "marker_columns": [
+      "Package"
+    ]
   },
-
-  "database": {
-    "driver": "ODBC Driver 17 for SQL Server",
-    "server": "db,1433",
-    "database": "RSET",
-    "trusted_connection": true
-  },
-
+  "type_archive_pairs": [
+    [
+      "BAPS",
+      "BCOB"
+    ],
+    [
+      "OAPS",
+      "OCOB"
+    ],
+    [
+      "XAPS",
+      "XCOB"
+    ],
+    [
+      "BAPSDB2",
+      "BCOBDB2"
+    ],
+    [
+      "OAPSDB2",
+      "OCOBDB2"
+    ],
+    [
+      "XAPSDB2",
+      "XCOBDB2"
+    ],
+    [
+      "BAPSIDB2",
+      "BCOBIDB2"
+    ],
+    [
+      "XAPSIDB2",
+      "XCOBIDB2"
+    ],
+    [
+      "BAPSIMS",
+      "BCOBIMS"
+    ],
+    [
+      "OAPSIMS",
+      "OCOBIMS"
+    ],
+    [
+      "XAPSIMS",
+      "XCOBIMS"
+    ]
+  ],
   "ui": {
-    "window_title": "Mainframe Export Tool",
-    "window_width": 1600,
-    "window_height": 950,
-    "remember_window_size": true,
-
-    "appearance_mode": "Light",
-    "color_theme": "blue",
-
-    "min_threads": 1,
-    "max_threads": 35,
-
     "accent_color": "#3B8ED0",
-    "success_color": "#2E8B57",
-    "warning_color": "#C98A00",
-    "error_color": "#C94B4B",
-    "info_color": "#4A90E2",
-
-    "card_color_dark": "#343A40",
-    "card_color_light": "#F2F2F2",
-
-    "tree_background_dark": "#1F1F1F",
-    "tree_background_light": "#FFFFFF",
-
-    "table_background_dark": "#1F1F1F",
-    "table_background_light": "#FFFFFF",
-
-    "status_bar_dark": "#202020",
-    "status_bar_light": "#F7F7F7",
-
     "alternate_row_dark": "#252525",
     "alternate_row_light": "#F9F9F9",
-
-    "highlight_row_dark": "#3B4B61",
-    "highlight_row_light": "#DCEEFF",
-
+    "appearance_mode": "Light",
+    "auto_select_first_release": true,
+    "card_color_dark": "#343A40",
+    "card_color_light": "#F2F2F2",
+    "color_theme": "blue",
+    "error_color": "#C94B4B",
     "font_family": "Segoe UI",
     "font_size": 11,
-
-    "show_toolbar": true,
-    "show_status_bar": true,
-
-    "search_delay_ms": 250,
-    "tree_expand_on_load": true,
-    "auto_select_first_release": true,
-
+    "highlight_row_dark": "#3B4B61",
+    "highlight_row_light": "#DCEEFF",
+    "info_color": "#4A90E2",
+    "max_threads": 35,
+    "min_threads": 1,
     "remember": {
-      "last_release": true,
       "last_mode": true,
-      "last_thread_count": true,
-      "last_theme": true
+      "last_release": true,
+      "last_theme": true,
+      "last_thread_count": true
+    },
+    "remember_window_size": true,
+    "search_delay_ms": 250,
+    "show_status_bar": true,
+    "show_toolbar": true,
+    "status_bar_dark": "#202020",
+    "status_bar_light": "#F7F7F7",
+    "success_color": "#2E8B57",
+    "table_background_dark": "#1F1F1F",
+    "table_background_light": "#FFFFFF",
+    "tree_background_dark": "#1F1F1F",
+    "tree_background_light": "#FFFFFF",
+    "tree_expand_on_load": true,
+    "warning_color": "#C98A00",
+    "window_height": 950,
+    "window_title": "Mainframe Export Tool",
+    "window_width": 1600
+  },
+  "workload": {
+    "default_thread_count": 5,
+    "type_categories": {
+      "APS": [
+        "OAPS",
+        "OAPSDB2",
+        "OAPSIMS",
+        "OAPSSCRN",
+        "BAPS",
+        "BAPSDB2",
+        "BAPSIMS",
+        "BAPSIDB2"
+      ],
+      "COBOL": [
+        "BCOB",
+        "BCOBDB2",
+        "BCOBIDB2",
+        "BCOBIMS",
+        "OCOB",
+        "OCOBDB2",
+        "OCOBIMS",
+        "OMAP",
+        "EASY"
+      ],
+      "JCL": [
+        "JOBDECK",
+        "JOBDECKT",
+        "DOCULIB",
+        "DOCULIBT",
+        "PROCLIB",
+        "PROCLIBT",
+        "PACKBIND",
+        "PLANBIND",
+        "CARDLIB"
+      ],
+      "LINKDECK": [
+        "LINKDECK"
+      ],
+      "NON_COMPILE": [
+        "APSSTUB",
+        "APSAPPL",
+        "APSREPT",
+        "COPYLIB",
+        "COPYLIBT",
+        "COPYDB2",
+        "DB2SPROC",
+        "NOSOURCE",
+        "RESOURCE",
+        "RESOURC2"
+      ],
+      "X_ELEMENTS": [
+        "XAPS",
+        "XAPSDB2",
+        "XAPSIDB2",
+        "XAPSIMS",
+        "XCOB",
+        "XCOBDB2",
+        "XCOBIDB2",
+        "XCOBIMS"
+      ]
+    },
+    "types_per_hour_per_thread": {
+      "PROD": {
+        "APS": 30,
+        "COBOL": 60,
+        "JCL": 1000,
+        "LINKDECK": 500,
+        "NON_COMPILE": 1000,
+        "X_ELEMENTS": 30
+      },
+      "QUAL": {
+        "APS": 30,
+        "COBOL": 60,
+        "JCL": 1000,
+        "LINKDECK": 500,
+        "NON_COMPILE": 1000,
+        "X_ELEMENTS": 30
+      }
     }
   }
 }

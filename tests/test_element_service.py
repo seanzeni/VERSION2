@@ -38,6 +38,7 @@ def make_dataframe() -> pd.DataFrame:
 
 
 def test_build_elements() -> None:
+    """Verifies build elements."""
     elements = ElementService().build_elements(make_dataframe())
     assert len(elements) == 3
     assert elements[0].release == "REL1"
@@ -47,18 +48,21 @@ def test_build_elements() -> None:
 
 
 def test_build_element_lookup() -> None:
+    """Verifies build element lookup."""
     service = ElementService()
     elements = service.build_elements(make_dataframe())
     assert len(service.build_element_lookup(elements)[("PGM001", "OCOB")]) == 1
 
 
 def test_build_project_lookup() -> None:
+    """Verifies build project lookup."""
     service = ElementService()
     elements = service.build_elements(make_dataframe())
     assert len(service.build_project_lookup(elements)["ABC"]) == 2
 
 
 def test_build_element_name_type_lookup() -> None:
+    """Verifies build element name type lookup."""
     service = ElementService()
     elements = service.build_elements(make_dataframe())
     assert service.build_element_name_type_lookup(elements)["PGM001"] == {
