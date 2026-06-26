@@ -134,6 +134,7 @@ class AppContext:
 
         self.report_registry = ReportRegistry(
             stats_service=self.stats_service,
+            location_service_provider=lambda: self.location_service,
         )
 
     def load_location_file(

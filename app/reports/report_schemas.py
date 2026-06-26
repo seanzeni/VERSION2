@@ -124,3 +124,21 @@ OSG_COPS_COLUMNS = [
     ReportColumn("Area"),
     ReportColumn("Service"),
 ]
+
+RESYNC_COLUMNS = [
+    ReportColumn("Release"),
+    ReportColumn("Project"),
+    ReportColumn("Element"),
+    ReportColumn("Type"),
+    ReportColumn("Lower Env"),
+    ReportColumn("Lower System"),
+    ReportColumn("Lower Subsystem"),
+    ReportColumn("Lower Version"),
+    ReportColumn("Lower CCID"),
+    ReportColumn("Higher Env"),
+    ReportColumn("Higher System"),
+    ReportColumn("Higher Subsystem"),
+    ReportColumn("Higher Version"),
+    ReportColumn("Higher CCID"),
+    ReportColumn("Reason"),
+]

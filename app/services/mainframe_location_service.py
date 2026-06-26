@@ -318,13 +318,30 @@ class MainframeLocationService:
                 if higher_level <= lower_level:
                     continue
 
+                reasons: list[str] = []
+
                 if higher.version_number > lower.version_number:
+                    reasons.append("Higher version exists in higher environment")
+
+                if higher.ccid.strip().upper() != lower.ccid.strip().upper():
+                    reasons.append("Latest CCID differs from lower environment")
+
+                if reasons:
                     details.append(
                         {
+                            "element": lower.element,
+                            "type": lower.type,
                             "lower_env": lower.env,
+                            "lower_system": lower.system,
+                            "lower_subsystem": lower.subsystem,
                             "lower_version": lower.version,
+                            "lower_ccid": lower.ccid,
                             "higher_env": higher.env,
+                            "higher_system": higher.system,
+                            "higher_subsystem": higher.subsystem,
                             "higher_version": higher.version,
+                            "higher_ccid": higher.ccid,
+                            "reason": "; ".join(reasons),
                         }
                     )
 

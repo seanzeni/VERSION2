@@ -26,19 +26,24 @@ from app.reports.report_utils import export_xlsx
 from app.reports.report_utils import make_writable
 from app.reports.release_estimate_report import ReleaseEstimateReport
 from app.reports.release_inventory_report import ReleaseInventoryReport
+from app.reports.resync_report import ResyncReport
 
 
 class ReportRegistry:
     def __init__(
         self,
         stats_service,
+        location_service_provider=None,
     ) -> None:
+        self.location_service_provider = location_service_provider
+
         self._reports = {
             "Issues Report": lambda: IssuesReport(),
             "Effort Summary Report": lambda: EffortSummaryReport(stats_service),
             "Release Estimate Report": lambda: ReleaseEstimateReport(stats_service),
             "Release Inventory Report": lambda: ReleaseInventoryReport(),
             "OSG/COPS Report": lambda: OsgCopsReport(),
+            "Resync Report": lambda: ResyncReport(),
         }
 
     def get_names(
@@ -222,7 +227,48 @@ class ReportRegistry:
                 include_empty=include_empty,
             )
 
+        if name == "Resync Report":
+            location_service = self.get_location_service()
+
+            if is_pdf:
+                return report.generate_pdf(
+                    release=state.release,
+                    elements=state.loaded_elements,
+                    location_service=location_service,
+                    output_folder=output_folder,
+                    include_empty=include_empty,
+                )
+
+            if is_xlsx:
+                return self._generate_xlsx_from_csv(
+                    output_folder=output_folder,
+                    output_name="Resync_Report.xlsx",
+                    generate_csv=lambda temp_folder: report.generate(
+                        release=state.release,
+                        elements=state.loaded_elements,
+                        location_service=location_service,
+                        output_folder=temp_folder,
+                        include_empty=include_empty,
+                    ),
+                )
+
+            return report.generate(
+                release=state.release,
+                elements=state.loaded_elements,
+                location_service=location_service,
+                output_folder=output_folder,
+                include_empty=include_empty,
+            )
+
         raise KeyError(f"Unknown report: {name}")
+
+    def get_location_service(
+        self,
+    ):
+        if self.location_service_provider is None:
+            return None
+
+        return self.location_service_provider()
 
     def _generate_xlsx_from_csv(
         self,
