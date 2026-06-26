@@ -70,7 +70,6 @@ class ReportCenter(ctk.CTkToplevel):
 
         self.progress_var = ctk.DoubleVar(value=0)
         self.current_report_var = ctk.StringVar(value="Ready")
-        self.results_var = ctk.StringVar(value="")
 
         self._build_ui()
         self.after(
@@ -256,13 +255,13 @@ class ReportCenter(ctk.CTkToplevel):
             textvariable=self.current_report_var,
         ).grid(row=2, column=0, sticky="w", padx=18, pady=(0, 6))
 
-        self.results_label = ctk.CTkLabel(
+        self.results_textbox = ctk.CTkTextbox(
             frame,
-            textvariable=self.results_var,
-            justify="left",
-            anchor="w",
+            height=120,
+            wrap="word",
         )
-        self.results_label.grid(row=3, column=0, sticky="ew", padx=18, pady=(0, 12))
+        self.results_textbox.grid(row=3, column=0, sticky="ew", padx=18, pady=(0, 12))
+        self.results_textbox.configure(state="disabled")
 
     def select_all_reports(
         self,
@@ -347,7 +346,7 @@ class ReportCenter(ctk.CTkToplevel):
         generated_files: list[Path] = []
 
         self.progress_bar.set(0)
-        self.results_var.set("")
+        self.set_results_text("")
 
         for report_name in report_names:
             for output_format in formats:
@@ -391,7 +390,7 @@ class ReportCenter(ctk.CTkToplevel):
         else:
             result_text = "No report files were generated."
 
-        self.results_var.set(result_text)
+        self.set_results_text(result_text)
 
     def generate_forecast(
         self,
@@ -426,7 +425,7 @@ class ReportCenter(ctk.CTkToplevel):
 
         self.progress_bar.set(0)
         self.current_report_var.set("Generating 3 month forecast...")
-        self.results_var.set("")
+        self.set_results_text("")
         self.update_idletasks()
 
         try:
@@ -452,7 +451,7 @@ class ReportCenter(ctk.CTkToplevel):
         ]
 
         if generated_files:
-            self.results_var.set(
+            self.set_results_text(
                 "Forecast generated:\n"
                 + "\n".join(
                     f"{result.release} {result.mode}: {len(result.generated_files)} files"
@@ -460,4 +459,13 @@ class ReportCenter(ctk.CTkToplevel):
                 )
             )
         else:
-            self.results_var.set("No forecast report files were generated.")
+            self.set_results_text("No forecast report files were generated.")
+
+    def set_results_text(
+        self,
+        text: str,
+    ) -> None:
+        self.results_textbox.configure(state="normal")
+        self.results_textbox.delete("1.0", "end")
+        self.results_textbox.insert("1.0", text)
+        self.results_textbox.configure(state="disabled")
