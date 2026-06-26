@@ -28,10 +28,12 @@ two rules are otherwise independent.
 1. Movement rules
    - File: `app/services/validation_rules/movement_rules.py`
    - Marks rows as `DO_NOT_MOVE`.
-   - Confirms rows marked already in target are actually in the target
-     environment.
+   - Validates explicit package markers such as `PROD`, `IN PROD`, `QUAL`, or
+     `IN QUAL` against the environment named by the marker, regardless of the
+     current run mode.
+   - Sets `MARKED_IN_PROD` or `MARKED_IN_QUAL` when NDVR confirms the marker.
    - Flags `MARKED_ALREADY_THERE_BUT_MISSING` when marker text is present but
-     NDVR does not confirm the target location.
+     NDVR does not confirm the marked environment.
    - Runs first because later rules need to know if a row should be ignored.
 
 2. Inventory rules
@@ -45,6 +47,8 @@ two rules are otherwise independent.
    - Compares inventory projects against SQL release effort data.
    - Marks inventory not connected to the selected release.
    - Marks inventory present when SQL says no inventory is expected.
+   - Stores the SQL/RSET release on mismatch rows so reports can show the
+     expected release separately from the inventory release.
    - Treats withdrawn efforts as no-inventory expected, but does not create
      missing-inventory issues for withdrawn efforts.
    - Builds SQL missing-inventory issues when SQL expects inventory and none is
@@ -56,6 +60,10 @@ two rules are otherwise independent.
    - PROD normally validates from `QUAL1`.
    - PROD archive moves validate from `PROD1`.
    - QUAL archive rows can be hidden/skipped when configured.
+   - Skips rows already confirmed by movement markers (`MARKED_IN_PROD` or
+     `MARKED_IN_QUAL`) and `DO_NOT_MOVE` rows.
+   - Still runs when a marker is missing (`MARKED_ALREADY_THERE_BUT_MISSING`) so
+     lower-environment evidence can help identify inventory or marker mistakes.
    - Forecast PROD can skip this rule for specific efforts whose QUAL date has
      not happened yet.
 
@@ -76,6 +84,15 @@ two rules are otherwise independent.
    - Runs last.
    - Applies settings-driven selected/selectable/visible behavior based on all
      statuses produced by earlier rules.
+
+## Resync Report Logic
+
+The Resync Report is not part of the element validation rule pipeline. It is a
+report-only NDVR analysis in `app/reports/resync_report.py` using helper methods
+from `app/services/mainframe_location_service.py`.
+
+It looks for matching element/type records where a lower environment has an
+older version or different latest CCID than a higher environment.
 
 ## How To Add A Rule
 
