@@ -402,18 +402,18 @@ class ReportCenter(ctk.CTkToplevel):
             )
             return
 
-        formats = self.get_selected_formats()
-        if not formats:
-            messagebox.showwarning(
-                "No Output Format Selected",
-                "Select CSV, XLSX, PDF, or any combination.",
-            )
-            return
-
         service = ForecastService(
             context=self.context,
             report_registry=self.report_registry,
         )
+
+        formats = service.get_enabled_formats()
+        if not formats:
+            messagebox.showwarning(
+                "No Forecast Formats Enabled",
+                "Enable at least one format in settings.json reports.forecast_formats.",
+            )
+            return
 
         report_names = service.get_enabled_report_names()
         if not report_names:

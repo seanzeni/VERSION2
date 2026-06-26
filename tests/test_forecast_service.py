@@ -45,7 +45,12 @@ class FakeDbService:
 
 
 class FakeContext:
-    settings = {"reports": {"forecast_reports": {}}}
+    settings = {
+        "reports": {
+            "forecast_formats": {},
+            "forecast_reports": {},
+        }
+    }
     data_loader = FakeDataLoader()
     db_service = FakeDbService()
 
@@ -115,11 +120,44 @@ def test_forecast_thread_count_defaults_to_five() -> None:
     assert service.get_forecast_thread_count() == 5
 
 
+def test_forecast_formats_default_to_none() -> None:
+    """Verifies forecast formats default to none when settings omit them."""
+    service = ForecastService(
+        context=FakeContext(),
+        report_registry=FakeReportRegistry(),
+    )
+
+    assert service.get_enabled_formats() == []
+
+
+def test_forecast_formats_use_settings_values() -> None:
+    """Verifies forecast formats are enabled from settings."""
+    class ContextWithForecastFormats(FakeContext):
+        settings = {
+            "reports": {
+                "forecast_formats": {
+                    "csv": True,
+                    "xlsx": False,
+                    "pdf": True,
+                },
+                "forecast_reports": {},
+            }
+        }
+
+    service = ForecastService(
+        context=ContextWithForecastFormats(),
+        report_registry=FakeReportRegistry(),
+    )
+
+    assert service.get_enabled_formats() == ["csv", "pdf"]
+
+
 def test_forecast_thread_count_uses_settings_value() -> None:
     """Verifies forecast thread count uses settings value."""
     class ContextWithForecastThreads(FakeContext):
         settings = {
             "reports": {
+                "forecast_formats": {},
                 "forecast_reports": {},
                 "forecast_thread_count": 7,
             }

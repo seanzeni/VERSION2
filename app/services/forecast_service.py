@@ -52,6 +52,25 @@ class ForecastService:
             if bool(configured.get(report_name, False))
         ]
 
+    def get_enabled_formats(
+        self,
+    ) -> list[str]:
+        configured = dict(
+            self.context.settings.get(
+                "reports",
+                {},
+            ).get(
+                "forecast_formats",
+                {},
+            )
+        )
+
+        return [
+            output_format
+            for output_format in ("csv", "xlsx", "pdf")
+            if bool(configured.get(output_format, False))
+        ]
+
     def get_forecast_thread_count(
         self,
     ) -> int:

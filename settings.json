@@ -13,12 +13,18 @@
     "remember_last_used_files": true
   },
   "reports": {
+    "forecast_formats": {
+      "csv": true,
+      "pdf": true,
+      "xlsx": true
+    },
     "forecast_reports": {
       "Effort Summary Report": true,
       "Issues Report": true,
       "OSG/COPS Report": true,
       "Release Estimate Report": true,
-      "Release Inventory Report": true
+      "Release Inventory Report": true,
+      "Resync Report": true
     },
     "forecast_thread_count": 5,
     "include_empty_reports_default": true
@@ -137,13 +143,6 @@
     "info_color": "#4A90E2",
     "max_threads": 35,
     "min_threads": 1,
-    "remember": {
-      "last_mode": true,
-      "last_release": true,
-      "last_theme": true,
-      "last_thread_count": true
-    },
-    "remember_window_size": true,
     "search_delay_ms": 250,
     "show_status_bar": true,
     "show_toolbar": true,
