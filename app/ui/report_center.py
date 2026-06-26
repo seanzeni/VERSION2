@@ -183,23 +183,29 @@ class ReportCenter(ctk.CTkToplevel):
             font=ctk.CTkFont(size=15, weight="bold"),
         ).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 4))
 
-        ctk.CTkCheckBox(
+        format_frame = ctk.CTkFrame(
             frame,
+            fg_color="transparent",
+        )
+        format_frame.grid(row=1, column=0, columnspan=3, sticky="w", padx=18, pady=4)
+
+        ctk.CTkCheckBox(
+            format_frame,
             text="CSV",
             variable=self.csv_var,
-        ).grid(row=1, column=0, sticky="w", padx=18, pady=4)
+        ).pack(side="left", padx=(0, 14))
 
         ctk.CTkCheckBox(
-            frame,
-            text="PDF where supported",
-            variable=self.pdf_var,
-        ).grid(row=1, column=2, sticky="w", padx=8, pady=4)
-
-        ctk.CTkCheckBox(
-            frame,
+            format_frame,
             text="XLSX",
             variable=self.xlsx_var,
-        ).grid(row=1, column=1, sticky="w", padx=8, pady=4)
+        ).pack(side="left", padx=(0, 14))
+
+        ctk.CTkCheckBox(
+            format_frame,
+            text="PDF where supported",
+            variable=self.pdf_var,
+        ).pack(side="left")
 
         ctk.CTkCheckBox(
             frame,

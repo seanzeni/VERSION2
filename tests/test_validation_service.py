@@ -464,6 +464,36 @@ def test_confirmed_already_in_target_with_sql_issue_stays_visible() -> None:
     assert element.selectable is True
 
 
+def test_qual_run_confirms_prod_marker_in_prod() -> None:
+    element = make_element(package="PROD")
+    service = make_service()
+
+    service.apply_movement_status(
+        [element],
+        FakeLocationService({("PGM001", "OCOB", "PROD1")}),
+        "QUAL",
+    )
+    service.apply_selection_rules([element], mode="QUAL")
+
+    assert element.source_row["_confirmed_already_in_target"] is True
+    assert element.visible is False
+    assert element.selected is False
+    assert element.selectable is False
+
+
+def test_qual_run_flags_missing_prod_marker_location() -> None:
+    element = make_element(package="PROD")
+
+    make_service().apply_movement_status(
+        [element],
+        FakeLocationService(set()),
+        "QUAL",
+    )
+
+    assert element.movement_status == MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING
+    assert "PROD1" in element.display_reason
+
+
 def test_marked_already_there_but_missing_warning_selectable() -> None:
     element = make_element(package="PROD")
     service = make_service()
