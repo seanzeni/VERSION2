@@ -60,38 +60,58 @@ def apply(
 
             continue
 
-        marked_env = get_marked_env_for_move(
-            mode=context.mode,
-            element=element,
-            context=context,
+        marked_environments = context.status_marker_service.get_marked_environments(
+            element
         )
 
-        if not marked_env:
+        if not marked_environments:
             continue
 
-        if context.location_service is not None and context.location_service.exists_in_env(
-            element=element.element,
-            type_=element.type,
-            env=marked_env,
-        ):
-            element.source_row["_confirmed_already_in_target"] = True
-            continue
+        found_marker_status: MovementStatus | None = None
+        missing_marked_location = False
 
-        marker_text = get_marker_text_for_env(
-            env=marked_env,
-        )
-
-        element.movement_status = MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING
-
-        context.add_reason(
-            element=element,
-            reason=ReasonBuilder.marked_already_there_but_missing(
+        for marked_env, marker_text in marked_environments:
+            if context.location_service is not None and context.location_service.exists_in_env(
                 element=element.element,
                 type_=element.type,
-                target_env=marked_env,
-                marker_text=marker_text,
-            ),
-        )
+                env=marked_env,
+            ):
+                element.source_row["_confirmed_already_in_target"] = True
+                element.source_row.setdefault(
+                    "_confirmed_marked_envs",
+                    [],
+                ).append(marked_env)
+                element.movement_status = get_confirmed_marker_status(marked_env)
+                context.add_reason(
+                    element=element,
+                    reason=ReasonBuilder.marked_already_there_confirmed(
+                        element=element.element,
+                        type_=element.type,
+                        target_env=marked_env,
+                        marker_text=marker_text,
+                    ),
+                )
+                found_marker_status = found_marker_status or get_confirmed_marker_status(
+                    marked_env
+                )
+                continue
+
+            missing_marked_location = True
+
+            context.add_reason(
+                element=element,
+                reason=ReasonBuilder.marked_already_there_but_missing(
+                    element=element.element,
+                    type_=element.type,
+                    target_env=marked_env,
+                    marker_text=marker_text,
+                ),
+            )
+
+        if missing_marked_location:
+            element.movement_status = MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING
+        elif found_marker_status is not None:
+            element.movement_status = found_marker_status
 
 
 def get_target_env(
@@ -103,32 +123,13 @@ def get_target_env(
     return "QUAL1"
 
 
-def get_marked_env_for_move(
-    mode: str,
-    element,
-    context: ValidatorContext,
-) -> str:
-    marker_service = context.status_marker_service
-
-    if marker_service is None:
-        return ""
-
-    if marker_service.is_marked_prod(element):
-        return "PROD1"
-
-    if mode.upper() == "QUAL" and marker_service.is_marked_qual(element):
-        return "QUAL1"
-
-    return ""
-
-
-def get_marker_text_for_env(
+def get_confirmed_marker_status(
     env: str,
-) -> str:
+) -> MovementStatus:
     if env.upper() == "PROD1":
-        return "PROD"
+        return MovementStatus.MARKED_IN_PROD
 
     if env.upper() == "QUAL1":
-        return "QUAL"
+        return MovementStatus.MARKED_IN_QUAL
 
-    return ""
+    return MovementStatus.OK

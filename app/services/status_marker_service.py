@@ -122,6 +122,30 @@ class StatusMarkerService:
 
         return False
 
+    def get_marked_environments(
+        self,
+        element: Element,
+    ) -> list[tuple[str, str]]:
+        environments: list[tuple[str, str]] = []
+
+        if self.is_marked_prod(element):
+            environments.append(
+                (
+                    "PROD1",
+                    "PROD",
+                )
+            )
+
+        if self.is_marked_qual(element):
+            environments.append(
+                (
+                    "QUAL1",
+                    "QUAL",
+                )
+            )
+
+        return environments
+
     def get_target_marker_text(
         self,
         element: Element,

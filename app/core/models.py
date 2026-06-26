@@ -175,6 +175,8 @@ class ArchiveStatus(StrEnum):
 class MovementStatus(StrEnum):
     OK = "OK"
     DO_NOT_MOVE = "DO_NOT_MOVE"
+    MARKED_IN_PROD = "MARKED_IN_PROD"
+    MARKED_IN_QUAL = "MARKED_IN_QUAL"
     MARKED_ALREADY_THERE_BUT_MISSING = "MARKED_ALREADY_THERE_BUT_MISSING"
 
     @property
@@ -182,6 +184,8 @@ class MovementStatus(StrEnum):
         return {
             MovementStatus.OK: Severity.INFO,
             MovementStatus.DO_NOT_MOVE: Severity.INFO,
+            MovementStatus.MARKED_IN_PROD: Severity.INFO,
+            MovementStatus.MARKED_IN_QUAL: Severity.INFO,
             MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING: Severity.WARNING,
         }.get(self, Severity.INFO)
 
@@ -190,6 +194,8 @@ class MovementStatus(StrEnum):
         return {
             MovementStatus.OK: "",
             MovementStatus.DO_NOT_MOVE: "hidden",
+            MovementStatus.MARKED_IN_PROD: "hidden",
+            MovementStatus.MARKED_IN_QUAL: "hidden",
             MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING: "warning",
         }.get(self, "")
 
@@ -198,6 +204,8 @@ class MovementStatus(StrEnum):
         return {
             MovementStatus.OK: "No movement marker issue was detected.",
             MovementStatus.DO_NOT_MOVE: "Inventory row is marked do not move and is hidden/unselectable.",
+            MovementStatus.MARKED_IN_PROD: "Inventory row is marked as already in PROD and was confirmed in PROD1.",
+            MovementStatus.MARKED_IN_QUAL: "Inventory row is marked as already in QUAL and was confirmed in QUAL1.",
             MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING: "Row says it is already in target, but NDVR did not confirm it.",
         }.get(self, "")
 

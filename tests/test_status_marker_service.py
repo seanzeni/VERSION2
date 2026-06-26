@@ -20,7 +20,15 @@ def test_is_marked_prod() -> None:
     """Verifies is marked PROD."""
     service = make_service()
     assert service.is_marked_prod(make_element("already PROD")) is True
+    assert service.is_marked_prod(make_element("IN PROD")) is True
     assert service.is_marked_for_target(make_element("already PROD"), "PROD") is True
+
+
+def test_get_marked_environments() -> None:
+    """Verifies marker service returns every explicit marked environment."""
+    assert make_service().get_marked_environments(make_element("IN PROD")) == [
+        ("PROD1", "PROD")
+    ]
 
 def test_is_marked_qual() -> None:
     """Verifies is marked QUAL."""

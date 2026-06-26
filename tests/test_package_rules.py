@@ -33,6 +33,7 @@ def test_is_do_not_move() -> None:
 def test_is_marked_prod() -> None:
     """Verifies already-in-PROD markers are detected from package text."""
     assert is_marked_prod("already prod", ["PROD"]) is True
+    assert is_marked_prod("IN PROD", ["PROD"]) is True
 
 
 def test_is_marked_qual() -> None:

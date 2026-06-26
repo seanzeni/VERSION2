@@ -40,6 +40,9 @@ class StatusMessages:
     EXISTS_IN_FIXP1 = "Element/type also exists in FIXP1."
 
     DO_NOT_MOVE = "Element is marked do not move."
+    MARKED_ALREADY_THERE_CONFIRMED = (
+        "Element is marked already in an environment and was found there."
+    )
     MARKED_ALREADY_THERE_BUT_MISSING = (
         "Element is marked already in target environment, but was not found there."
     )
@@ -208,4 +211,17 @@ class ReasonBuilder:
             f"{StatusMessages.MARKED_ALREADY_THERE_BUT_MISSING} "
             f"{element} {type_} has marker '{marker_text}', "
             f"but it was not found in {target_env}."
+        )
+
+    @staticmethod
+    def marked_already_there_confirmed(
+        element: str,
+        type_: str,
+        target_env: str,
+        marker_text: str,
+    ) -> str:
+        return (
+            f"{StatusMessages.MARKED_ALREADY_THERE_CONFIRMED} "
+            f"{element} {type_} has marker '{marker_text}' "
+            f"and was found in {target_env}."
         )

@@ -467,13 +467,15 @@ def test_do_not_move_marker_info_hidden_unselectable() -> None:
 
 def test_confirmed_already_in_target_hidden() -> None:
     """Verifies confirmed already in target hidden."""
-    element = make_element(package="PROD")
+    element = make_element(package="IN PROD")
     service = make_service()
     service.apply_movement_status(
         [element], FakeLocationService({("PGM001", "OCOB", "PROD1")}), "PROD"
     )
     service.apply_selection_rules([element])
     assert element.source_row["_confirmed_already_in_target"] is True
+    assert element.movement_status == MovementStatus.MARKED_IN_PROD
+    assert "found in PROD1" in element.display_reason
     assert (
         element.visible is False
         and element.selected is False
@@ -493,6 +495,7 @@ def test_confirmed_already_in_target_with_sql_issue_stays_visible() -> None:
     service.apply_selection_rules([element], mode="QUAL")
 
     assert element.source_row["_confirmed_already_in_target"] is True
+    assert element.movement_status == MovementStatus.MARKED_IN_QUAL
     assert element.visible is True
     assert element.selected is False
     assert element.selectable is True
@@ -511,6 +514,8 @@ def test_qual_run_confirms_prod_marker_in_prod() -> None:
     service.apply_selection_rules([element], mode="QUAL")
 
     assert element.source_row["_confirmed_already_in_target"] is True
+    assert element.movement_status == MovementStatus.MARKED_IN_PROD
+    assert "found in PROD1" in element.display_reason
     assert element.visible is False
     assert element.selected is False
     assert element.selectable is False
@@ -518,12 +523,26 @@ def test_qual_run_confirms_prod_marker_in_prod() -> None:
 
 def test_qual_run_flags_missing_prod_marker_location() -> None:
     """Verifies QUAL run flags missing PROD marker location."""
-    element = make_element(package="PROD")
+    element = make_element(package="IN PROD")
 
     make_service().apply_movement_status(
         [element],
         FakeLocationService(set()),
         "QUAL",
+    )
+
+    assert element.movement_status == MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING
+    assert "PROD1" in element.display_reason
+
+
+def test_prod_run_flags_missing_prod_marker_location() -> None:
+    """Verifies PROD run validates PROD marker against PROD1."""
+    element = make_element(package="IN PROD")
+
+    make_service().apply_movement_status(
+        [element],
+        FakeLocationService(set()),
+        "PROD",
     )
 
     assert element.movement_status == MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING
