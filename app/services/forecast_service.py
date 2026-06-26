@@ -282,6 +282,7 @@ class ForecastService:
             inventory_issues=inventory_issues,
             all_release_elements=all_release_elements,
             effort_release_lookup=effort_release_lookup,
+            forecast_count_all_movable_elements=True,
         )
         state.effort_dates = {
             effort.effort_id.strip(): str(mode_date(effort, mode) or "Unknown")

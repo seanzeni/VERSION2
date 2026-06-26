@@ -18,11 +18,13 @@ Notes:
 """
 
 from collections import defaultdict
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from app.core.models import Element
+from app.core.models import MovementStatus
 from app.reports.pdf_utils import build_table
 from app.reports.pdf_utils import heading
 from app.reports.pdf_utils import spacer
@@ -42,6 +44,96 @@ class ReleaseEstimateReport:
     ) -> None:
         self.stats_service = stats_service
 
+    def _build_effort_rollup(
+        self,
+        elements: list[Element],
+        mode: str,
+        thread_count: int,
+        count_all_movable_elements: bool = False,
+    ) -> dict[str, Any]:
+        grouped: dict[str, list[Element]] = defaultdict(list)
+
+        for element in self._countable_elements(
+            elements=elements,
+            count_all_movable_elements=count_all_movable_elements,
+        ):
+            grouped[element.project].append(element)
+
+        total_selected = 0
+        total_minutes = 0
+        total_category_counts: dict[str, int] = {}
+
+        for effort_elements in grouped.values():
+            estimate = self.stats_service.build_estimate(
+                elements=effort_elements,
+                mode=mode,
+                thread_count=thread_count,
+            )
+
+            total_selected += int(
+                estimate.get(
+                    "selected_elements",
+                    0,
+                )
+            )
+            total_minutes += int(
+                estimate.get(
+                    "total_minutes",
+                    0,
+                )
+            )
+
+            for category, count in estimate.get(
+                "category_counts",
+                {},
+            ).items():
+                total_category_counts[category] = total_category_counts.get(
+                    category,
+                    0,
+                ) + int(count)
+
+        return {
+            "effort_count": len(
+                [
+                    effort
+                    for effort, effort_elements in grouped.items()
+                    if effort and effort_elements
+                ]
+            ),
+            "selected_elements": total_selected,
+            "category_counts": total_category_counts,
+            "total_minutes": total_minutes,
+            "estimated_time": self.stats_service.format_minutes(total_minutes),
+        }
+
+    def _countable_elements(
+        self,
+        elements: list[Element],
+        count_all_movable_elements: bool,
+    ) -> list[Element]:
+        if not count_all_movable_elements:
+            return [
+                element
+                for element in elements
+                if element.visible and element.selected
+            ]
+
+        blocked_movement_statuses = {
+            MovementStatus.DO_NOT_MOVE,
+            MovementStatus.MARKED_IN_PROD,
+            MovementStatus.MARKED_IN_QUAL,
+        }
+
+        return [
+            replace(
+                element,
+                selected=True,
+                visible=True,
+            )
+            for element in elements
+            if element.movement_status not in blocked_movement_statuses
+        ]
+
     def generate(
         self,
         elements: list[Element],
@@ -50,18 +142,16 @@ class ReleaseEstimateReport:
         mode: str,
         thread_count: int,
         include_empty: bool = False,
+        count_all_movable_elements: bool = False,
     ) -> Path:
         report_path = output_folder / self.FILE_NAME
 
         grouped: dict[str, list[Element]] = defaultdict(list)
 
-        for element in elements:
-            if not element.visible:
-                continue
-
-            if not element.selected:
-                continue
-
+        for element in self._countable_elements(
+            elements=elements,
+            count_all_movable_elements=count_all_movable_elements,
+        ):
             grouped[element.project].append(element)
 
         rows: list[list[str]] = []
@@ -178,25 +268,15 @@ class ReleaseEstimateReport:
         mode: str,
         thread_count: int,
         include_empty: bool = False,
+        count_all_movable_elements: bool = False,
     ) -> Path:
         report_path = output_folder / self.PDF_FILE_NAME
         generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        selected_elements = [
-            element
-            for element in elements
-            if element.visible and element.selected
-        ]
-        effort_count = len(
-            {
-                element.project
-                for element in selected_elements
-                if element.project
-            }
-        )
-        estimate = self.stats_service.build_estimate(
-            elements=selected_elements,
+        estimate = self._build_effort_rollup(
+            elements=elements,
             mode=mode,
             thread_count=thread_count,
+            count_all_movable_elements=count_all_movable_elements,
         )
         category_counts = estimate.get(
             "category_counts",
@@ -223,7 +303,7 @@ class ReleaseEstimateReport:
                 ],
                 rows=[
                     [
-                        effort_count,
+                        estimate.get("effort_count", 0),
                         estimate.get("selected_elements", 0),
                         estimate.get("estimated_time", "00:00"),
                     ]

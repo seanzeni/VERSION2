@@ -226,6 +226,11 @@ class ReportRegistry:
             mode=state.mode,
             thread_count=state.thread_count,
             include_empty=include_empty,
+            count_all_movable_elements=getattr(
+                state,
+                "forecast_count_all_movable_elements",
+                False,
+            ),
         )
 
     def _generate_release_estimate_pdf(
@@ -242,6 +247,11 @@ class ReportRegistry:
             mode=state.mode,
             thread_count=state.thread_count,
             include_empty=include_empty,
+            count_all_movable_elements=getattr(
+                state,
+                "forecast_count_all_movable_elements",
+                False,
+            ),
         )
 
     def _generate_release_inventory_csv(

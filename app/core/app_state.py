@@ -55,6 +55,7 @@ class AppState:
     all_release_elements: list[Element] = field(default_factory=list)
     effort_dates: dict[str, str] = field(default_factory=dict)
     effort_release_lookup: dict[str, str] = field(default_factory=dict)
+    forecast_count_all_movable_elements: bool = False
 
     def reset_release_data(
         self,
@@ -67,6 +68,7 @@ class AppState:
         self.all_release_elements.clear()
         self.effort_dates.clear()
         self.effort_release_lookup.clear()
+        self.forecast_count_all_movable_elements = False
 
     def reset_elements(
         self,

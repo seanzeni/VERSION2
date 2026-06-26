@@ -67,13 +67,21 @@ shows global run metadata at the top:
 - `Thread Count`
 
 Then it shows the overall number of efforts, selected elements, estimated time,
-and total element counts by workload category.
+and total element counts by workload category. The PDF estimated time is summed
+from the same effort-level estimates as the spreadsheet `TOTAL` row so rounding
+stays consistent between formats.
 
 Forecast generation uses `settings.json`:
 
 `reports.forecast_thread_count`
 
 The default is `5` when the setting is not present.
+
+For forecast runs only, the Release Estimate Report counts all inventory rows in
+the forecasted efforts even when current validation would leave them unselected,
+because the forecast is meant to approximate future move volume. Rows marked
+`DO_NOT_MOVE`, `MARKED_IN_PROD`, or `MARKED_IN_QUAL` are excluded because they
+are not requesting movement.
 
 ## Release Inventory Report
 

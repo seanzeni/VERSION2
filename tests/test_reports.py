@@ -118,6 +118,57 @@ def test_release_estimate_report_generates_total(tmp_path: Path) -> None:
     assert rows[-1]['Thread Count'] == '3'
     make_writable(output)
 
+def test_release_estimate_pdf_rollup_matches_effort_total_rounding() -> None:
+    """Verifies PDF estimate sums effort-level estimates like CSV/XLSX total."""
+    elements = [
+        make_element(project='ABC', type_='OCOB'),
+        make_element(project='XYZ', type_='OCOB'),
+    ]
+
+    estimate = ReleaseEstimateReport(make_stats_service())._build_effort_rollup(
+        elements=elements,
+        mode='PROD',
+        thread_count=5,
+    )
+
+    assert estimate['effort_count'] == 2
+    assert estimate['selected_elements'] == 2
+    assert estimate['total_minutes'] == 4
+    assert estimate['estimated_time'] == '00:04'
+
+def test_release_estimate_forecast_counts_all_movable_rows() -> None:
+    """Verifies forecast estimate counts all rows except non-moving markers."""
+    selected = make_element(project='ABC', type_='OCOB')
+    unselected_issue = make_element(
+        name='OPGM002',
+        project='ABC',
+        type_='OCOB',
+        selected=False,
+        visible=False,
+    )
+    already_prod = make_element(name='OPGM003', project='ABC', type_='OCOB')
+    already_prod.movement_status = MovementStatus.MARKED_IN_PROD
+    do_not_move = make_element(name='OPGM004', project='ABC', type_='OCOB')
+    do_not_move.movement_status = MovementStatus.DO_NOT_MOVE
+    already_qual = make_element(name='OPGM005', project='ABC', type_='OCOB')
+    already_qual.movement_status = MovementStatus.MARKED_IN_QUAL
+
+    estimate = ReleaseEstimateReport(make_stats_service())._build_effort_rollup(
+        elements=[
+            selected,
+            unselected_issue,
+            already_prod,
+            do_not_move,
+            already_qual,
+        ],
+        mode='PROD',
+        thread_count=5,
+        count_all_movable_elements=True,
+    )
+
+    assert estimate['selected_elements'] == 2
+    assert estimate['category_counts']['COBOL'] == 2
+
 def test_release_inventory_report_missing_inventory(tmp_path: Path) -> None:
     """Verifies release inventory report missing inventory."""
     output=ReleaseInventoryReport().generate('REL1','PROD',[],[InventoryIssue(release='REL1', effort_id='ABC', issue_type=ScheduleStatus.SQL_EXPECTED_INVENTORY_MISSING, reason='Missing inventory')],[ReleaseEffort(effort_id='ABC')],tmp_path)
