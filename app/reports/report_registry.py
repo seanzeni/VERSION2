@@ -215,6 +215,7 @@ class ReportRegistry:
             elements=state.loaded_elements,
             effort_dates=state.effort_dates,
             output_folder=output_folder,
+            release=state.release,
             mode=state.mode,
             thread_count=state.thread_count,
             include_empty=include_empty,
@@ -229,7 +230,6 @@ class ReportRegistry:
         return ReleaseInventoryReport().generate(
             release=state.release,
             mode=state.mode,
-            thread_count=state.thread_count,
             elements=state.loaded_elements,
             inventory_issues=state.inventory_issues,
             release_efforts=state.release_efforts,
@@ -246,7 +246,6 @@ class ReportRegistry:
         return ReleaseInventoryReport().generate_pdf(
             release=state.release,
             mode=state.mode,
-            thread_count=state.thread_count,
             elements=state.loaded_elements,
             inventory_issues=state.inventory_issues,
             release_efforts=state.release_efforts,

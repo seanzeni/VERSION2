@@ -250,7 +250,7 @@ class EffortSummaryReport:
                     element.display_reason,
                 ]
                 for element in project_elements
-                if element.display_reason
+                if element.display_reason and element.severity != Severity.INFO
             ]
             story.append(
                 build_table(

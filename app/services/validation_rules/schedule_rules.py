@@ -68,6 +68,7 @@ def apply(
         )
 
         if sql_release and sql_release.upper() != element.release.upper():
+            element.source_row["_sql_release"] = sql_release
             element.schedule_status = ScheduleStatus.EFFORT_RELEASE_MISMATCH
 
             context.add_reason(

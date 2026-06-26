@@ -27,6 +27,7 @@ from app.core.models import Element
 from app.core.models import InventoryIssue
 from app.core.models import ReleaseEffort
 from app.core.models import ScheduleStatus
+from app.core.status_messages import StatusMessages
 from app.reports.pdf_utils import build_table
 from app.reports.pdf_utils import heading
 from app.reports.pdf_utils import spacer
@@ -44,7 +45,6 @@ class ReleaseInventoryReport:
         self,
         release: str,
         mode: str,
-        thread_count: int,
         elements: list[Element],
         inventory_issues: list[InventoryIssue],
         release_efforts: list[ReleaseEffort],
@@ -53,115 +53,15 @@ class ReleaseInventoryReport:
     ) -> Path:
         report_path = output_folder / self.FILE_NAME
         generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        rows: list[list[str]] = []
-
-        elements_by_project = self._group_visible_elements_by_project(elements)
-
-        efforts_by_id = {
-            effort.effort_id.strip(): effort
-            for effort in release_efforts
-            if effort.effort_id.strip()
-        }
-
-        # Missing inventory comes from InventoryIssue because there are no
-        # element rows to represent it.
-        for issue in inventory_issues:
-            if issue.issue_type != ScheduleStatus.SQL_EXPECTED_INVENTORY_MISSING:
-                continue
-
-            rows.append(
-                [
-                    generated_at,
-                    release,
-                    mode,
-                    issue.effort_id,
-                    "Missing Inventory",
-                    0,
-                    issue.reason,
-                    issue.expected_release,
-                    issue.inventory_release,
-                ]
-            )
-
-        for project in sorted(elements_by_project.keys()):
-            project_elements = elements_by_project.get(
-                project,
-                [],
-            )
-
-            if not project_elements:
-                continue
-
-            first_element = project_elements[0]
-            element_count = len(project_elements)
-            effort = efforts_by_id.get(project)
-
-            if effort is not None and (effort.no_inventory or effort.withdrawn):
-                rows.append(
-                    [
-                        generated_at,
-                        release,
-                        mode,
-                        project,
-                        "Unexpected Inventory",
-                        element_count,
-                        (
-                            "SQL marks this project as withdrawn, but inventory rows were found."
-                            if effort.withdrawn
-                            else "SQL marks this project as no inventory, but inventory rows were found."
-                        ),
-                        release,
-                        first_element.release,
-                    ]
-                )
-                continue
-
-            if first_element.schedule_status == ScheduleStatus.INVENTORY_NOT_IN_RELEASE:
-                rows.append(
-                    [
-                        generated_at,
-                        release,
-                        mode,
-                        project,
-                        "Inventory Not In Release",
-                        element_count,
-                        first_element.display_reason,
-                        release,
-                        first_element.release,
-                    ]
-                )
-                continue
-
-            if first_element.schedule_status == ScheduleStatus.EFFORT_RELEASE_MISMATCH:
-                rows.append(
-                    [
-                        generated_at,
-                        release,
-                        mode,
-                        project,
-                        "Potential Wrong Release",
-                        element_count,
-                        first_element.display_reason,
-                        release,
-                        first_element.release,
-                    ]
-                )
-
-        if not rows and include_empty:
-            rows.append(
-                [
-                    generated_at,
-                    release,
-                    mode,
-                    "",
-                    "No Issues",
-                    0,
-                    "No release inventory issues found.",
-                    release,
-                    "",
-                ]
-            )
+        rows = self._build_issue_rows(
+            generated_at=generated_at,
+            release=release,
+            mode=mode,
+            elements=elements,
+            inventory_issues=inventory_issues,
+            release_efforts=release_efforts,
+            include_empty=include_empty,
+        )
 
         export_csv(
             output_path=report_path,
@@ -175,7 +75,6 @@ class ReleaseInventoryReport:
         self,
         release: str,
         mode: str,
-        thread_count: int,
         elements: list[Element],
         inventory_issues: list[InventoryIssue],
         release_efforts: list[ReleaseEffort],
@@ -188,7 +87,6 @@ class ReleaseInventoryReport:
             generated_at=generated_at,
             release=release,
             mode=mode,
-            thread_count=thread_count,
             elements=elements,
             inventory_issues=inventory_issues,
             release_efforts=release_efforts,
@@ -250,7 +148,6 @@ class ReleaseInventoryReport:
         generated_at: str,
         release: str,
         mode: str,
-        thread_count: int,
         elements: list[Element],
         inventory_issues: list[InventoryIssue],
         release_efforts: list[ReleaseEffort],
@@ -314,7 +211,15 @@ class ReleaseInventoryReport:
                 )
                 continue
 
-            if first_element.schedule_status == ScheduleStatus.INVENTORY_NOT_IN_RELEASE:
+            inventory_not_in_release_element = get_project_element_with_schedule_status(
+                project_elements,
+                ScheduleStatus.INVENTORY_NOT_IN_RELEASE,
+            )
+            if inventory_not_in_release_element is not None:
+                reason = get_inventory_reason(
+                    inventory_not_in_release_element,
+                    StatusMessages.INVENTORY_NOT_IN_RELEASE,
+                )
                 rows.append(
                     [
                         generated_at,
@@ -323,14 +228,26 @@ class ReleaseInventoryReport:
                         project,
                         "Inventory Not In Release",
                         element_count,
-                        first_element.display_reason,
+                        reason,
                         release,
-                        first_element.release,
+                        inventory_not_in_release_element.release,
                     ]
                 )
                 continue
 
-            if first_element.schedule_status == ScheduleStatus.EFFORT_RELEASE_MISMATCH:
+            effort_release_mismatch_element = get_project_element_with_schedule_status(
+                project_elements,
+                ScheduleStatus.EFFORT_RELEASE_MISMATCH,
+            )
+            if effort_release_mismatch_element is not None:
+                expected_release = get_expected_release(
+                    effort_release_mismatch_element,
+                    release,
+                )
+                reason = get_inventory_reason(
+                    effort_release_mismatch_element,
+                    StatusMessages.EFFORT_RELEASE_MISMATCH,
+                )
                 rows.append(
                     [
                         generated_at,
@@ -339,9 +256,9 @@ class ReleaseInventoryReport:
                         project,
                         "Potential Wrong Release",
                         element_count,
-                        first_element.display_reason,
-                        release,
-                        first_element.release,
+                        reason,
+                        expected_release,
+                        effort_release_mismatch_element.release,
                     ]
                 )
 
@@ -375,5 +292,42 @@ class ReleaseInventoryReport:
             grouped[element.project].append(element)
 
         return dict(grouped)
+
+
+def get_expected_release(
+    element: Element,
+    fallback_release: str,
+) -> str:
+    return str(
+        element.source_row.get(
+            "_sql_release",
+            fallback_release,
+        )
+    )
+
+
+def get_project_element_with_schedule_status(
+    elements: list[Element],
+    schedule_status: ScheduleStatus,
+) -> Element | None:
+    return next(
+        (
+            element
+            for element in elements
+            if element.schedule_status == schedule_status
+        ),
+        None,
+    )
+
+
+def get_inventory_reason(
+    element: Element,
+    message_prefix: str,
+) -> str:
+    for reason in element.reasons:
+        if reason.startswith(message_prefix):
+            return reason
+
+    return message_prefix
 
 

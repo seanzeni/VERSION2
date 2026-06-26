@@ -4,6 +4,7 @@ import csv
 from app.core.models import ArchiveStatus
 from app.core.models import Element
 from app.core.models import InventoryIssue
+from app.core.models import LocationStatus
 from app.core.models import MovementStatus
 from app.core.models import ReleaseEffort
 from app.core.models import ScheduleStatus
@@ -102,7 +103,7 @@ def test_release_estimate_report_generates_total(tmp_path: Path) -> None:
 
 def test_release_inventory_report_missing_inventory(tmp_path: Path) -> None:
     """Verifies release inventory report missing inventory."""
-    output=ReleaseInventoryReport().generate('REL1','PROD',1,[],[InventoryIssue(release='REL1', effort_id='ABC', issue_type=ScheduleStatus.SQL_EXPECTED_INVENTORY_MISSING, reason='Missing inventory')],[ReleaseEffort(effort_id='ABC')],tmp_path)
+    output=ReleaseInventoryReport().generate('REL1','PROD',[],[InventoryIssue(release='REL1', effort_id='ABC', issue_type=ScheduleStatus.SQL_EXPECTED_INVENTORY_MISSING, reason='Missing inventory')],[ReleaseEffort(effort_id='ABC')],tmp_path)
     rows=read_csv(output)
     assert rows[0]['Inventory Status'] == 'Missing Inventory'
     assert 'Thread Count' not in rows[0]
@@ -110,10 +111,44 @@ def test_release_inventory_report_missing_inventory(tmp_path: Path) -> None:
 
 def test_release_inventory_report_withdrawn_inventory_notification(tmp_path: Path) -> None:
     """Verifies release inventory report withdrawn inventory notification."""
-    output=ReleaseInventoryReport().generate('REL1','PROD',1,[make_element(project='ABC')],[],[ReleaseEffort(effort_id='ABC', exit_date='2026-06-24')],tmp_path)
+    output=ReleaseInventoryReport().generate('REL1','PROD',[make_element(project='ABC')],[],[ReleaseEffort(effort_id='ABC', exit_date='2026-06-24')],tmp_path)
     rows=read_csv(output)
     assert rows[0]['Inventory Status'] == 'Unexpected Inventory'
     assert 'withdrawn' in rows[0]['Reason']
+    make_writable(output)
+
+def test_release_inventory_report_excludes_element_only_issues(tmp_path: Path) -> None:
+    """Verifies release inventory report excludes non-inventory element issues."""
+    element = make_element(project='ABC')
+    element.location_status = LocationStatus.NOT_FOUND
+    element.reasons = ['Element/type was not found in the expected NDVR location.']
+
+    output=ReleaseInventoryReport().generate('REL1','PROD',[element],[],[ReleaseEffort(effort_id='ABC')],tmp_path)
+    rows=read_csv(output)
+
+    assert rows == []
+    make_writable(output)
+
+def test_release_inventory_report_uses_sql_release_for_mismatch(tmp_path: Path) -> None:
+    """Verifies release inventory mismatch columns use RSET release metadata."""
+    element = make_element(
+        project='ABC',
+        schedule_status=ScheduleStatus.EFFORT_RELEASE_MISMATCH,
+    )
+    element.reasons = [
+        'Element/type was not found in the expected NDVR location.',
+        'Inventory identified bundle does not match the RSET bundle for this project. Inventory says project ABC belongs to the release bundle [REL1], but RSET states it belongs to this release [REL2].',
+    ]
+    element.source_row['_sql_release'] = 'REL2'
+
+    output=ReleaseInventoryReport().generate('REL1','PROD',[element],[],[ReleaseEffort(effort_id='ABC')],tmp_path)
+    rows=read_csv(output)
+
+    assert rows[0]['Inventory Status'] == 'Potential Wrong Release'
+    assert rows[0]['Expected Release'] == 'REL2'
+    assert rows[0]['Inventory Release'] == 'REL1'
+    assert 'RSET states it belongs to this release [REL2]' in rows[0]['Reason']
+    assert 'expected NDVR location' not in rows[0]['Reason']
     make_writable(output)
 
 def test_osg_cops_report_filters_selected_visible_o_or_x(tmp_path: Path) -> None:

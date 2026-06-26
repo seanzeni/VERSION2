@@ -18,6 +18,7 @@ Notes:
 """
 
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -173,11 +174,13 @@ class ReleaseEstimateReport:
         elements: list[Element],
         effort_dates: dict[str, str],
         output_folder: Path,
+        release: str,
         mode: str,
         thread_count: int,
         include_empty: bool = False,
     ) -> Path:
         report_path = output_folder / self.PDF_FILE_NAME
+        generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         grouped: dict[str, list[Element]] = defaultdict(list)
 
         for element in elements:
@@ -208,7 +211,6 @@ class ReleaseEstimateReport:
                 [
                     project,
                     effort_dates.get(project, "Unknown"),
-                    thread_count,
                     selected_count,
                     category_counts.get("JCL", 0),
                     category_counts.get("NON_COMPILE", 0),
@@ -225,7 +227,6 @@ class ReleaseEstimateReport:
                 [
                     "TOTAL",
                     "",
-                    thread_count,
                     total_selected,
                     "",
                     "",
@@ -239,12 +240,20 @@ class ReleaseEstimateReport:
 
         story = [
             heading("Release Estimate Report"),
+            build_table(
+                headers=[
+                    "Generated",
+                    "Bundle",
+                    "Mode",
+                    "Thread Count",
+                ],
+                rows=[[generated_at, release, mode, thread_count]],
+            ),
             spacer(),
             build_table(
                 headers=[
                     "Effort",
                     "Move Date",
-                    "Thread Count",
                     "Selected",
                     "JCL",
                     "Non Compile",
@@ -254,7 +263,7 @@ class ReleaseEstimateReport:
                     "Linkdeck",
                     "Estimate",
                 ],
-                rows=rows or [["", "", thread_count, 0, "", "", "", "", "", "", "00:00"]],
+                rows=rows or [["", "", 0, "", "", "", "", "", "", "00:00"]],
             ),
         ]
 

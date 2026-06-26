@@ -196,6 +196,7 @@ def test_wrong_release_status() -> None:
         [element], [ReleaseEffort(effort_id="ABC")], {"ABC": "REL2"}, "REL1"
     )
     assert element.schedule_status == ScheduleStatus.EFFORT_RELEASE_MISMATCH
+    assert element.source_row["_sql_release"] == "REL2"
 
 
 def test_missing_location_status() -> None:
