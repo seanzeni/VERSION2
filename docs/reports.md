@@ -50,17 +50,24 @@ Issues Report glossary uses the schema descriptions.
 
 ## Release Estimate Report
 
-`Release_Estimate_Report.csv` includes `Thread Count` because estimated time is
+`Release_Estimate_Report.csv` and `.xlsx` contain effort-level detail. Each
+effort row includes its move date, selected element count, workload category
+counts, category minutes, and estimated time. A `TOTAL` row summarizes the whole
+release.
+
+`Thread Count` is included in the spreadsheet because estimated time is
 calculated from selected inventory volume and the active thread count.
 
-`Release_Estimate_Report.pdf` shows global run metadata at the top:
+`Release_Estimate_Report.pdf` is a rollup instead of effort-level detail. It
+shows global run metadata at the top:
 
 - `Generated`
 - `Bundle`
 - `Mode`
 - `Thread Count`
 
-The effort rows do not repeat thread count because it applies to the whole run.
+Then it shows the overall number of efforts, selected elements, estimated time,
+and total element counts by workload category.
 
 Forecast generation uses `settings.json`:
 

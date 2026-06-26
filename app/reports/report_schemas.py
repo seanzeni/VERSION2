@@ -88,6 +88,7 @@ EFFORT_SUMMARY_INVENTORY_COLUMNS = [
 EFFORT_SUMMARY_COLUMNS = EFFORT_SUMMARY_INVENTORY_COLUMNS
 
 RELEASE_ESTIMATE_COLUMNS = [
+    ReportColumn("Effort"),
     ReportColumn("Move Date"),
     ReportColumn("Thread Count"),
     ReportColumn("Selected Elements"),

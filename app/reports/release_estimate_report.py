@@ -62,12 +62,7 @@ class ReleaseEstimateReport:
             if not element.selected:
                 continue
 
-            move_date = effort_dates.get(
-                element.project,
-                "Unknown",
-            )
-
-            grouped[move_date].append(element)
+            grouped[element.project].append(element)
 
         rows: list[list[str]] = []
 
@@ -75,14 +70,14 @@ class ReleaseEstimateReport:
         total_minutes = 0
         total_category_counts: dict[str, int] = {}
 
-        for move_date in sorted(grouped.keys()):
-            date_elements = grouped[move_date]
+        for effort in sorted(grouped.keys()):
+            effort_elements = grouped[effort]
 
-            if not date_elements and not include_empty:
+            if not effort_elements and not include_empty:
                 continue
 
             estimate = self.stats_service.build_estimate(
-                elements=date_elements,
+                elements=effort_elements,
                 mode=mode,
                 thread_count=thread_count,
             )
@@ -120,7 +115,11 @@ class ReleaseEstimateReport:
 
             rows.append(
                 [
-                    move_date,
+                    effort,
+                    effort_dates.get(
+                        effort,
+                        "Unknown",
+                    ),
                     thread_count,
                     selected_count,
                     category_counts.get("JCL", 0),
@@ -143,6 +142,7 @@ class ReleaseEstimateReport:
             rows.append(
                 [
                     "TOTAL",
+                    "",
                     thread_count,
                     total_selected,
                     total_category_counts.get("JCL", 0),
@@ -181,62 +181,27 @@ class ReleaseEstimateReport:
     ) -> Path:
         report_path = output_folder / self.PDF_FILE_NAME
         generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        grouped: dict[str, list[Element]] = defaultdict(list)
-
-        for element in elements:
-            if element.visible and element.selected:
-                grouped[element.project].append(element)
-
-        rows: list[list[object]] = []
-        total_selected = 0
-        total_minutes = 0
-
-        for project in sorted(grouped.keys()):
-            project_elements = grouped[project]
-            if not project_elements and not include_empty:
-                continue
-
-            estimate = self.stats_service.build_estimate(
-                elements=project_elements,
-                mode=mode,
-                thread_count=thread_count,
-            )
-            selected_count = int(estimate.get("selected_elements", 0))
-            minutes = int(estimate.get("total_minutes", 0))
-            total_selected += selected_count
-            total_minutes += minutes
-            category_counts = estimate.get("category_counts", {})
-
-            rows.append(
-                [
-                    project,
-                    effort_dates.get(project, "Unknown"),
-                    selected_count,
-                    category_counts.get("JCL", 0),
-                    category_counts.get("NON_COMPILE", 0),
-                    category_counts.get("COBOL", 0),
-                    category_counts.get("APS", 0),
-                    category_counts.get("X_ELEMENTS", 0),
-                    category_counts.get("LINKDECK", 0),
-                    estimate.get("estimated_time", "00:00"),
-                ]
-            )
-
-        if rows or include_empty:
-            rows.append(
-                [
-                    "TOTAL",
-                    "",
-                    total_selected,
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    self.stats_service.format_minutes(total_minutes),
-                ]
-            )
+        selected_elements = [
+            element
+            for element in elements
+            if element.visible and element.selected
+        ]
+        effort_count = len(
+            {
+                element.project
+                for element in selected_elements
+                if element.project
+            }
+        )
+        estimate = self.stats_service.build_estimate(
+            elements=selected_elements,
+            mode=mode,
+            thread_count=thread_count,
+        )
+        category_counts = estimate.get(
+            "category_counts",
+            {},
+        )
 
         story = [
             heading("Release Estimate Report"),
@@ -252,19 +217,33 @@ class ReleaseEstimateReport:
             spacer(),
             build_table(
                 headers=[
-                    "Effort",
-                    "Move Date",
+                    "Efforts",
                     "Selected",
-                    "JCL",
-                    "Non Compile",
-                    "COBOL",
-                    "APS",
-                    "X Elements",
-                    "Linkdeck",
                     "Estimate",
                 ],
-                rows=rows or [["", "", 0, "", "", "", "", "", "", "00:00"]],
+                rows=[
+                    [
+                        effort_count,
+                        estimate.get("selected_elements", 0),
+                        estimate.get("estimated_time", "00:00"),
+                    ]
+                ],
+            ),
+            spacer(),
+            build_table(
+                headers=[
+                    "Category",
+                    "Elements",
+                ],
+                rows=[
+                    ["JCL", category_counts.get("JCL", 0)],
+                    ["Non Compile", category_counts.get("NON_COMPILE", 0)],
+                    ["COBOL", category_counts.get("COBOL", 0)],
+                    ["APS", category_counts.get("APS", 0)],
+                    ["X Elements", category_counts.get("X_ELEMENTS", 0)],
+                    ["Linkdeck", category_counts.get("LINKDECK", 0)],
+                ],
             ),
         ]
 
-        return write_pdf(report_path, story, use_landscape=True)
+        return write_pdf(report_path, story, use_landscape=False)

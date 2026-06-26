@@ -112,7 +112,9 @@ def test_release_estimate_report_generates_total(tmp_path: Path) -> None:
     """Verifies release estimate report generates total."""
     output=ReleaseEstimateReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB')], {'ABC':'2026-06-22'}, tmp_path, 'PROD', 3)
     rows=read_csv(output)
-    assert rows[-1]['Move Date'] == 'TOTAL'
+    assert rows[0]['Effort'] == 'ABC'
+    assert rows[0]['Move Date'] == '2026-06-22'
+    assert rows[-1]['Effort'] == 'TOTAL'
     assert rows[-1]['Thread Count'] == '3'
     make_writable(output)
 
