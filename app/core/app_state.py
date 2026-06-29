@@ -1,31 +1,29 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Store the current runtime state of the application.
-
-Used By:
-    MainWindow
-    UI panels
-    ReportDialog
-    Reports
-
-Responsibilities:
-    - Track selected release and mode
-    - Track thread count.
-    - Track loaded inventory elements.
-    - Track selected effort IDs.
-    - Track SQL release efforts.
-    - Track inventory/SQL validation issues.
-
-Notes:
-    This file should not load files.
-    This file should not query SQL.
-    This file should not run validation.
-    This file should not build reports.
-    
-    It is only a state container.
-"""
+# Purpose:
+#     Store the current runtime state of the application.
+#
+# Used By:
+#     MainWindow
+#     UI panels
+#     ReportDialog
+#     Reports
+#
+# Responsibilities:
+#     - Track selected release and mode
+#     - Track thread count.
+#     - Track loaded inventory elements.
+#     - Track selected effort IDs.
+#     - Track SQL release efforts.
+#     - Track inventory/SQL validation issues.
+#
+# Notes:
+#     This file should not load files.
+#     This file should not query SQL.
+#     This file should not run validation.
+#     This file should not build reports.
+#
+#     It is only a state container.
 
 from dataclasses import dataclass
 from dataclasses import field

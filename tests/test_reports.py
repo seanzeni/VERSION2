@@ -22,11 +22,13 @@ def make_stats_service() -> StatsService:
 
 def make_element(name='OPGM001', type_='OCOB', project='ABC', selected=True, visible=True, archive_status=ArchiveStatus.OK, schedule_status=ScheduleStatus.OK) -> Element:
     e=Element(release='REL1', project=project, element=name, type=type_, selected=selected, visible=visible, archive_status=archive_status, schedule_status=schedule_status, source_row={"Submitter":"USER1","Application":"APP","Package":"PKG","Area":"AREA","Service":"SVC"})
-    if archive_status != ArchiveStatus.OK or schedule_status != ScheduleStatus.OK: e.reasons.append('Test reason')
+    if archive_status != ArchiveStatus.OK or schedule_status != ScheduleStatus.OK:
+        e.reasons.append('Test reason')
     return e
 
 def read_csv(path: Path) -> list[dict[str,str]]:
-    with path.open('r', encoding='utf-8', newline='') as f: return list(csv.DictReader(f))
+    with path.open('r', encoding='utf-8', newline='') as f:
+        return list(csv.DictReader(f))
 
 def test_issues_report_excludes_hidden(tmp_path: Path) -> None:
     """Verifies issues report excludes hidden."""

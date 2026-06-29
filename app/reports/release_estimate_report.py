@@ -1,21 +1,19 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Generate Release Estimate Report CSV.
-
-Used By:
-    Reports dialog
-
-Responsibilities:
-    - Summarize selected visible elements by release move date.
-    - Count selected elements by workload category.
-    - Calculate estimated time by date.
-    - Add a total row.
-
-Notes:
-    This report should not change selection state.
-"""
+# Purpose:
+#     Generate Release Estimate Report CSV.
+#
+# Used By:
+#     Reports dialog
+#
+# Responsibilities:
+#     - Summarize selected visible elements by release move date.
+#     - Count selected elements by workload category.
+#     - Calculate estimated time by date.
+#     - Add a total row.
+#
+# Notes:
+#     This report should not change selection state.
 
 from collections import defaultdict
 from dataclasses import replace

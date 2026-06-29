@@ -33,7 +33,8 @@ def test_get_date_folder_path_does_not_create_folder(tmp_path: Path) -> None:
 
 def test_archive_existing_reports_moves_files(tmp_path: Path) -> None:
     """Verifies archive existing reports moves files."""
-    report=tmp_path/'report.csv'; report.write_text('data', encoding='utf-8')
+    report=tmp_path/'report.csv'
+    report.write_text('data', encoding='utf-8')
     archive_existing_reports(tmp_path)
     assert not report.exists()
     assert (tmp_path/'History'/'report.csv').exists()

@@ -1,17 +1,15 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Generate one consolidated inventory-issues forecast report.
-
-Used By:
-    InventoryForecastService
-    ReportCenter
-
-Responsibilities:
-    - Export consolidated inventory forecast rows to CSV, XLSX, and PDF.
-    - Keep all qualifying releases in one report.
-"""
+# Purpose:
+#     Generate one consolidated inventory-issues forecast report.
+#
+# Used By:
+#     InventoryForecastService
+#     ReportCenter
+#
+# Responsibilities:
+#     - Export consolidated inventory forecast rows to CSV, XLSX, and PDF.
+#     - Keep all qualifying releases in one report.
 
 from pathlib import Path
 

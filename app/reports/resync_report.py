@@ -1,19 +1,17 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Generate Resync Report CSV/PDF output.
-
-Used By:
-    ReportRegistry
-    ReportCenter
-
-Responsibilities:
-    - Compare loaded inventory elements against NDVR location records.
-    - Report lower-environment records when a higher environment has a newer
-      version or a different CCID.
-    - Exclude FIXP1 from resync comparisons.
-"""
+# Purpose:
+#     Generate Resync Report CSV/PDF output.
+#
+# Used By:
+#     ReportRegistry
+#     ReportCenter
+#
+# Responsibilities:
+#     - Compare loaded inventory elements against NDVR location records.
+#     - Report lower-environment records when a higher environment has a newer
+#       version or a different CCID.
+#     - Exclude FIXP1 from resync comparisons.
 
 from pathlib import Path
 

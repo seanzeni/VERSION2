@@ -1,23 +1,21 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Convert inventory rows into Element models.
-
-Used By:
-    ValidationService
-    MainWindow
-    Reports
-
-Responsibilities:
-    - Build Element objects.
-    - Build common lookup dictionaries.
-    - Build element/type indexes.
-
-Notes:
-    This service should not perform validation.
-    This service should not query SQL.
-"""
+# Purpose:
+#     Convert inventory rows into Element models.
+#
+# Used By:
+#     ValidationService
+#     MainWindow
+#     Reports
+#
+# Responsibilities:
+#     - Build Element objects.
+#     - Build common lookup dictionaries.
+#     - Build element/type indexes.
+#
+# Notes:
+#     This service should not perform validation.
+#     This service should not query SQL.
 
 from collections import defaultdict
 

@@ -1,25 +1,23 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Calculate workload estimates and dashboard statistics.
-
-Used By:
-    MainWindow
-    Reports
-    StatsPanel
-
-Responsibilities:
-    - Categorize element types.
-    - Calculate selected element counts.
-    - Calculate estimated time using threads.
-    - Build statistics for the dashboard.
-
-Notes:
-    This service does not validate inventory.
-    This service does not export files.
-    This service does not query SQL.
-"""
+# Purpose:
+#     Calculate workload estimates and dashboard statistics.
+#
+# Used By:
+#     MainWindow
+#     Reports
+#     StatsPanel
+#
+# Responsibilities:
+#     - Categorize element types.
+#     - Calculate selected element counts.
+#     - Calculate estimated time using threads.
+#     - Build statistics for the dashboard.
+#
+# Notes:
+#     This service does not validate inventory.
+#     This service does not export files.
+#     This service does not query SQL.
 
 from math import ceil
 from typing import Any

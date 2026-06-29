@@ -1,16 +1,14 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Bottom action button bar.
-
-Used By:
-    MainWindow
-
-Responsibilities:
-    - Provide primary application actions.
-    - Keep bottom button layout consistent.
-"""
+# Purpose:
+#     Bottom action button bar.
+#
+# Used By:
+#     MainWindow
+#
+# Responsibilities:
+#     - Provide primary application actions.
+#     - Keep bottom button layout consistent.
 
 from typing import Callable
 

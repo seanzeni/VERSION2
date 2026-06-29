@@ -1,18 +1,16 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Central report column schemas.
-
-Used By:
-    Report generators
-    ReportRegistry XLSX conversion
-
-Responsibilities:
-    - Keep CSV/XLSX column names in one place.
-    - Reduce column drift between report formats.
-    - Provide a single update point when report columns change.
-"""
+# Purpose:
+#     Central report column schemas.
+#
+# Used By:
+#     Report generators
+#     ReportRegistry XLSX conversion
+#
+# Responsibilities:
+#     - Keep CSV/XLSX column names in one place.
+#     - Reduce column drift between report formats.
+#     - Provide a single update point when report columns change.
 
 from dataclasses import dataclass
 

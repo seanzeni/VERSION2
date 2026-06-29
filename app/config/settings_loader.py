@@ -1,22 +1,20 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Load and validate settings.json
-
-Used By:
-    main.py
-
-Responsibilities:
-    - Confirm settings.json exists.
-    - Read JSON settings.
-    - Validate required top-level sections exist.
-    
-Notes:
-    This file should not apply business rules.
-    This file should not calculate workload.
-    This file should not connect to SQL.
-"""
+# Purpose:
+#     Load and validate settings.json
+#
+# Used By:
+#     main.py
+#
+# Responsibilities:
+#     - Confirm settings.json exists.
+#     - Read JSON settings.
+#     - Validate required top-level sections exist.
+#
+# Notes:
+#     This file should not apply business rules.
+#     This file should not calculate workload.
+#     This file should not connect to SQL.
 
 import json
 from pathlib import Path

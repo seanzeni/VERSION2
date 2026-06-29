@@ -1,21 +1,19 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Export selected visible elements to fixed-width mainframe format.
-
-Used By:
-    MainWindow
-
-Responsibilities:
-    - Sort selected export rows alphabetically by element name.
-    - Build fixed-width export records.
-    - Write export file.
-
-Notes:
-    This file should not apply validation rules.
-    Validation already happened before export.
-"""
+# Purpose:
+#     Export selected visible elements to fixed-width mainframe format.
+#
+# Used By:
+#     MainWindow
+#
+# Responsibilities:
+#     - Sort selected export rows alphabetically by element name.
+#     - Build fixed-width export records.
+#     - Write export file.
+#
+# Notes:
+#     This file should not apply validation rules.
+#     Validation already happened before export.
 
 from datetime import datetime
 from pathlib import Path

@@ -1,25 +1,23 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Non-modal report generation center.
-
-Used By:
-    MainWindow
-
-Responsibilities:
-    - Display available reports.
-    - Let the user choose one or more reports.
-    - Let the user choose CSV/XLSX/PDF output.
-    - Let the user include/exclude empty reports.
-    - Let the user override the output folder.
-    - Generate selected reports.
-    - Show generation progress and results.
-
-Notes:
-    This window should not build report content directly.
-    Report content belongs inside report classes.
-"""
+# Purpose:
+#     Non-modal report generation center.
+#
+# Used By:
+#     MainWindow
+#
+# Responsibilities:
+#     - Display available reports.
+#     - Let the user choose one or more reports.
+#     - Let the user choose CSV/XLSX/PDF output.
+#     - Let the user include/exclude empty reports.
+#     - Let the user override the output folder.
+#     - Generate selected reports.
+#     - Show generation progress and results.
+#
+# Notes:
+#     This window should not build report content directly.
+#     Report content belongs inside report classes.
 
 from datetime import date
 from pathlib import Path

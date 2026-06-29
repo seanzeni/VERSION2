@@ -1,26 +1,24 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Apply movement marker validation from package/source row text.
-
-Annotations:
-    Uses postponed annotations for consistent validation rule typing.
-
-Used By:
-    ValidationService.apply_movement_status
-    ValidationService.get_target_env
-
-Responsibilities:
-    - Mark rows as DO NOT MOVE when configured marker text is present.
-    - Confirm rows marked already in target are actually in the target env.
-    - Flag rows marked already there but missing from the target env.
-    - Store confirmed target matches for selection filtering.
-
-Notes:
-    This rule runs before location and selection validation because later rules
-    depend on movement status.
-"""
+# Purpose:
+#     Apply movement marker validation from package/source row text.
+#
+# Annotations:
+#     Uses postponed annotations for consistent validation rule typing.
+#
+# Used By:
+#     ValidationService.apply_movement_status
+#     ValidationService.get_target_env
+#
+# Responsibilities:
+#     - Mark rows as DO NOT MOVE when configured marker text is present.
+#     - Confirm rows marked already in target are actually in the target env.
+#     - Flag rows marked already there but missing from the target env.
+#     - Store confirmed target matches for selection filtering.
+#
+# Notes:
+#     This rule runs before location and selection validation because later rules
+#     depend on movement status.
 
 from app.core.models import MovementStatus
 from app.core.status_messages import ReasonBuilder

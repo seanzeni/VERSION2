@@ -1,25 +1,23 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Load inventory spreadsheet data into memory.
-
-Used By:
-    MainWindow
-    ElementService
-    Reports
-
-Responsibilities:
-    - Read the Excel file.
-    - Validate required columns.
-    - Normalize column names.
-    - Provide release/project filtering helpers.
-
-Notes:
-    This file should nto validate business rules.
-    This file should not query SQL.
-    This file should not calculate estimates.
-"""
+# Purpose:
+#     Load inventory spreadsheet data into memory.
+#
+# Used By:
+#     MainWindow
+#     ElementService
+#     Reports
+#
+# Responsibilities:
+#     - Read the Excel file.
+#     - Validate required columns.
+#     - Normalize column names.
+#     - Provide release/project filtering helpers.
+#
+# Notes:
+#     This file should nto validate business rules.
+#     This file should not query SQL.
+#     This file should not calculate estimates.
 
 from pathlib import Path
 

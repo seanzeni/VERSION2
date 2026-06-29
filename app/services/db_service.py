@@ -1,25 +1,23 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    SQL Server access layer for release/bundle/effort data.
-    
-Used By:
-    MainWindow
-    EffortService
-    ValidationService
-
-Responsibilities:
-    - Connect to SQL Server using pyodbc.
-    - Find the bundle sequence ID for a selected release.
-    - Load efforts tied to that bundle sequence.
-    - Look up what release SQl says an effort belongs to.
-
-Notes:
-    This file should not read Excel.
-    This service should not validate inventory.
-    This service should not build reports.
-"""
+# Purpose:
+#     SQL Server access layer for release/bundle/effort data.
+#
+# Used By:
+#     MainWindow
+#     EffortService
+#     ValidationService
+#
+# Responsibilities:
+#     - Connect to SQL Server using pyodbc.
+#     - Find the bundle sequence ID for a selected release.
+#     - Load efforts tied to that bundle sequence.
+#     - Look up what release SQl says an effort belongs to.
+#
+# Notes:
+#     This file should not read Excel.
+#     This service should not validate inventory.
+#     This service should not build reports.
 
 import pyodbc
 

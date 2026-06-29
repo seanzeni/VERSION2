@@ -1,22 +1,20 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Shared report helper functions.
-
-Used By:
-    All report generators.
-
-Responsibilities:
-    - Report output folder creation.
-    - Safe release folder naming.
-    - History folder handling.
-    - Common element sorting.
-    - Common CSV helpers.
-
-Notes:
-    This file should not generate report content.
-"""
+# Purpose:
+#     Shared report helper functions.
+#
+# Used By:
+#     All report generators.
+#
+# Responsibilities:
+#     - Report output folder creation.
+#     - Safe release folder naming.
+#     - History folder handling.
+#     - Common element sorting.
+#     - Common CSV helpers.
+#
+# Notes:
+#     This file should not generate report content.
 
 import csv
 import os

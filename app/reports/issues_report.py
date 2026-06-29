@@ -1,17 +1,15 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Generate Issues Report CSV.
-
-Used By:
-    Reports dialog
-
-Responsibilities:
-    - Export validation issues.
-    - Export warnings.
-    - Export informational statuses.
-"""
+# Purpose:
+#     Generate Issues Report CSV.
+#
+# Used By:
+#     Reports dialog
+#
+# Responsibilities:
+#     - Export validation issues.
+#     - Export warnings.
+#     - Export informational statuses.
 
 from pathlib import Path
 

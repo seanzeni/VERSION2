@@ -1,25 +1,23 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Load and search fixed-width mainframe location data.
-
-Used By:
-    ValidationService
-    ResyncReport
-    LocationReport
-
-Responsibilities:
-    - Read fixed-width mainframe location output.
-    - Parse one location record per line.
-    - Build fast lookups by element/type.
-    - Build fast lookups by environment.
-    - Provide simple location/version lookup helpers.
-
-Notes:
-    This service does not decide whether something is an issue.
-    It only answers location/version questions.
-"""
+# Purpose:
+#     Load and search fixed-width mainframe location data.
+#
+# Used By:
+#     ValidationService
+#     ResyncReport
+#     LocationReport
+#
+# Responsibilities:
+#     - Read fixed-width mainframe location output.
+#     - Parse one location record per line.
+#     - Build fast lookups by element/type.
+#     - Build fast lookups by environment.
+#     - Provide simple location/version lookup helpers.
+#
+# Notes:
+#     This service does not decide whether something is an issue.
+#     It only answers location/version questions.
 
 from collections import defaultdict
 from pathlib import Path

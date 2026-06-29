@@ -1,25 +1,23 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Verify AppContext startup file resolution safeguards.
-
-Annotations:
-    Uses postponed annotations to match application modules.
-
-Used By:
-    pytest
-
-Responsibilities:
-    - Confirm missing optional files can be selected at startup.
-    - Confirm remembered file settings are updated after selection.
-    - Confirm optional startup files can be skipped.
-    - Confirm required startup files still raise when not selected.
-
-Notes:
-    These tests exercise the file-resolution helper without constructing the
-    full desktop app context.
-"""
+# Purpose:
+#     Verify AppContext startup file resolution safeguards.
+#
+# Annotations:
+#     Uses postponed annotations to match application modules.
+#
+# Used By:
+#     pytest
+#
+# Responsibilities:
+#     - Confirm missing optional files can be selected at startup.
+#     - Confirm remembered file settings are updated after selection.
+#     - Confirm optional startup files can be skipped.
+#     - Confirm required startup files still raise when not selected.
+#
+# Notes:
+#     These tests exercise the file-resolution helper without constructing the
+#     full desktop app context.
 
 import json
 from pathlib import Path

@@ -1,34 +1,32 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Apply validation statuses and selection rules to inventory elements.
-
-Annotations:
-    Uses postponed annotations for modern type hints and validation context
-    construction.
-
-Used By:
-    MainWindow
-    Reports
-
-Responsibilities:
-    - Orchestrate validation rules in dependency order.
-    - Build ValidatorContext objects for rule execution.
-    - Detect overlaps and duplicates.
-    - Compare inventory efforts to SQL release schedule.
-    - Validate expected NDVR/mainframe location.
-    - Apply archive/program-move warnings.
-    - Apply movement marker rules.
-    - Apply FIXP1 warning.
-    - Apply selected/selectable rules.
-
-Notes:
-    This is the main business validation service.
-    It should not query SQL directly.
-    It should not read Excel directly.
-    It should not build reports.
-"""
+# Purpose:
+#     Apply validation statuses and selection rules to inventory elements.
+#
+# Annotations:
+#     Uses postponed annotations for modern type hints and validation context
+#     construction.
+#
+# Used By:
+#     MainWindow
+#     Reports
+#
+# Responsibilities:
+#     - Orchestrate validation rules in dependency order.
+#     - Build ValidatorContext objects for rule execution.
+#     - Detect overlaps and duplicates.
+#     - Compare inventory efforts to SQL release schedule.
+#     - Validate expected NDVR/mainframe location.
+#     - Apply archive/program-move warnings.
+#     - Apply movement marker rules.
+#     - Apply FIXP1 warning.
+#     - Apply selected/selectable rules.
+#
+# Notes:
+#     This is the main business validation service.
+#     It should not query SQL directly.
+#     It should not read Excel directly.
+#     It should not build reports.
 
 from app.core.models import Element
 from app.core.models import InventoryIssue

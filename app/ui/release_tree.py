@@ -1,23 +1,21 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Display release efforts in a selectable tree.
-
-Used By:
-    MainWindow
-
-Responsibilities:
-    - Display efforts grouped by move date.
-    - Separate Active and Withdrawn efforts.
-    - Support multi-select efforts.
-    - Notify MainWindow when effort selection changes.
-
-Notes:
-    This file should not query SQL.
-    This file should not filter elements.
-    This file should not calculate statistics.
-"""
+# Purpose:
+#     Display release efforts in a selectable tree.
+#
+# Used By:
+#     MainWindow
+#
+# Responsibilities:
+#     - Display efforts grouped by move date.
+#     - Separate Active and Withdrawn efforts.
+#     - Support multi-select efforts.
+#     - Notify MainWindow when effort selection changes.
+#
+# Notes:
+#     This file should not query SQL.
+#     This file should not filter elements.
+#     This file should not calculate statistics.
 
 from collections import defaultdict
 from typing import Callable

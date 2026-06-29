@@ -1,18 +1,16 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Shared application models and status enums.
-
-Used By:
-    Services
-    Reports
-    UI
-
-Notes:
-    Keep business rules out of this file.
-    This file defines state, severity, colors, and model helpers only.
-"""
+# Purpose:
+#     Shared application models and status enums.
+#
+# Used By:
+#     Services
+#     Reports
+#     UI
+#
+# Notes:
+#     Keep business rules out of this file.
+#     This file defines state, severity, colors, and model helpers only.
 
 from dataclasses import dataclass
 from dataclasses import field

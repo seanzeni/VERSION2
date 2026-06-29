@@ -1,16 +1,14 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Package classification helpers.
-    
-Used By:
-    ValidationService
-    
-Notes:
-    Used to cleanup markers so we can properly identify items to keep in
-    the inventory and which ones to validate.
-"""
+# Purpose:
+#     Package classification helpers.
+#
+# Used By:
+#     ValidationService
+#
+# Notes:
+#     Used to cleanup markers so we can properly identify items to keep in
+#     the inventory and which ones to validate.
 
 
 def normalize_marker_text(

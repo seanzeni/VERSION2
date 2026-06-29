@@ -1,26 +1,24 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Compare inventory rows to the SQL release schedule.
-
-Annotations:
-    Uses postponed annotations for consistent validation rule typing.
-
-Used By:
-    ValidationService.apply_schedule_status
-    ValidationService.build_inventory_issues
-
-Responsibilities:
-    - Detect inventory rows tied to a different SQL release.
-    - Detect inventory rows for SQL efforts marked no inventory expected.
-    - Detect inventory rows whose effort is not in the selected release.
-    - Build missing-inventory issues for SQL efforts with no matching rows.
-
-Notes:
-    Inventory issues are reported separately from element validation statuses so
-    the UI can show SQL schedule gaps even without a backing inventory row.
-"""
+# Purpose:
+#     Compare inventory rows to the SQL release schedule.
+#
+# Annotations:
+#     Uses postponed annotations for consistent validation rule typing.
+#
+# Used By:
+#     ValidationService.apply_schedule_status
+#     ValidationService.build_inventory_issues
+#
+# Responsibilities:
+#     - Detect inventory rows tied to a different SQL release.
+#     - Detect inventory rows for SQL efforts marked no inventory expected.
+#     - Detect inventory rows whose effort is not in the selected release.
+#     - Build missing-inventory issues for SQL efforts with no matching rows.
+#
+# Notes:
+#     Inventory issues are reported separately from element validation statuses so
+#     the UI can show SQL schedule gaps even without a backing inventory row.
 
 from app.core.models import Element
 from app.core.models import InventoryIssue

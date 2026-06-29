@@ -1,20 +1,18 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Generate OSG/COPS Report CSV.
-
-Used By:
-    Reports dialog
-
-Responsibilities:
-    - Report selected visible elements beginning with O or X.
-    - Deduplicate element/type combinations for PROD movement.
-    - Keep export/report output alphabetically sorted by element.
-
-Notes:
-    This report is based only on selected items.
-"""
+# Purpose:
+#     Generate OSG/COPS Report CSV.
+#
+# Used By:
+#     Reports dialog
+#
+# Responsibilities:
+#     - Report selected visible elements beginning with O or X.
+#     - Deduplicate element/type combinations for PROD movement.
+#     - Keep export/report output alphabetically sorted by element.
+#
+# Notes:
+#     This report is based only on selected items.
 
 from pathlib import Path
 

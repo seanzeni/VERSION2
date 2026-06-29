@@ -1,24 +1,22 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Flag elements that already exist in the FIXP1 environment.
-
-Annotations:
-    Uses postponed annotations for consistent validation rule typing.
-
-Used By:
-    ValidationService.apply_fixp1_status
-
-Responsibilities:
-    - Run only during PROD validation.
-    - Check the mainframe location service for FIXP1 matches.
-    - Mark matching elements with EXISTS_IN_FIXP1 and add the reason.
-
-Notes:
-    FIXP1 is a warning-style validation separate from normal source location
-    validation.
-"""
+# Purpose:
+#     Flag elements that already exist in the FIXP1 environment.
+#
+# Annotations:
+#     Uses postponed annotations for consistent validation rule typing.
+#
+# Used By:
+#     ValidationService.apply_fixp1_status
+#
+# Responsibilities:
+#     - Run only during PROD validation.
+#     - Check the mainframe location service for FIXP1 matches.
+#     - Mark matching elements with EXISTS_IN_FIXP1 and add the reason.
+#
+# Notes:
+#     FIXP1 is a warning-style validation separate from normal source location
+#     validation.
 
 from app.core.models import FixStatus
 from app.core.status_messages import ReasonBuilder

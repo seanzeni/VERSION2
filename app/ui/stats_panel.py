@@ -1,24 +1,22 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Display dashboard statistic cards.
-
-Used By:
-    MainWindow
-
-Responsibilities:
-    - Show effort count.
-    - Show available element count.
-    - Show selected element count.
-    - Show issue count.
-    - Show estimated time.
-    - Color only the card value, not the full card.
-
-Notes:
-    This panel should only display values given to it.
-    It should not calculate statistics.
-"""
+# Purpose:
+#     Display dashboard statistic cards.
+#
+# Used By:
+#     MainWindow
+#
+# Responsibilities:
+#     - Show effort count.
+#     - Show available element count.
+#     - Show selected element count.
+#     - Show issue count.
+#     - Show estimated time.
+#     - Color only the card value, not the full card.
+#
+# Notes:
+#     This panel should only display values given to it.
+#     It should not calculate statistics.
 
 from typing import Any
 

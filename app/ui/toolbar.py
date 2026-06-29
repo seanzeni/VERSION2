@@ -1,23 +1,21 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Top toolbar for release, mode, threads, appearance, and search.
-
-Used By:
-    MainWindow
-
-Responsibilities:
-    - Let user choose release.
-    - Let user choose PROD/QUAL mode.
-    - Let user adjust thread count.
-    - Let user change appearance mode.
-    - Let user type element/type/project search text.
-
-Notes:
-    Search is display-only.
-    Search should not affect exports, reports, or statistics.
-"""
+# Purpose:
+#     Top toolbar for release, mode, threads, appearance, and search.
+#
+# Used By:
+#     MainWindow
+#
+# Responsibilities:
+#     - Let user choose release.
+#     - Let user choose PROD/QUAL mode.
+#     - Let user adjust thread count.
+#     - Let user change appearance mode.
+#     - Let user type element/type/project search text.
+#
+# Notes:
+#     Search is display-only.
+#     Search should not affect exports, reports, or statistics.
 
 from typing import Callable
 

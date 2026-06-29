@@ -1,18 +1,16 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Find upcoming inventory-to-SQL problems across multiple releases.
-
-Used By:
-    ReportCenter
-
-Responsibilities:
-    - Include regular releases for the current month plus three months.
-    - Limit Special releases to the current month plus one month.
-    - Include only SQL efforts with a pending QUAL or PROD move.
-    - Find missing, wrong-release, untracked, and unexpected inventory.
-"""
+# Purpose:
+#     Find upcoming inventory-to-SQL problems across multiple releases.
+#
+# Used By:
+#     ReportCenter
+#
+# Responsibilities:
+#     - Include regular releases for the current month plus three months.
+#     - Limit Special releases to the current month plus one month.
+#     - Include only SQL efforts with a pending QUAL or PROD move.
+#     - Find missing, wrong-release, untracked, and unexpected inventory.
 
 from collections import Counter
 from datetime import date

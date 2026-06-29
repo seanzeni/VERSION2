@@ -1,17 +1,15 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Input validation helpers.
-
-Used By:
-    SettingsLoader
-    DataLoader
-    Toolbar
-
-Notes:
-    Business validation belongs in ValidationService.
-"""
+# Purpose:
+#     Input validation helpers.
+#
+# Used By:
+#     SettingsLoader
+#     DataLoader
+#     Toolbar
+#
+# Notes:
+#     Business validation belongs in ValidationService.
 
 
 class ValidationError(Exception):

@@ -1,21 +1,19 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Maintain report column and status explanations.
-
-Used By:
-    IssuesReport
-    Developer documentation
-
-Responsibilities:
-    - Define human-readable Issues Report column descriptions.
-    - Define human-readable status meanings.
-    - Keep report glossary output centralized for maintenance.
-
-Notes:
-    Update this file when adding report columns or status values.
-"""
+# Purpose:
+#     Maintain report column and status explanations.
+#
+# Used By:
+#     IssuesReport
+#     Developer documentation
+#
+# Responsibilities:
+#     - Define human-readable Issues Report column descriptions.
+#     - Define human-readable status meanings.
+#     - Keep report glossary output centralized for maintenance.
+#
+# Notes:
+#     Update this file when adding report columns or status values.
 
 from app.core.models import ArchiveStatus
 from app.core.models import FixStatus

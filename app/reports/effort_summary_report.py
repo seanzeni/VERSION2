@@ -1,20 +1,18 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Generate Effort Summary Report CSV.
-
-Used By:
-    Reports dialog
-
-Responsibilities:
-    - Group inventory elements by effort/project.
-    - Count selected elements.
-    - Count errors, warnings, and info statuses.
-    - Count selected elements by workload category.
-    - Calculate estimated time per effort.
-    - Include hidden inventory rows in detail output for auditability.
-"""
+# Purpose:
+#     Generate Effort Summary Report CSV.
+#
+# Used By:
+#     Reports dialog
+#
+# Responsibilities:
+#     - Group inventory elements by effort/project.
+#     - Count selected elements.
+#     - Count errors, warnings, and info statuses.
+#     - Count selected elements by workload category.
+#     - Calculate estimated time per effort.
+#     - Include hidden inventory rows in detail output for auditability.
 
 from collections import defaultdict
 from pathlib import Path

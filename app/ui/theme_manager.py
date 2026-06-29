@@ -1,28 +1,26 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Manage application appearance and theme colors.
-
-Used By:
-    MainWindow
-    Toolbar
-    StatsPanel
-    ReleaseTree
-    ElementTable
-    ReportDialog
-    StatusBar
-
-Responsibilities:
-    - Apply Light/Dark/System appearance mode.
-    - Store the active theme choice in UI settings.
-    - Provide theme-aware colors.
-    - Notify registered UI widgets when appearance changes.
-
-Notes:
-    UI widgets should request colors from ThemeManager instead of
-    hardcoding theme-specific colors.
-"""
+# Purpose:
+#     Manage application appearance and theme colors.
+#
+# Used By:
+#     MainWindow
+#     Toolbar
+#     StatsPanel
+#     ReleaseTree
+#     ElementTable
+#     ReportDialog
+#     StatusBar
+#
+# Responsibilities:
+#     - Apply Light/Dark/System appearance mode.
+#     - Store the active theme choice in UI settings.
+#     - Provide theme-aware colors.
+#     - Notify registered UI widgets when appearance changes.
+#
+# Notes:
+#     UI widgets should request colors from ThemeManager instead of
+#     hardcoding theme-specific colors.
 
 import customtkinter as ctk
 

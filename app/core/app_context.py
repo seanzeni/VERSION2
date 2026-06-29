@@ -1,26 +1,24 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Build and hold application-wide services and settings.
-
-Annotations:
-    Uses postponed annotations for service and path type hints.
-
-Used By:
-    main.py
-    MainWindow
-
-Responsibilities:
-    - Load settings and resolve configured file paths.
-    - Prompt for missing required or optional startup files.
-    - Construct shared services used by the UI and reports.
-    - Persist remembered file selections back to settings.json.
-
-Notes:
-    MainWindow should create UI widgets only.
-    AppContext owns service creation.
-"""
+# Purpose:
+#     Build and hold application-wide services and settings.
+#
+# Annotations:
+#     Uses postponed annotations for service and path type hints.
+#
+# Used By:
+#     main.py
+#     MainWindow
+#
+# Responsibilities:
+#     - Load settings and resolve configured file paths.
+#     - Prompt for missing required or optional startup files.
+#     - Construct shared services used by the UI and reports.
+#     - Persist remembered file selections back to settings.json.
+#
+# Notes:
+#     MainWindow should create UI widgets only.
+#     AppContext owns service creation.
 
 from pathlib import Path
 

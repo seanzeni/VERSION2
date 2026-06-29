@@ -1,30 +1,28 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Fixed-width mainframe export formatter to meet REXX program needs.
-
-Used By:
-    Exporter
-    
-Notes:
-    Keep record layout changes isolated here.
-    
-Output:
-    Record (Line in file, set to RECORD_SIZE length buffer)
-    (COL-START, LENGTH) Data
-    (0, 8) Element Name
-    (9, 8) Element Type
-    (18, 4) TeamLead ID
-    (23, 20) Bundle ID
-    (46, 4) Subsystem
-    (51, 8) System
-    (60, 5) Environment [MAIN1,DEVL1,QUAL1,PROD1]
-    (66, 8) CCID/Effort/Project
-    (75, 113) Application (from inventory)
-    (113, 2) "NN" Added to end of comment line
-    (115, 150) Filled with SPACES for now.
-"""
+# Purpose:
+#     Fixed-width mainframe export formatter to meet REXX program needs.
+#
+# Used By:
+#     Exporter
+#
+# Notes:
+#     Keep record layout changes isolated here.
+#
+# Output:
+#     Record (Line in file, set to RECORD_SIZE length buffer)
+#     (COL-START, LENGTH) Data
+#     (0, 8) Element Name
+#     (9, 8) Element Type
+#     (18, 4) TeamLead ID
+#     (23, 20) Bundle ID
+#     (46, 4) Subsystem
+#     (51, 8) System
+#     (60, 5) Environment [MAIN1,DEVL1,QUAL1,PROD1]
+#     (66, 8) CCID/Effort/Project
+#     (75, 113) Application (from inventory)
+#     (113, 2) "NN" Added to end of comment line
+#     (115, 150) Filled with SPACES for now.
 
 import math
 from typing import Any

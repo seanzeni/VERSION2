@@ -1,23 +1,21 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Display inventory elements in a searchable/sortable table.
-
-Used By:
-    MainWindow
-
-Responsibilities:
-    - Display visible elements.
-    - Support display-only search.
-    - Support display-only column sorting.
-    - Allow selectable elements to be selected/unselected.
-    - Notify MainWindow when selection changes.
-
-Notes:
-    Search and column sorting do not affect exports or reports.
-    Exports and reports use their own stable sorting rules.
-"""
+# Purpose:
+#     Display inventory elements in a searchable/sortable table.
+#
+# Used By:
+#     MainWindow
+#
+# Responsibilities:
+#     - Display visible elements.
+#     - Support display-only search.
+#     - Support display-only column sorting.
+#     - Allow selectable elements to be selected/unselected.
+#     - Notify MainWindow when selection changes.
+#
+# Notes:
+#     Search and column sorting do not affect exports or reports.
+#     Exports and reports use their own stable sorting rules.
 
 from typing import Callable
 
@@ -265,7 +263,7 @@ class ElementTable(ctk.CTkFrame):
                 "end",
                 iid=str(index),
                 values=(
-                    "☑" if element.selected else "☐",
+                    "â˜‘" if element.selected else "â˜",
                     element.element,
                     element.type,
                     element.project,

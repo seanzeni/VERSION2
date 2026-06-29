@@ -1,25 +1,23 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Detect duplicate and overlapping inventory rows.
-
-Annotations:
-    Uses postponed annotations for consistent validation rule typing.
-
-Used By:
-    ValidationService.apply_overlap_duplicate_status
-
-Responsibilities:
-    - Group movable elements by element/type key.
-    - Mark rows as OVERLAP when the same key appears in multiple projects.
-    - Mark rows as DUPLICATE when the same key repeats in one project.
-    - Add duplicate reasons even when a duplicate is also part of an overlap.
-
-Notes:
-    Elements marked DO NOT MOVE are excluded so they do not create duplicate or
-    overlap issues for rows that are still eligible to move.
-"""
+# Purpose:
+#     Detect duplicate and overlapping inventory rows.
+#
+# Annotations:
+#     Uses postponed annotations for consistent validation rule typing.
+#
+# Used By:
+#     ValidationService.apply_overlap_duplicate_status
+#
+# Responsibilities:
+#     - Group movable elements by element/type key.
+#     - Mark rows as OVERLAP when the same key appears in multiple projects.
+#     - Mark rows as DUPLICATE when the same key repeats in one project.
+#     - Add duplicate reasons even when a duplicate is also part of an overlap.
+#
+# Notes:
+#     Elements marked DO NOT MOVE are excluded so they do not create duplicate or
+#     overlap issues for rows that are still eligible to move.
 
 from collections import defaultdict
 

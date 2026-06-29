@@ -1,22 +1,20 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Detect movement-related marker text from inventory rows.
-
-Used By:
-    ValidationService
-
-Responsibilities:
-    - Read configured marker columns from an Element source row.
-    - Detect do-not-move markers.
-    - Detect already-in-PROD markers.
-    - Detect already-in-QUAL markers.
-
-Notes:
-    This service does not apply validation statuses.
-    This service does not decide selected/selectable behavior.
-"""
+# Purpose:
+#     Detect movement-related marker text from inventory rows.
+#
+# Used By:
+#     ValidationService
+#
+# Responsibilities:
+#     - Read configured marker columns from an Element source row.
+#     - Detect do-not-move markers.
+#     - Detect already-in-PROD markers.
+#     - Detect already-in-QUAL markers.
+#
+# Notes:
+#     This service does not apply validation statuses.
+#     This service does not decide selected/selectable behavior.
 
 from app.core.models import Element
 from app.core.package_rules import is_do_not_move

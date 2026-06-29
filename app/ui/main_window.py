@@ -1,22 +1,20 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Main application window and UI coordinator.
-
-Used By:
-    main.py
-
-Responsibilities:
-    - Build the main UI layout.
-    - Wire toolbar, tree, table, stats, reports, and status bar.
-    - Coordinate service calls.
-    - Refresh UI after release/mode/thread/selection changes.
-
-Notes:
-    Keep business rules in ValidationService.
-    Keep report content in report classes.
-"""
+# Purpose:
+#     Main application window and UI coordinator.
+#
+# Used By:
+#     main.py
+#
+# Responsibilities:
+#     - Build the main UI layout.
+#     - Wire toolbar, tree, table, stats, reports, and status bar.
+#     - Coordinate service calls.
+#     - Refresh UI after release/mode/thread/selection changes.
+#
+# Notes:
+#     Keep business rules in ValidationService.
+#     Keep report content in report classes.
 
 from datetime import date
 from pathlib import Path

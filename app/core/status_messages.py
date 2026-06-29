@@ -1,17 +1,15 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Centralized validation and status reason messages.
-
-Used By:
-    ValidationService
-    Reports
-    UI
-
-Notes:
-    Do not hardcode user-facing validation messages in services or reports.
-"""
+# Purpose:
+#     Centralized validation and status reason messages.
+#
+# Used By:
+#     ValidationService
+#     Reports
+#     UI
+#
+# Notes:
+#     Do not hardcode user-facing validation messages in services or reports.
 
 
 class StatusMessages:

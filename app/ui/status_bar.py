@@ -1,21 +1,19 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Bottom data-source status bar.
-
-Used By:
-    MainWindow
-
-Responsibilities:
-    - Show Excel / SQL / NDVR load status.
-    - Show last refresh time.
-    - Support clickable source details.
-    - Support hover text through simple detail dialogs.
-
-Notes:
-    Counts are intentionally not displayed on the bar to keep the UI clean.
-"""
+# Purpose:
+#     Bottom data-source status bar.
+#
+# Used By:
+#     MainWindow
+#
+# Responsibilities:
+#     - Show Excel / SQL / NDVR load status.
+#     - Show last refresh time.
+#     - Support clickable source details.
+#     - Support hover text through simple detail dialogs.
+#
+# Notes:
+#     Counts are intentionally not displayed on the bar to keep the UI clean.
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -78,7 +76,7 @@ class StatusBar(ctk.CTkFrame):
         for column, source_name in enumerate(["Excel", "SQL", "NDVR"]):
             label = ctk.CTkLabel(
                 self,
-                text=f"● {source_name}",
+                text=f"â— {source_name}",
                 cursor="hand2",
             )
             label.grid(
@@ -97,7 +95,7 @@ class StatusBar(ctk.CTkFrame):
 
         self.last_refresh_label = ctk.CTkLabel(
             self,
-            text="Last Refresh: —",
+            text="Last Refresh: â€”",
         )
         self.last_refresh_label.grid(
             row=0,
@@ -150,7 +148,7 @@ class StatusBar(ctk.CTkFrame):
             )
 
             label.configure(
-                text=f"● {source_name}",
+                text=f"â— {source_name}",
                 text_color=color,
             )
 
@@ -159,7 +157,7 @@ class StatusBar(ctk.CTkFrame):
                     latest_refresh = source.last_refresh
 
         if latest_refresh is None:
-            self.last_refresh_label.configure(text="Last Refresh: —")
+            self.last_refresh_label.configure(text="Last Refresh: â€”")
         else:
             self.last_refresh_label.configure(
                 text=f"Last Refresh: {latest_refresh.strftime('%Y-%m-%d %H:%M')}"

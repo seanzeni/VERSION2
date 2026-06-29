@@ -1,23 +1,21 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Verify validation rule contract helpers.
-
-Annotations:
-    Uses postponed annotations to match the validation rule modules.
-
-Used By:
-    pytest
-
-Responsibilities:
-    - Confirm valid rule modules are accepted.
-    - Confirm modules without apply(context) are rejected.
-    - Confirm accepted modules can be invoked with ValidatorContext.
-
-Notes:
-    These tests protect the startup guard used by ValidationService.
-"""
+# Purpose:
+#     Verify validation rule contract helpers.
+#
+# Annotations:
+#     Uses postponed annotations to match the validation rule modules.
+#
+# Used By:
+#     pytest
+#
+# Responsibilities:
+#     - Confirm valid rule modules are accepted.
+#     - Confirm modules without apply(context) are rejected.
+#     - Confirm accepted modules can be invoked with ValidatorContext.
+#
+# Notes:
+#     These tests protect the startup guard used by ValidationService.
 
 import pytest
 

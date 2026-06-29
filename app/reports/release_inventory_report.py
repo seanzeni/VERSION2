@@ -1,23 +1,21 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Generate Release Inventory Report CSV.
-
-Used By:
-    Reports dialog
-
-Responsibilities:
-    - Report effort/project-level inventory issues.
-    - Summarize missing inventory.
-    - Summarize unexpected inventory for NOINV efforts.
-    - Summarize inventory projects not connected to the SQL release.
-    - Summarize inventory projects potentially tied to another SQL release.
-
-Notes:
-    This is an effort-level report.
-    Individual element issues belong in IssuesReport.
-"""
+# Purpose:
+#     Generate Release Inventory Report CSV.
+#
+# Used By:
+#     Reports dialog
+#
+# Responsibilities:
+#     - Report effort/project-level inventory issues.
+#     - Summarize missing inventory.
+#     - Summarize unexpected inventory for NOINV efforts.
+#     - Summarize inventory projects not connected to the SQL release.
+#     - Summarize inventory projects potentially tied to another SQL release.
+#
+# Notes:
+#     This is an effort-level report.
+#     Individual element issues belong in IssuesReport.
 
 from collections import defaultdict
 from datetime import datetime

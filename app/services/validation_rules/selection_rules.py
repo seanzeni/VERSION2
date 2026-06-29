@@ -1,26 +1,24 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Decide which validated elements should be visible, selected, and selectable.
-
-Annotations:
-    Uses postponed annotations for consistent validation rule typing.
-
-Used By:
-    ValidationService.apply_selection_rules
-    ValidationService selection helper methods
-
-Responsibilities:
-    - Apply settings-driven selectability for validation statuses.
-    - Hide archive rows during QUAL movement when configured.
-    - Hide confirmed already-in-target rows that do not need action.
-    - Keep missing location rows unselectable unless settings allow it.
-
-Notes:
-    This rule should run after other validation status rules so it can make the
-    final UI selection decision from all accumulated statuses.
-"""
+# Purpose:
+#     Decide which validated elements should be visible, selected, and selectable.
+#
+# Annotations:
+#     Uses postponed annotations for consistent validation rule typing.
+#
+# Used By:
+#     ValidationService.apply_selection_rules
+#     ValidationService selection helper methods
+#
+# Responsibilities:
+#     - Apply settings-driven selectability for validation statuses.
+#     - Hide archive rows during QUAL movement when configured.
+#     - Hide confirmed already-in-target rows that do not need action.
+#     - Keep missing location rows unselectable unless settings allow it.
+#
+# Notes:
+#     This rule should run after other validation status rules so it can make the
+#     final UI selection decision from all accumulated statuses.
 
 from app.core.models import ArchiveStatus
 from app.core.models import Element

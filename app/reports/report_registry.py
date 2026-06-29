@@ -1,19 +1,17 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-"""
-Purpose:
-    Central registry for available reports.
-
-Used By:
-    ReportCenter
-    MainWindow
-
-Responsibilities:
-    - Register all report generators.
-    - Provide display names.
-    - Create report instances.
-    - Route report generation calls.
-"""
+# Purpose:
+#     Central registry for available reports.
+#
+# Used By:
+#     ReportCenter
+#     MainWindow
+#
+# Responsibilities:
+#     - Register all report generators.
+#     - Provide display names.
+#     - Create report instances.
+#     - Route report generation calls.
 
 import csv
 from collections.abc import Callable
