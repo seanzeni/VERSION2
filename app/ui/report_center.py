@@ -27,8 +27,8 @@ from tkinter import messagebox
 
 import customtkinter as ctk
 
-from app.reports.report_utils import get_date_folder
 from app.reports.report_utils import archive_existing_reports
+from app.reports.report_utils import get_date_folder_path
 from app.services.forecast_service import ForecastService
 
 
@@ -61,7 +61,7 @@ class ReportCenter(ctk.CTkToplevel):
 
         self.output_folder_var = ctk.StringVar(
             value=str(
-                get_date_folder(
+                get_date_folder_path(
                     release=self.app_state.release,
                     base_path=self.base_output_folder,
                 )

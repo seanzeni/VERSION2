@@ -66,12 +66,10 @@ def get_date_folder(
     release: str,
     base_path: str | Path,
 ) -> Path:
-    release_folder = get_release_folder(
+    date_folder = get_date_folder_path(
         release=release,
         base_path=base_path,
     )
-
-    date_folder = release_folder / datetime.now().strftime("%Y-%m-%d")
 
     date_folder.mkdir(
         parents=True,
@@ -79,6 +77,17 @@ def get_date_folder(
     )
 
     return date_folder
+
+
+def get_date_folder_path(
+    release: str,
+    base_path: str | Path,
+) -> Path:
+    return (
+        Path(base_path)
+        / safe_release_name(release)
+        / datetime.now().strftime("%Y-%m-%d")
+    )
 
 
 def make_writable(
