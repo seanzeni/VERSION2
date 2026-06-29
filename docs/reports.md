@@ -102,6 +102,27 @@ Report instead.
 For release mismatches, `Expected Release` is the RSET/SQL release and
 `Inventory Release` is the release from the inventory file.
 
+## Inventory Issues Forecast
+
+The `Inventory Issues` button in Report Center creates one consolidated report
+across upcoming releases. It uses the CSV, XLSX, and PDF format selections shown
+in Report Center and reports:
+
+- SQL expects inventory, but no inventory exists.
+- Inventory is assigned to a different release than SQL expects.
+- Inventory exists for a project that is not connected to SQL.
+- SQL marks an upcoming effort as no inventory, but inventory exists.
+
+Regular `YYYY/MM...` releases include the current month plus the following three
+months. Release names containing `Special` use the current month plus one month.
+SQL-linked rows are included only when their next QUAL or PROD move is today or
+later. Untracked inventory remains visible with an unknown move date because SQL
+does not provide a schedule for it.
+
+Output is written under:
+
+`<default output folder>/Inventory Issues Forecast/<yyyy-mm-dd>/`
+
 ## Resync Report
 
 `Resync_Report.csv`, `.xlsx`, and `.pdf` identify possible resync candidates

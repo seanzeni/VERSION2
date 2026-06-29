@@ -21,6 +21,7 @@ Notes:
     Report content belongs inside report classes.
 """
 
+from datetime import date
 from pathlib import Path
 from tkinter import filedialog
 from tkinter import messagebox
@@ -30,6 +31,7 @@ import customtkinter as ctk
 from app.reports.report_utils import archive_existing_reports
 from app.reports.report_utils import get_date_folder_path
 from app.services.forecast_service import ForecastService
+from app.services.inventory_forecast_service import InventoryForecastService
 
 
 class ReportCenter(ctk.CTkToplevel):
@@ -119,6 +121,13 @@ class ReportCenter(ctk.CTkToplevel):
             text="Generate Forecast",
             command=self.generate_forecast,
             width=160,
+        ).pack(side="left", padx=(0, 8))
+
+        ctk.CTkButton(
+            button_bar,
+            text="Inventory Issues",
+            command=self.generate_inventory_forecast,
+            width=150,
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
@@ -460,6 +469,69 @@ class ReportCenter(ctk.CTkToplevel):
             )
         else:
             self.set_results_text("No forecast report files were generated.")
+
+    def generate_inventory_forecast(
+        self,
+    ) -> None:
+        if self.context is None:
+            messagebox.showerror(
+                "Inventory Forecast Error",
+                "Inventory forecast generation requires application context.",
+            )
+            return
+
+        formats = self.get_selected_formats()
+        if not formats:
+            messagebox.showwarning(
+                "No Output Format Selected",
+                "Select CSV, XLSX, PDF, or any combination.",
+            )
+            return
+
+        output_folder = (
+            self.base_output_folder
+            / "Inventory Issues Forecast"
+            / date.today().isoformat()
+        )
+        output_folder.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        try:
+            archive_existing_reports(output_folder)
+        except PermissionError as exc:
+            messagebox.showerror(
+                "Report File In Use",
+                str(exc),
+            )
+            return
+
+        self.progress_bar.set(0)
+        self.current_report_var.set("Generating inventory issues forecast...")
+        self.set_results_text("")
+        self.update_idletasks()
+
+        try:
+            generated_files = InventoryForecastService(
+                context=self.context,
+            ).generate(
+                output_folder=output_folder,
+                formats=formats,
+            )
+        except PermissionError as exc:
+            messagebox.showerror(
+                "Report File In Use",
+                str(exc),
+            )
+            return
+
+        self.progress_bar.set(1)
+        self.current_report_var.set("Inventory Forecast Complete")
+        self.set_results_text(
+            "Inventory issues forecast generated:\n"
+            + "\n".join(f"- {path.name}" for path in generated_files)
+        )
 
     def set_results_text(
         self,

@@ -131,6 +131,19 @@ OSG_COPS_COLUMNS = [
     ReportColumn("Service"),
 ]
 
+INVENTORY_FORECAST_COLUMNS = [
+    ReportColumn("Generated At"),
+    ReportColumn("Release"),
+    ReportColumn("Next Move"),
+    ReportColumn("Move Date"),
+    ReportColumn("Project"),
+    ReportColumn("Inventory Status"),
+    ReportColumn("Element Count"),
+    ReportColumn("Reason"),
+    ReportColumn("Expected Release"),
+    ReportColumn("Inventory Release"),
+]
+
 RESYNC_COLUMNS = [
     ReportColumn("Release"),
     ReportColumn("Project"),
