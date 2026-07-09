@@ -114,10 +114,10 @@ in Report Center and reports:
 - SQL marks an upcoming effort as no inventory, but inventory exists.
 
 Regular `YYYY/MM...` releases include the current month plus the following three
-months. Release names containing `Special` use the current month plus one month.
-SQL-linked rows are included only when their next QUAL or PROD move is today or
-later. Untracked inventory remains visible with an unknown move date because SQL
-does not provide a schedule for it.
+months. Release names containing `Special` are excluded. SQL-linked rows are
+included only when their next QUAL or PROD move is today or later. Untracked
+inventory remains visible with an unknown move date because SQL does not provide
+a schedule for it.
 
 Output is written under:
 
@@ -126,9 +126,27 @@ Output is written under:
 ## Resync Report
 
 `Resync_Report.csv`, `.xlsx`, and `.pdf` identify possible resync candidates
-from NDVR data. A row appears when a matching element/type has a higher version
-or different latest CCID in a higher environment while a lower version exists in
-a lower environment.
+from NDVR data. A row appears only when a matching element/type has a newer
+version in an equal or lower environment level. CCID differences do not create
+resync rows, and FIXP1 remains excluded from version comparisons.
+
+## OSG/COPS Report
+
+The OSG/COPS report supports XLSX and PDF only and is generated only for PROD
+moves. It includes selected, visible O/X elements with release, project,
+element, type, submitter, and movement note. A package archive is suppressed
+when its configured APS/COB counterpart is also moving; an unpaired archive
+remains in the report with `Package archive` in `Movement Note`.
+
+## HIPAA Listener And ODS Reports
+
+The HIPAA Listener and ODS reports match selected, visible movement rows against
+their configured reference workbooks. Matching is case-insensitive on the
+required `Element` and `Type` columns. The workbooks are loaded once at startup
+and are also used during forecast report generation.
+
+Configure `files.hipaa_listener_file` and `files.ods_file` with absolute paths
+or paths relative to the application folder.
 
 ## Forecast Reports
 
@@ -146,7 +164,9 @@ Use `settings.json`:
   },
   "forecast_reports": {
     "Effort Summary Report": true,
+    "HIPAA Listener Report": true,
     "Issues Report": true,
+    "ODS Report": true,
     "OSG/COPS Report": true,
     "Release Estimate Report": true,
     "Release Inventory Report": true,
@@ -164,3 +184,17 @@ Forecast output is written under:
 
 The Report Center progress area is scrollable so long forecast summaries remain
 visible without resizing the window.
+
+## SharePoint Output
+
+Report Center offers `Local` and `SharePoint` destinations. When SharePoint is
+selected, the app converts `reports.sharepoint_url` to a Windows WebDAV path and
+uses the logged-on user's Microsoft 365 session. It creates a release folder,
+moves existing top-level report files into that folder's `History` directory,
+and names new files:
+
+`RELEASE_REPORT_NAME_YYYYMMDD_HHMMSS.ext`
+
+Use a direct HTTPS URL to the target document-library folder. The workstation
+must have the Windows WebClient service available and the user must already
+have access to the SharePoint location.

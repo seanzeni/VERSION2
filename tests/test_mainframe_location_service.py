@@ -145,13 +145,15 @@ def test_resync_excludes_fixp1(tmp_path: Path) -> None:
     assert service.has_resync_issue("PGM001", "OCOB") is False
 
 
-def test_resync_details_include_higher_version(tmp_path: Path) -> None:
-    """Verifies resync details report higher versions in higher environments."""
+def test_resync_details_include_higher_version_in_lower_environment(
+    tmp_path: Path,
+) -> None:
+    """A newer lower-environment copy needs to be resynced upward."""
     path = write_location_file(
         tmp_path,
         [
-            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "DEVL1", "01.01"),
-            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "QUAL1", "01.02"),
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "DEVL1", "01.02"),
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "QUAL1", "01.01"),
         ],
     )
 
@@ -160,13 +162,13 @@ def test_resync_details_include_higher_version(tmp_path: Path) -> None:
         "OCOB",
     )
 
-    assert details[0]["lower_env"] == "DEVL1"
-    assert details[0]["higher_env"] == "QUAL1"
+    assert details[0]["lower_env"] == "QUAL1"
+    assert details[0]["higher_env"] == "DEVL1"
     assert "Higher version" in details[0]["reason"]
 
 
-def test_resync_details_include_ccid_mismatch(tmp_path: Path) -> None:
-    """Verifies resync details report CCID drift across environments."""
+def test_resync_ignores_ccid_mismatch(tmp_path: Path) -> None:
+    """CCID differences alone do not indicate a resync."""
     path = write_location_file(
         tmp_path,
         [
@@ -196,9 +198,29 @@ def test_resync_details_include_ccid_mismatch(tmp_path: Path) -> None:
         "OCOB",
     )
 
-    assert details[0]["lower_ccid"] == "CCID01"
-    assert details[0]["higher_ccid"] == "CCID02"
-    assert "CCID differs" in details[0]["reason"]
+    assert details == []
+
+
+def test_resync_includes_higher_version_in_equal_environment(
+    tmp_path: Path,
+) -> None:
+    """A newer copy in the same environment is also a resync candidate."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "QUAL1", "01.01"),
+            make_line("PGM001", "OCOB", "SYSTEM02", "SUB2", "QUAL1", "01.02"),
+        ],
+    )
+
+    details = MainframeLocationService().load_file(path).get_resync_details(
+        "PGM001",
+        "OCOB",
+    )
+
+    assert len(details) == 1
+    assert details[0]["lower_version"] == "01.01"
+    assert details[0]["higher_version"] == "01.02"
 
 
 def test_invalid_version_raises(tmp_path: Path) -> None:

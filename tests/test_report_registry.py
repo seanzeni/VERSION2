@@ -102,8 +102,8 @@ def make_location_service(
     path.write_text(
         "\n".join(
             [
-                make_location_line("PGM001", "OCOB", "DEVL1", "01.01", "CCID01"),
-                make_location_line("PGM001", "OCOB", "QUAL1", "01.02", "CCID02"),
+                make_location_line("PGM001", "OCOB", "DEVL1", "01.02", "CCID01"),
+                make_location_line("PGM001", "OCOB", "QUAL1", "01.01", "CCID02"),
             ]
         ),
         encoding="cp1252",
@@ -116,8 +116,10 @@ def test_get_names_contains_core_reports() -> None:
     names = make_registry().get_names()
 
     assert "Effort Summary Report" in names
+    assert "HIPAA Listener Report" in names
     assert "Issues Report" in names
     assert "OSG/COPS Report" in names
+    assert "ODS Report" in names
     assert "Release Estimate Report" in names
     assert "Release Inventory Report" in names
     assert "Resync Report" in names
@@ -264,6 +266,18 @@ def test_generate_osg_cops_pdf(tmp_path: Path) -> None:
 
     assert output is not None and output.suffix == ".pdf" and output.exists()
     make_writable(output)
+
+
+def test_generate_osg_cops_csv_is_not_supported(tmp_path: Path) -> None:
+    """OSG/COPS intentionally supports only XLSX and PDF."""
+    with pytest.raises(NotImplementedError):
+        make_registry().generate(
+            "OSG/COPS Report",
+            "csv",
+            make_state(),
+            tmp_path,
+            True,
+        )
 
 
 def test_generate_resync_report_csv(tmp_path: Path) -> None:

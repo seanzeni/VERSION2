@@ -30,6 +30,7 @@ from app.reports.report_utils import archive_existing_reports
 from app.reports.report_utils import get_date_folder_path
 from app.services.forecast_service import ForecastService
 from app.services.inventory_forecast_service import InventoryForecastService
+from app.services.sharepoint_report_service import SharePointReportService
 
 
 class ReportCenter(ctk.CTkToplevel):
@@ -58,6 +59,18 @@ class ReportCenter(ctk.CTkToplevel):
         self.xlsx_var = ctk.BooleanVar(value=True)
         self.pdf_var = ctk.BooleanVar(value=True)
         self.include_empty_var = ctk.BooleanVar(value=False)
+        reports_settings = (
+            self.context.settings.get("reports", {})
+            if self.context is not None
+            else {}
+        )
+        self.destination_var = ctk.StringVar(
+            value=(
+                "sharepoint"
+                if reports_settings.get("use_sharepoint", False)
+                else "local"
+            )
+        )
 
         self.output_folder_var = ctk.StringVar(
             value=str(
@@ -219,22 +232,39 @@ class ReportCenter(ctk.CTkToplevel):
             variable=self.include_empty_var,
         ).grid(row=2, column=0, columnspan=2, sticky="w", padx=18, pady=4)
 
+        destination_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        destination_frame.grid(
+            row=3, column=0, columnspan=3, sticky="w", padx=18, pady=4
+        )
+        ctk.CTkRadioButton(
+            destination_frame,
+            text="Local",
+            variable=self.destination_var,
+            value="local",
+        ).pack(side="left", padx=(0, 18))
+        ctk.CTkRadioButton(
+            destination_frame,
+            text="SharePoint",
+            variable=self.destination_var,
+            value="sharepoint",
+        ).pack(side="left")
+
         ctk.CTkLabel(
             frame,
             text="Folder",
-        ).grid(row=3, column=0, sticky="w", padx=18, pady=(10, 4))
+        ).grid(row=4, column=0, sticky="w", padx=18, pady=(10, 4))
 
         ctk.CTkEntry(
             frame,
             textvariable=self.output_folder_var,
-        ).grid(row=4, column=0, columnspan=2, sticky="ew", padx=(18, 8), pady=(0, 12))
+        ).grid(row=5, column=0, columnspan=2, sticky="ew", padx=(18, 8), pady=(0, 12))
 
         ctk.CTkButton(
             frame,
             text="Browse...",
             command=self.browse_folder,
             width=100,
-        ).grid(row=4, column=2, sticky="e", padx=(0, 18), pady=(0, 12))
+        ).grid(row=5, column=2, sticky="e", padx=(0, 18), pady=(0, 12))
 
     def _build_progress_area(
         self,
@@ -336,14 +366,19 @@ class ReportCenter(ctk.CTkToplevel):
             )
             return
 
-        output_folder = Path(self.output_folder_var.get())
-        output_folder.mkdir(parents=True, exist_ok=True)
-
         try:
-            archive_existing_reports(output_folder)
-        except PermissionError as exc:
+            sharepoint_service = self._get_sharepoint_service()
+            if sharepoint_service is None:
+                output_folder = Path(self.output_folder_var.get())
+                output_folder.mkdir(parents=True, exist_ok=True)
+                archive_existing_reports(output_folder)
+            else:
+                output_folder = sharepoint_service.prepare_release_folder(
+                    self.app_state.release
+                )
+        except (OSError, PermissionError, ValueError) as exc:
             messagebox.showerror(
-                "Report File In Use",
+                "Report Destination Error",
                 str(exc),
             )
             return
@@ -389,6 +424,11 @@ class ReportCenter(ctk.CTkToplevel):
                 self.update_idletasks()
 
         self.current_report_var.set("Complete")
+        if sharepoint_service is not None:
+            generated_files = sharepoint_service.timestamp_files(
+                generated_files,
+                self.app_state.release,
+            )
 
         if generated_files:
             result_text = "Generated:\n" + "\n".join(
@@ -436,12 +476,23 @@ class ReportCenter(ctk.CTkToplevel):
         self.update_idletasks()
 
         try:
+            sharepoint_service = self._get_sharepoint_service()
             results = service.generate_forecast(
-                base_output_folder=self.base_output_folder,
+                base_output_folder=(
+                    sharepoint_service.root
+                    if sharepoint_service is not None
+                    else self.base_output_folder
+                ),
                 formats=formats,
                 include_empty=self.include_empty_var.get(),
             )
-        except PermissionError as exc:
+            if sharepoint_service is not None:
+                for result in results:
+                    result.generated_files[:] = sharepoint_service.timestamp_files(
+                        result.generated_files,
+                        result.release,
+                    )
+        except (OSError, PermissionError, ValueError) as exc:
             messagebox.showerror(
                 "Report File In Use",
                 str(exc),
@@ -486,11 +537,18 @@ class ReportCenter(ctk.CTkToplevel):
             )
             return
 
-        output_folder = (
-            self.base_output_folder
-            / "Inventory Issues Forecast"
-            / date.today().isoformat()
+        try:
+            sharepoint_service = self._get_sharepoint_service()
+        except ValueError as exc:
+            messagebox.showerror("Report Destination Error", str(exc))
+            return
+
+        output_root = (
+            sharepoint_service.root
+            if sharepoint_service is not None
+            else self.base_output_folder
         )
+        output_folder = output_root / "Inventory Issues Forecast" / date.today().isoformat()
         output_folder.mkdir(
             parents=True,
             exist_ok=True,
@@ -517,6 +575,11 @@ class ReportCenter(ctk.CTkToplevel):
                 output_folder=output_folder,
                 formats=formats,
             )
+            if sharepoint_service is not None:
+                generated_files = sharepoint_service.timestamp_files(
+                    generated_files,
+                    "Inventory Issues Forecast",
+                )
         except PermissionError as exc:
             messagebox.showerror(
                 "Report File In Use",
@@ -539,3 +602,20 @@ class ReportCenter(ctk.CTkToplevel):
         self.results_textbox.delete("1.0", "end")
         self.results_textbox.insert("1.0", text)
         self.results_textbox.configure(state="disabled")
+
+    def _get_sharepoint_service(
+        self,
+    ) -> SharePointReportService | None:
+        if self.destination_var.get() != "sharepoint":
+            return None
+        if self.context is None:
+            raise ValueError("SharePoint output requires application context.")
+
+        url = str(
+            self.context.settings.get("reports", {}).get("sharepoint_url", "")
+        ).strip()
+        if not url:
+            raise ValueError(
+                "Set reports.sharepoint_url in settings.json before using SharePoint."
+            )
+        return SharePointReportService(url)

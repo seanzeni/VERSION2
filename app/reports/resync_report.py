@@ -9,8 +9,7 @@
 #
 # Responsibilities:
 #     - Compare loaded inventory elements against NDVR location records.
-#     - Report lower-environment records when a higher environment has a newer
-#       version or a different CCID.
+#     - Report target records when an equal/lower environment has a newer version.
 #     - Exclude FIXP1 from resync comparisons.
 
 from pathlib import Path
@@ -82,8 +81,8 @@ class ResyncReport:
                     "Project",
                     "Element",
                     "Type",
-                    "Lower",
-                    "Higher",
+                    "Target",
+                    "Newer Source",
                     "Reason",
                 ],
                 rows=[

@@ -30,6 +30,7 @@ from app.services.db_service import DBService
 from app.services.element_service import ElementService
 from app.services.exporter import Exporter
 from app.services.mainframe_location_service import MainframeLocationService
+from app.services.reference_element_service import ReferenceElementService
 from app.services.stats_service import StatsService
 from app.services.status_marker_service import StatusMarkerService
 from app.services.validation_service import ValidationService
@@ -94,6 +95,8 @@ class AppContext:
         self.status_markers = self.settings["status_markers"]
         self.db_settings = self.settings["database"]
         self.required_columns = self.settings["required_columns"]
+        self.reference_element_service = ReferenceElementService()
+        self._load_reference_reports()
 
         self.theme_manager = ThemeManager(
             ui_settings=self.ui_settings,
@@ -133,7 +136,26 @@ class AppContext:
         self.report_registry = ReportRegistry(
             stats_service=self.stats_service,
             location_service_provider=lambda: self.location_service,
+            archive_pairs=self.archive_pairs,
+            reference_element_service=self.reference_element_service,
         )
+
+    def _load_reference_reports(self) -> None:
+        configured_files = self.settings.get("files", {})
+        for list_name, setting_key in (
+            ("hipaa_listener", "hipaa_listener_file"),
+            ("ods", "ods_file"),
+        ):
+            configured_path = str(configured_files.get(setting_key, "")).strip()
+            if not configured_path:
+                continue
+
+            path = self.resolve_path(configured_path)
+            if not path.exists():
+                raise FileNotFoundError(
+                    f"Configured {setting_key} was not found: {path}"
+                )
+            self.reference_element_service.load(list_name, path)
 
     def load_location_file(
         self,

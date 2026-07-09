@@ -23,11 +23,13 @@ from typing import Any
 from app.reports.effort_summary_report import EffortSummaryReport
 from app.reports.issues_report import IssuesReport
 from app.reports.osg_cops_report import OsgCopsReport
+from app.reports.reference_match_report import ReferenceMatchReport
 from app.reports.report_utils import export_xlsx
 from app.reports.report_utils import make_writable
 from app.reports.release_estimate_report import ReleaseEstimateReport
 from app.reports.release_inventory_report import ReleaseInventoryReport
 from app.reports.resync_report import ResyncReport
+from app.services.reference_element_service import ReferenceElementService
 
 
 ReportGenerator = Callable[[Any, Path, bool], Path | None]
@@ -37,7 +39,7 @@ ReportGenerator = Callable[[Any, Path, bool], Path | None]
 class ReportDefinition:
     name: str
     xlsx_name: str
-    csv_generator: ReportGenerator
+    csv_generator: ReportGenerator | None = None
     pdf_generator: ReportGenerator | None = None
     xlsx_generator: ReportGenerator | None = None
 
@@ -47,9 +49,15 @@ class ReportRegistry:
         self,
         stats_service,
         location_service_provider=None,
+        archive_pairs: list[list[str]] | None = None,
+        reference_element_service=None,
     ) -> None:
         self.stats_service = stats_service
         self.location_service_provider = location_service_provider
+        self.archive_pairs = archive_pairs or []
+        self.reference_element_service = (
+            reference_element_service or ReferenceElementService()
+        )
 
         self._reports = self._build_reports()
 
@@ -86,14 +94,28 @@ class ReportRegistry:
                 ReportDefinition(
                     name="OSG/COPS Report",
                     xlsx_name="OSG_COPS_Report.xlsx",
-                    csv_generator=self._generate_osg_cops_csv,
                     pdf_generator=self._generate_osg_cops_pdf,
+                    xlsx_generator=self._generate_osg_cops_xlsx,
                 ),
                 ReportDefinition(
                     name="Resync Report",
                     xlsx_name="Resync_Report.xlsx",
                     csv_generator=self._generate_resync_csv,
                     pdf_generator=self._generate_resync_pdf,
+                ),
+                ReportDefinition(
+                    name="HIPAA Listener Report",
+                    xlsx_name="HIPAA_Listener_Report.xlsx",
+                    csv_generator=self._generate_hipaa_csv,
+                    pdf_generator=self._generate_hipaa_pdf,
+                    xlsx_generator=self._generate_hipaa_xlsx,
+                ),
+                ReportDefinition(
+                    name="ODS Report",
+                    xlsx_name="ODS_Report.xlsx",
+                    csv_generator=self._generate_ods_csv,
+                    pdf_generator=self._generate_ods_pdf,
+                    xlsx_generator=self._generate_ods_xlsx,
                 ),
             ]
         }
@@ -141,6 +163,9 @@ class ReportRegistry:
                     include_empty,
                 )
 
+            if definition.csv_generator is None:
+                raise NotImplementedError(f"XLSX output is not implemented for {name}.")
+
             return self._generate_xlsx_from_csv(
                 output_folder=output_folder,
                 output_name=definition.xlsx_name,
@@ -150,6 +175,9 @@ class ReportRegistry:
                     include_empty,
                 ),
             )
+
+        if definition.csv_generator is None:
+            raise NotImplementedError(f"CSV output is not implemented for {name}.")
 
         return definition.csv_generator(
             state,
@@ -284,13 +312,13 @@ class ReportRegistry:
             include_empty=include_empty,
         )
 
-    def _generate_osg_cops_csv(
+    def _generate_osg_cops_xlsx(
         self,
         state,
         output_folder: Path,
         include_empty: bool,
     ) -> Path:
-        return OsgCopsReport().generate(
+        return OsgCopsReport(self.archive_pairs).generate_xlsx(
             elements=state.loaded_elements,
             output_folder=output_folder,
             mode=state.mode,
@@ -303,12 +331,55 @@ class ReportRegistry:
         output_folder: Path,
         include_empty: bool,
     ) -> Path:
-        return OsgCopsReport().generate_pdf(
+        return OsgCopsReport(self.archive_pairs).generate_pdf(
             elements=state.loaded_elements,
             output_folder=output_folder,
             mode=state.mode,
             include_empty=include_empty,
         )
+
+    def _reference_report(
+        self,
+        title: str,
+        file_stem: str,
+        list_name: str,
+    ) -> ReferenceMatchReport:
+        return ReferenceMatchReport(
+            title=title,
+            file_stem=file_stem,
+            list_name=list_name,
+            reference_service=self.reference_element_service,
+        )
+
+    def _generate_hipaa_csv(self, state, output_folder: Path, include_empty: bool) -> Path:
+        return self._reference_report(
+            "HIPAA Listener Report", "HIPAA_Listener_Report", "hipaa_listener"
+        ).generate(state.loaded_elements, output_folder, include_empty)
+
+    def _generate_hipaa_xlsx(self, state, output_folder: Path, include_empty: bool) -> Path:
+        return self._reference_report(
+            "HIPAA Listener Report", "HIPAA_Listener_Report", "hipaa_listener"
+        ).generate_xlsx(state.loaded_elements, output_folder, include_empty)
+
+    def _generate_hipaa_pdf(self, state, output_folder: Path, include_empty: bool) -> Path:
+        return self._reference_report(
+            "HIPAA Listener Report", "HIPAA_Listener_Report", "hipaa_listener"
+        ).generate_pdf(state.loaded_elements, output_folder, include_empty)
+
+    def _generate_ods_csv(self, state, output_folder: Path, include_empty: bool) -> Path:
+        return self._reference_report(
+            "ODS Report", "ODS_Report", "ods"
+        ).generate(state.loaded_elements, output_folder, include_empty)
+
+    def _generate_ods_xlsx(self, state, output_folder: Path, include_empty: bool) -> Path:
+        return self._reference_report(
+            "ODS Report", "ODS_Report", "ods"
+        ).generate_xlsx(state.loaded_elements, output_folder, include_empty)
+
+    def _generate_ods_pdf(self, state, output_folder: Path, include_empty: bool) -> Path:
+        return self._reference_report(
+            "ODS Report", "ODS_Report", "ods"
+        ).generate_pdf(state.loaded_elements, output_folder, include_empty)
 
     def _generate_resync_csv(
         self,

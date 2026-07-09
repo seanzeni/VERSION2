@@ -8,7 +8,7 @@
 #
 # Responsibilities:
 #     - Include regular releases for the current month plus three months.
-#     - Limit Special releases to the current month plus one month.
+#     - Exclude Special releases.
 #     - Include only SQL efforts with a pending QUAL or PROD move.
 #     - Find missing, wrong-release, untracked, and unexpected inventory.
 
@@ -37,24 +37,16 @@ class InventoryForecastService:
         today: date,
     ) -> list[str]:
         regular_months = forecast_months(today)
-        special_months = {
-            month
-            for month in regular_months
-            if self._month_offset(today, month) <= 1
-        }
-
         releases: list[str] = []
         for release in self.context.data_loader.get_releases():
             release_month = parse_release_month(release)
             if release_month is None:
                 continue
 
-            wanted_months = (
-                special_months
-                if "special" in str(release).lower()
-                else regular_months
-            )
-            if release_month in wanted_months:
+            if "special" in str(release).lower():
+                continue
+
+            if release_month in regular_months:
                 releases.append(release)
 
         return sorted(
@@ -313,13 +305,6 @@ class InventoryForecastService:
                 0 if item[0] == "QUAL" else 1,
             ),
         )
-
-    @staticmethod
-    def _month_offset(
-        today: date,
-        month: tuple[int, int],
-    ) -> int:
-        return (month[0] - today.year) * 12 + (month[1] - today.month)
 
     @staticmethod
     def _append_row(

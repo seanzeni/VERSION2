@@ -108,14 +108,14 @@ def make_service() -> InventoryForecastService:
     )
 
 
-def test_release_window_limits_special_releases_to_one_month_out() -> None:
-    """Verifies Special releases use a shorter window than regular releases."""
+def test_release_window_excludes_special_releases() -> None:
+    """Inventory forecasting only includes standard releases."""
     releases = make_service().get_releases(
         today=date(2026, 6, 15),
     )
 
     assert "2026/06 release" in releases
-    assert "2026/07 special" in releases
+    assert "2026/07 special" not in releases
     assert "2026/08 special" not in releases
     assert "2026/09 release" in releases
     assert "2026/10 release" not in releases

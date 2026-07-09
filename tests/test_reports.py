@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 import csv
+from openpyxl import load_workbook
 from app.core.models import ArchiveStatus
 from app.core.models import Element
 from app.core.models import InventoryIssue
@@ -223,7 +224,48 @@ def test_release_inventory_report_uses_sql_release_for_mismatch(tmp_path: Path) 
 
 def test_osg_cops_report_filters_selected_visible_o_or_x(tmp_path: Path) -> None:
     """Verifies OSG COPS report filters selected visible o or x."""
-    output=OsgCopsReport().generate([make_element(name='OPGM001', type_='OCOB'), make_element(name='APGM001', type_='JCL'), make_element(name='XPGM001', type_='XCOB', visible=False)], tmp_path, 'PROD')
-    rows=read_csv(output)
-    assert len(rows)==1 and rows[0]['Element']=='OPGM001'
+    output=OsgCopsReport().generate_xlsx([make_element(name='OPGM001', type_='OCOB'), make_element(name='APGM001', type_='JCL'), make_element(name='XPGM001', type_='XCOB', visible=False)], tmp_path, 'PROD')
+    workbook = load_workbook(output, read_only=True)
+    worksheet = workbook["OSG COPS"]
+    rows = list(worksheet.iter_rows(values_only=True))
+    assert len(rows) == 2 and rows[1][2] == 'OPGM001'
+    workbook.close()
     make_writable(output)
+
+
+def test_osg_cops_suppresses_archive_when_replacement_is_moving() -> None:
+    """A paired replacement prevents the archive row from appearing twice."""
+    archive = make_element(name="OPGM001", type_="OAPS")
+    archive.source_row["Package"] = "ARCHIVE"
+    replacement = make_element(name="OPGM001", type_="OCOB")
+
+    rows = OsgCopsReport([["OAPS", "OCOB"]])._build_rows(
+        [archive, replacement],
+        "PROD",
+    )
+
+    assert [row[3] for row in rows] == ["OCOB"]
+
+
+def test_osg_cops_keeps_unpaired_package_archive() -> None:
+    """An archive without its moving replacement remains visible."""
+    archive = make_element(name="OPGM001", type_="OAPS")
+    archive.source_row["Package"] = "ARCHIVE"
+
+    rows = OsgCopsReport([["OAPS", "OCOB"]])._build_rows(
+        [archive],
+        "PROD",
+    )
+
+    assert [row[3] for row in rows] == ["OAPS"]
+    assert rows[0][5] == "Package archive"
+
+
+def test_osg_cops_is_empty_outside_prod() -> None:
+    """OSG/COPS is only applicable to PROD movement."""
+    rows = OsgCopsReport()._build_rows(
+        [make_element(name="OPGM001")],
+        "QUAL",
+    )
+
+    assert rows == []

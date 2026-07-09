@@ -10,6 +10,8 @@
     "default_input_folder": "\\\\rset\\rset\\DB\\",
     "default_ndvr_file": "\\\\rset\\rset\\DB\\endevor-inventory\\ndvr-inv.txt",
     "default_output_folder": "Output",
+    "hipaa_listener_file": "",
+    "ods_file": "",
     "remember_last_used_files": true
   },
   "reports": {
@@ -20,14 +22,18 @@
     },
     "forecast_reports": {
       "Effort Summary Report": true,
+      "HIPAA Listener Report": true,
       "Issues Report": true,
+      "ODS Report": true,
       "OSG/COPS Report": true,
       "Release Estimate Report": true,
       "Release Inventory Report": true,
       "Resync Report": true
     },
     "forecast_thread_count": 5,
-    "include_empty_reports_default": true
+    "include_empty_reports_default": true,
+    "sharepoint_url": "",
+    "use_sharepoint": false
   },
   "required_columns": [
     "Release",

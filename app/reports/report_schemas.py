@@ -123,10 +123,15 @@ OSG_COPS_COLUMNS = [
     ReportColumn("Element"),
     ReportColumn("Type"),
     ReportColumn("Submitter"),
-    ReportColumn("Application"),
-    ReportColumn("Package"),
-    ReportColumn("Area"),
-    ReportColumn("Service"),
+    ReportColumn("Movement Note"),
+]
+
+MOVEMENT_MATCH_COLUMNS = [
+    ReportColumn("Release"),
+    ReportColumn("Project"),
+    ReportColumn("Element"),
+    ReportColumn("Type"),
+    ReportColumn("Submitter"),
 ]
 
 INVENTORY_FORECAST_COLUMNS = [
@@ -147,15 +152,15 @@ RESYNC_COLUMNS = [
     ReportColumn("Project"),
     ReportColumn("Element"),
     ReportColumn("Type"),
-    ReportColumn("Lower Env"),
-    ReportColumn("Lower System"),
-    ReportColumn("Lower Subsystem"),
-    ReportColumn("Lower Version"),
-    ReportColumn("Lower CCID"),
-    ReportColumn("Higher Env"),
-    ReportColumn("Higher System"),
-    ReportColumn("Higher Subsystem"),
-    ReportColumn("Higher Version"),
-    ReportColumn("Higher CCID"),
+    ReportColumn("Target Env"),
+    ReportColumn("Target System"),
+    ReportColumn("Target Subsystem"),
+    ReportColumn("Target Version"),
+    ReportColumn("Target CCID"),
+    ReportColumn("Newer Source Env"),
+    ReportColumn("Newer Source System"),
+    ReportColumn("Newer Source Subsystem"),
+    ReportColumn("Newer Source Version"),
+    ReportColumn("Newer Source CCID"),
     ReportColumn("Reason"),
 ]
