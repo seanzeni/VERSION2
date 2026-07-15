@@ -16,10 +16,12 @@
 #     Update this file when adding report columns or status values.
 
 from app.core.models import ArchiveStatus
+from app.core.models import AwarenessStatus
 from app.core.models import FixStatus
 from app.core.models import InventoryStatus
 from app.core.models import LocationStatus
 from app.core.models import MovementStatus
+from app.core.models import PackagingStatus
 from app.core.models import ResyncStatus
 from app.core.models import ScheduleStatus
 from app.core.models import Severity
@@ -36,6 +38,8 @@ STATUS_GROUPS = [
     ("Fix Status", FixStatus),
     ("Movement Status", MovementStatus),
     ("Resync Status", ResyncStatus),
+    ("Awareness Status", AwarenessStatus),
+    ("Packaging Status", PackagingStatus),
 ]
 
 

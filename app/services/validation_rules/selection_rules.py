@@ -25,6 +25,7 @@ from app.core.models import Element
 from app.core.models import InventoryStatus
 from app.core.models import LocationStatus
 from app.core.models import MovementStatus
+from app.core.models import PackagingStatus
 from app.core.models import ScheduleStatus
 from app.core.package_rules import is_archive_package
 from app.services.validation_rules.base import RuleDefinition
@@ -35,7 +36,15 @@ from app.services.validation_rules.base import ValidatorContext
 RULE = RuleDefinition(
     name="selection",
     phase=RulePhase.SELECTION,
-    dependencies=("movement", "inventory", "schedule", "location", "archive", "fixp1"),
+    dependencies=(
+        "movement",
+        "inventory",
+        "schedule",
+        "location",
+        "archive",
+        "fixp1",
+        "packaging",
+    ),
     description="Apply selected/selectable/visible behavior after statuses are assigned.",
 )
 
@@ -156,6 +165,15 @@ def apply(
             element.selectable = bool(
                 selection_rules.get(
                     "missing_ndvr_selectable",
+                    False,
+                )
+            )
+
+        if element.packaging_status == PackagingStatus.NDVR_RC_TOO_HIGH:
+            element.selected = False
+            element.selectable = bool(
+                selection_rules.get(
+                    "ndvr_rc_too_high_selectable",
                     False,
                 )
             )

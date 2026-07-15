@@ -582,7 +582,20 @@ class MainWindow(ctk.CTk):
     def refresh_ndvr(
         self,
     ) -> None:
-        selected_file = self.app_state.current_ndvr_path
+        configured_ndvr = str(
+            self.context.settings.get(
+                "files",
+                {},
+            ).get(
+                "default_ndvr_file",
+                "",
+            )
+        ).strip()
+        selected_file = (
+            self.context.resolve_path(configured_ndvr)
+            if configured_ndvr
+            else self.app_state.current_ndvr_path
+        )
 
         if selected_file is None or not Path(selected_file).exists():
             selected_file = filedialog.askopenfilename(

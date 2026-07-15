@@ -116,10 +116,10 @@ def test_get_names_contains_core_reports() -> None:
     names = make_registry().get_names()
 
     assert "Effort Summary Report" in names
-    assert "HIPAA Listener Report" in names
+    assert "HIPPA Listeners" in names
     assert "Issues Report" in names
     assert "OSG/COPS Report" in names
-    assert "ODS Report" in names
+    assert "ODS Elements" in names
     assert "Release Estimate Report" in names
     assert "Release Inventory Report" in names
     assert "Resync Report" in names

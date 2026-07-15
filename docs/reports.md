@@ -30,6 +30,8 @@ They include one status column per validation area:
 - `Archive Status`
 - `Fix Status`
 - `Movement Status`
+- `Awareness Status`
+- `Packaging Status`
 
 `Issues_Report_Status_Glossary.csv` is generated with the Issues Report. In XLSX
 output, the same glossary is included as a second sheet. It explains each report
@@ -138,15 +140,35 @@ element, type, submitter, and movement note. A package archive is suppressed
 when its configured APS/COB counterpart is also moving; an unpaired archive
 remains in the report with `Package archive` in `Movement Note`.
 
-## HIPAA Listener And ODS Reports
+## HIPPA Listeners And ODS Elements
 
-The HIPAA Listener and ODS reports match selected, visible movement rows against
-their configured reference workbooks. Matching is case-insensitive on the
-required `Element` and `Type` columns. The workbooks are loaded once at startup
-and are also used during forecast report generation.
+The HIPPA Listeners and ODS Elements reports match selected, visible movement
+rows against their configured CSV reference files. Matching is case-insensitive
+on the required `Element` and `Type` columns. The files are loaded once at
+startup and are also used during forecast report generation.
 
-Configure `files.hipaa_listener_file` and `files.ods_file` with absolute paths
-or paths relative to the application folder.
+Configure `files.hippa_listener_file` and `files.ods_file` with absolute paths
+or paths relative to the application folder. HIPPA Listeners also reads
+`Listener` and `Listener Transactions` from the CSV and includes those values in
+the report and informational Effort Summary reason.
+
+ODS Elements is informational and appears in the ODS Elements report when a
+selected movement row matches the configured `Element` + `Type`.
+
+## After Action Report
+
+The `After Action` button in Report Center uses the entered `YYYY-MM-DD` date
+independently from the currently selected release. It finds SQL bundles whose
+QUAL or PROD date equals that already-passed date, loads the connected inventory
+for each matching effort, and compares those elements to the loaded NDVR file.
+
+QUAL after-action checks for matching element/type records in `QUAL1` on the
+selected date. PROD after-action checks `PROD1` and also requires the expected
+system and subsystem. The report includes the NDVR package, return code, and
+time when a matching record is found.
+
+The report supports CSV, XLSX, and PDF using the Report Center format
+checkboxes.
 
 ## Forecast Reports
 
@@ -164,9 +186,9 @@ Use `settings.json`:
   },
   "forecast_reports": {
     "Effort Summary Report": true,
-    "HIPAA Listener Report": true,
+    "HIPPA Listeners": true,
     "Issues Report": true,
-    "ODS Report": true,
+    "ODS Elements": true,
     "OSG/COPS Report": true,
     "Release Estimate Report": true,
     "Release Inventory Report": true,

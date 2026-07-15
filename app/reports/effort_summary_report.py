@@ -19,11 +19,13 @@ from pathlib import Path
 from typing import Any
 
 from app.core.models import ArchiveStatus
+from app.core.models import AwarenessStatus
 from app.core.models import Element
 from app.core.models import FixStatus
 from app.core.models import InventoryStatus
 from app.core.models import LocationStatus
 from app.core.models import MovementStatus
+from app.core.models import PackagingStatus
 from app.core.models import ResyncStatus
 from app.core.models import ScheduleStatus
 from app.core.models import Severity
@@ -247,6 +249,8 @@ class EffortSummaryReport:
                 element.fix_status.value,
                 element.movement_status.value,
                 element.resync_status.value,
+                element.awareness_status.value,
+                element.packaging_status.value,
                 element.display_reason,
             ]
             for element in sorted(
@@ -359,6 +363,10 @@ STATUS_LABELS = {
     MovementStatus.MARKED_IN_QUAL.value: "Marked In QUAL",
     MovementStatus.MARKED_ALREADY_THERE_BUT_MISSING.value: "Marked Missing From Environment",
     ResyncStatus.HIGHER_VERSION_EXISTS.value: "Potential Resync",
+    AwarenessStatus.HIPPA_LISTENER.value: "HIPPA Listeners",
+    AwarenessStatus.ODS_ELEMENT.value: "ODS Elements",
+    AwarenessStatus.HIPPA_LISTENER_AND_ODS_ELEMENT.value: "HIPPA + ODS Elements",
+    PackagingStatus.NDVR_RC_TOO_HIGH.value: "NDVR RC Too High",
 }
 
 
@@ -373,6 +381,8 @@ def get_reportable_statuses(
         element.fix_status,
         element.movement_status,
         element.resync_status,
+        element.awareness_status,
+        element.packaging_status,
     ]
 
     return [

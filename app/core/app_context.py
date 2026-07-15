@@ -38,6 +38,8 @@ from app.ui.theme_manager import ThemeManager
 
 
 class AppContext:
+    NDVR_FILE_PATTERNS = ("*.txt", "*.dat", "*.csv")
+
     def __init__(self, base_dir: str | Path, settings_path: str | Path) -> None:
         self.base_dir = Path(base_dir)
         self.settings_path = Path(settings_path)
@@ -122,6 +124,7 @@ class AppContext:
             selection_rules=self.selection_rules,
             archive_pairs=self.archive_pairs,
             status_marker_service=self.status_marker_service,
+            reference_element_service=self.reference_element_service,
         )
 
         self.stats_service = StatsService(
@@ -143,7 +146,7 @@ class AppContext:
     def _load_reference_reports(self) -> None:
         configured_files = self.settings.get("files", {})
         for list_name, setting_key in (
-            ("hipaa_listener", "hipaa_listener_file"),
+            ("hippa_listener", "hippa_listener_file"),
             ("ods", "ods_file"),
         ):
             configured_path = str(configured_files.get(setting_key, "")).strip()
@@ -161,7 +164,11 @@ class AppContext:
         self,
         file_path: str | Path,
     ) -> MainframeLocationService:
-        path = self.resolve_path(file_path)
+        source_path = self.resolve_path(file_path)
+        path = self.resolve_latest_file(
+            file_path=source_path,
+            patterns=self.NDVR_FILE_PATTERNS,
+        )
 
         service = MainframeLocationService()
         service.load_file(path)
@@ -171,7 +178,7 @@ class AppContext:
 
         self.save_file_setting_if_needed(
             key="default_ndvr_file",
-            value=path,
+            value=source_path if source_path.is_dir() else path,
         )
 
         return service
@@ -198,6 +205,9 @@ class AppContext:
         )
 
         if configured_path is not None and configured_path.exists():
+            if key == "default_ndvr_file":
+                return configured_path
+
             return configured_path
 
         selected_file = self.prompt_for_file(
@@ -228,6 +238,39 @@ class AppContext:
             return path
 
         return self.base_dir / path
+
+    def resolve_latest_file(
+        self,
+        file_path: str | Path,
+        patterns: tuple[str, ...],
+    ) -> Path:
+        path = self.resolve_path(file_path)
+
+        if path.is_file():
+            return path
+
+        if not path.is_dir():
+            return path
+
+        candidates = [
+            candidate
+            for pattern in patterns
+            for candidate in path.glob(pattern)
+            if candidate.is_file()
+        ]
+
+        if not candidates:
+            raise FileNotFoundError(
+                f"No matching files found in directory: {path}"
+            )
+
+        return max(
+            candidates,
+            key=lambda candidate: (
+                candidate.stat().st_mtime,
+                candidate.name,
+            ),
+        )
 
     def prompt_for_file(
         self,

@@ -15,6 +15,8 @@ def make_line(
     env: str,
     version: str,
     ccid: str = "CCID01",
+    ndvr_rc: str = "00000",
+    ndvr_package: str = "",
 ) -> str:
     fields = [
         (element, 8),
@@ -28,6 +30,9 @@ def make_line(
         ("USER01", 8),
         (ccid, 7),
         ("COMMENTS", 40),
+        (ndvr_rc, 5),
+        ("", 1),
+        (ndvr_package, 16),
     ]
     return " ".join(value.ljust(width)[:width] for value, width in fields)
 
@@ -78,6 +83,86 @@ def test_parse_line_maps_system_and_subsystem_to_correct_widths(
     assert record.system == "PRIVATE1"
     assert record.subsystem == "SUB1"
     assert record.env == "QUAL1"
+
+
+def test_parse_line_maps_added_ndvr_fields(
+    tmp_path: Path,
+) -> None:
+    """Verifies appended NDVR return code and package fields are parsed."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line(
+                "PGM001",
+                "OCOB",
+                "PRIVATE1",
+                "SUB1",
+                "QUAL1",
+                "01.01",
+                ndvr_rc="00123",
+                ndvr_package="PKG001",
+            ),
+        ],
+    )
+
+    record = MainframeLocationService().load_file(path).records[0]
+
+    assert record.ndvr_rc == 123
+    assert record.ndvr_package == "PKG001"
+
+
+def test_parse_line_allows_missing_added_ndvr_fields(
+    tmp_path: Path,
+) -> None:
+    """Verifies older NDVR rows still load if appended fields are absent."""
+    old_line = " ".join(
+        value.ljust(width)[:width]
+        for value, width in [
+            ("PGM001", 8),
+            ("OCOB", 8),
+            ("PRIVATE1", 8),
+            ("SUB1", 4),
+            ("QUAL1", 5),
+            ("2026/06/22", 10),
+            ("12:00:00:00", 11),
+            ("01.01", 5),
+            ("USER01", 8),
+            ("CCID01", 7),
+            ("COMMENTS", 40),
+        ]
+    )
+    path = write_location_file(
+        tmp_path,
+        [
+            old_line,
+        ],
+    )
+
+    record = MainframeLocationService().load_file(path).records[0]
+
+    assert record.ndvr_rc is None
+    assert record.ndvr_package == ""
+
+
+def test_invalid_ndvr_rc_raises(tmp_path: Path) -> None:
+    """Verifies non-numeric NDVR return code text fails fast."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line(
+                "PGM001",
+                "OCOB",
+                "SYSTEM01",
+                "SUB1",
+                "QUAL1",
+                "01.01",
+                ndvr_rc="BAD",
+            ),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="Invalid ndvr_rc"):
+        MainframeLocationService().load_file(path)
 
 
 def test_exists_in_fixp1(tmp_path: Path) -> None:

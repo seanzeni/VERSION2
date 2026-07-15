@@ -58,6 +58,8 @@ class IssuesReport:
                     element.archive_status.value,
                     element.fix_status.value,
                     element.movement_status.value,
+                    element.awareness_status.value,
+                    element.packaging_status.value,
                     element.display_reason,
                 ]
             )

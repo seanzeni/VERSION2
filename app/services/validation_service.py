@@ -32,7 +32,9 @@ from app.core.models import Element
 from app.core.models import InventoryIssue
 from app.core.models import ReleaseEffort
 from app.services.mainframe_location_service import MainframeLocationService
+from app.services.reference_element_service import ReferenceElementService
 from app.services.status_marker_service import StatusMarkerService
+from app.services.validation_rules import awareness_rules as awareness_rule_module
 from app.services.validation_rules import archive_rules as archive_rule_module
 from app.services.validation_rules.base import build_rule_registry_rows
 from app.services.validation_rules.base import resolve_rule_modules
@@ -42,6 +44,7 @@ from app.services.validation_rules import fix_rules as fix_rule_module
 from app.services.validation_rules import inventory_rules as inventory_rule_module
 from app.services.validation_rules import location_rules as location_rule_module
 from app.services.validation_rules import movement_rules as movement_rule_module
+from app.services.validation_rules import packaging_rules as packaging_rule_module
 from app.services.validation_rules import schedule_rules as schedule_rule_module
 from app.services.validation_rules import selection_rules as selection_rule_module
 
@@ -53,6 +56,8 @@ VALIDATION_RULE_MODULES = [
     location_rule_module,
     archive_rule_module,
     fix_rule_module,
+    awareness_rule_module,
+    packaging_rule_module,
     selection_rule_module,
 ]
 
@@ -63,10 +68,12 @@ class ValidationService:
         selection_rules: dict,
         archive_pairs: list[list[str]],
         status_marker_service: StatusMarkerService,
+        reference_element_service: ReferenceElementService | None = None,
     ) -> None:
         self.selection_rules = selection_rules
         self.archive_pairs = archive_pairs
         self.status_marker_service = status_marker_service
+        self.reference_element_service = reference_element_service
         self.rule_modules = self._resolve_rule_modules()
         self.rule_definitions = tuple(
             rule_module.RULE for rule_module in self.rule_modules
@@ -153,6 +160,7 @@ class ValidationService:
                 skip_location_validation_effort_ids or set()
             ),
             location_service=location_service,
+            reference_element_service=self.reference_element_service,
             status_marker_service=self.status_marker_service,
             add_reason=self.add_reason,
         )

@@ -1,0 +1,214 @@
+from __future__ import annotations
+
+# Purpose:
+#     Build after-action report files for bundles executed on a selected date.
+
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+from app.core.models import Element
+from app.core.models import MainframeLocationRecord
+from app.core.models import ReleaseEffort
+from app.reports.after_action_report import AfterActionReport
+from app.reports.after_action_report import build_after_action_row
+from app.reports.after_action_report import parse_report_date
+from app.reports.report_utils import archive_existing_reports
+
+
+class AfterActionService:
+    def __init__(
+        self,
+        context: Any,
+    ) -> None:
+        self.context = context
+
+    def generate(
+        self,
+        selected_date: date,
+        output_folder: Path,
+        formats: list[str],
+    ) -> list[Path]:
+        output_folder.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+        archive_existing_reports(output_folder)
+
+        rows = self._build_rows(selected_date)
+        report = AfterActionReport()
+        generated_files: list[Path] = []
+
+        if "csv" in formats:
+            generated_files.append(
+                report.generate(
+                    rows=rows,
+                    output_folder=output_folder,
+                )
+            )
+
+        if "xlsx" in formats:
+            generated_files.append(
+                report.generate_xlsx(
+                    rows=rows,
+                    output_folder=output_folder,
+                )
+            )
+
+        if "pdf" in formats:
+            generated_files.append(
+                report.generate_pdf(
+                    rows=rows,
+                    output_folder=output_folder,
+                    selected_date=selected_date,
+                )
+            )
+
+        return generated_files
+
+    def _build_rows(
+        self,
+        selected_date: date,
+    ) -> list[list[object]]:
+        rows: list[list[object]] = []
+
+        for release in self.context.data_loader.get_releases():
+            efforts = self.context.db_service.get_efforts_for_release(release)
+            for mode in ("QUAL", "PROD"):
+                matching_efforts = [
+                    effort
+                    for effort in efforts
+                    if self._effort_move_date(effort, mode) == selected_date
+                ]
+                if not matching_efforts:
+                    continue
+
+                projects = {
+                    effort.effort_id.strip()
+                    for effort in matching_efforts
+                    if effort.effort_id.strip()
+                }
+                release_df = self.context.data_loader.filter_release_projects(
+                    release=release,
+                    projects=projects,
+                )
+                elements = self.context.element_service.build_elements(release_df)
+
+                for element in sorted(
+                    elements,
+                    key=lambda item: (
+                        item.project.upper(),
+                        item.element.upper(),
+                        item.type.upper(),
+                    ),
+                ):
+                    expected_env = self._target_env(mode)
+                    expected_system = self._expected_system(mode, element)
+                    expected_subsystem = self._expected_subsystem(element)
+                    record = self._find_matching_record(
+                        element=element,
+                        mode=mode,
+                        selected_date=selected_date,
+                        expected_env=expected_env,
+                        expected_system=expected_system,
+                        expected_subsystem=expected_subsystem,
+                    )
+                    rows.append(
+                        build_after_action_row(
+                            release=release,
+                            mode=mode,
+                            move_date=selected_date,
+                            element=element,
+                            expected_env=expected_env,
+                            expected_system=expected_system,
+                            expected_subsystem=expected_subsystem,
+                            record=record,
+                        )
+                    )
+
+        return rows
+
+    def _find_matching_record(
+        self,
+        element: Element,
+        mode: str,
+        selected_date: date,
+        expected_env: str,
+        expected_system: str,
+        expected_subsystem: str,
+    ) -> MainframeLocationRecord | None:
+        location_service = self.context.location_service
+
+        if location_service is None:
+            return None
+
+        records = [
+            record
+            for record in location_service.find(
+                element.element,
+                element.type,
+            )
+            if record.env.strip().upper() == expected_env
+            and parse_report_date(record.date_generated) == selected_date
+        ]
+
+        if mode.upper() == "PROD":
+            records = [
+                record
+                for record in records
+                if record.system.strip().upper() == expected_system
+                and record.subsystem.strip().upper() == expected_subsystem
+            ]
+
+        if not records:
+            return None
+
+        return sorted(
+            records,
+            key=lambda record: record.time_generated,
+            reverse=True,
+        )[0]
+
+    def _effort_move_date(
+        self,
+        effort: ReleaseEffort,
+        mode: str,
+    ) -> date | None:
+        if mode.upper() == "PROD":
+            return parse_report_date(effort.prod_date)
+
+        return parse_report_date(effort.qual_date)
+
+    def _target_env(
+        self,
+        mode: str,
+    ) -> str:
+        return "PROD1" if mode.upper() == "PROD" else "QUAL1"
+
+    def _expected_system(
+        self,
+        mode: str,
+        element: Element,
+    ) -> str:
+        system_value = str(
+            element.source_row.get(
+                "System",
+                "",
+            )
+        ).strip().upper()
+
+        if mode.upper() == "PROD" and system_value:
+            return system_value[:7] + "1"
+
+        return system_value
+
+    def _expected_subsystem(
+        self,
+        element: Element,
+    ) -> str:
+        return str(
+            element.source_row.get(
+                "Subsys",
+                "",
+            )
+        ).strip().upper()

@@ -1,14 +1,18 @@
 from __future__ import annotations
 from app.core.models import (
     ArchiveStatus,
+    AwarenessStatus,
     Element,
     FixStatus,
     InventoryStatus,
     LocationStatus,
     MovementStatus,
+    PackagingStatus,
     ReleaseEffort,
     ScheduleStatus,
 )
+from app.core.models import MainframeLocationRecord
+from app.services.reference_element_service import ReferenceElementService
 from app.services.status_marker_service import StatusMarkerService
 from app.services.validation_service import ValidationService
 
@@ -132,12 +136,84 @@ def test_rule_registry_rows_show_configured_hierarchy() -> None:
         "location",
         "archive",
         "fixp1",
+        "awareness",
+        "packaging",
         "selection",
     ]
     assert rows[0]["dependencies"] == "None"
     assert rows[-1]["dependencies"] == (
-        "movement, inventory, schedule, location, archive, fixp1"
+        "movement, inventory, schedule, location, archive, fixp1, packaging"
     )
+
+
+def test_reference_awareness_adds_hippa_listener_info() -> None:
+    """Verifies HIPPA listener matches add informational status and reason."""
+    reference_service = ReferenceElementService()
+    reference_service._lists["hippa_listener"] = {
+        ("PGM001", "OCOB"): {
+            "Element": "PGM001",
+            "Type": "OCOB",
+            "Listener": "LISTENER1",
+            "Listener Transactions": "TRN1",
+        }
+    }
+    service = make_service()
+    service.reference_element_service = reference_service
+    element = make_element()
+
+    validated, _issues = service.validate_elements(
+        elements=[element],
+        all_release_elements=[element],
+        release_efforts=[ReleaseEffort(effort_id="ABC")],
+        effort_release_lookup={},
+        location_service=None,
+        mode="QUAL",
+        release="REL1",
+    )
+
+    assert validated[0].awareness_status == AwarenessStatus.HIPPA_LISTENER
+    assert "LISTENER1" in validated[0].display_reason
+
+
+def test_ndvr_rc_above_threshold_blocks_selection() -> None:
+    """Verifies high NDVR return codes are non-selectable."""
+    service = make_service()
+    element = make_element()
+    location_service = FakeLocationService(set())
+    location_service.find = lambda *args, **kwargs: [
+        MainframeLocationRecord(
+            element="PGM001",
+            type="OCOB",
+            subsystem="SYS1",
+            system="PRIVATE0",
+            env="QUAL1",
+            date_generated="2026/07/14",
+            time_generated="12:00:00:00",
+            version="01.01",
+            major_version=1,
+            level=1,
+            user="USER1",
+            ccid="CCID1",
+            comments="",
+            ndvr_rc=12,
+            ndvr_package="PKG001",
+        )
+    ]
+
+    validated, _issues = service.validate_elements(
+        elements=[element],
+        all_release_elements=[element],
+        release_efforts=[ReleaseEffort(effort_id="ABC")],
+        effort_release_lookup={},
+        location_service=location_service,
+        mode="QUAL",
+        release="REL1",
+    )
+
+    assert validated[0].packaging_status == PackagingStatus.NDVR_RC_TOO_HIGH
+    assert validated[0].selected is False
+    assert validated[0].selectable is False
+    assert "00012" in validated[0].display_reason
 
 
 def test_duplicate_status() -> None:

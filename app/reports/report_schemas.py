@@ -39,6 +39,8 @@ ISSUES_COLUMNS = [
     ReportColumn("Archive Status", "Archive/program counterpart status."),
     ReportColumn("Fix Status", "FIXP1 warning status."),
     ReportColumn("Movement Status", "Movement marker status."),
+    ReportColumn("Awareness Status", "HIPPA/ODS informational awareness status."),
+    ReportColumn("Packaging Status", "NDVR return-code packaging status."),
     ReportColumn("Reasons", "Detailed validation messages."),
 ]
 
@@ -80,6 +82,8 @@ EFFORT_SUMMARY_INVENTORY_COLUMNS = [
     ReportColumn("Fix Status", "FIXP1 warning status."),
     ReportColumn("Movement Status", "Movement marker status."),
     ReportColumn("Resync Status", "Resync/version warning status."),
+    ReportColumn("Awareness Status", "HIPPA/ODS informational awareness status."),
+    ReportColumn("Packaging Status", "NDVR return-code packaging status."),
     ReportColumn("Reasons", "Detailed validation messages."),
 ]
 
@@ -132,6 +136,35 @@ MOVEMENT_MATCH_COLUMNS = [
     ReportColumn("Element"),
     ReportColumn("Type"),
     ReportColumn("Submitter"),
+]
+
+HIPPA_LISTENER_COLUMNS = [
+    ReportColumn("Release"),
+    ReportColumn("Project"),
+    ReportColumn("Element"),
+    ReportColumn("Type"),
+    ReportColumn("Submitter"),
+    ReportColumn("Listener"),
+    ReportColumn("Listener Transactions"),
+]
+
+ODS_ELEMENTS_COLUMNS = MOVEMENT_MATCH_COLUMNS
+
+AFTER_ACTION_COLUMNS = [
+    ReportColumn("Release"),
+    ReportColumn("Mode"),
+    ReportColumn("Move Date"),
+    ReportColumn("Project"),
+    ReportColumn("Element"),
+    ReportColumn("Type"),
+    ReportColumn("Expected Env"),
+    ReportColumn("Expected System"),
+    ReportColumn("Expected Subsystem"),
+    ReportColumn("Moved On Date"),
+    ReportColumn("NDVR Package"),
+    ReportColumn("NDVR RC"),
+    ReportColumn("NDVR Time"),
+    ReportColumn("Reason"),
 ]
 
 INVENTORY_FORECAST_COLUMNS = [

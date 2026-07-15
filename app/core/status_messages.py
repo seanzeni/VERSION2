@@ -45,6 +45,10 @@ class StatusMessages:
         "Element is marked already in target environment, but was not found there."
     )
 
+    HIPPA_LISTENER = "Element/type is listed as a HIPPA listener."
+    ODS_ELEMENT = "Element/type is listed as an ODS element."
+    NDVR_RC_TOO_HIGH = "NDVR return code is greater than the allowed threshold."
+
 
 class ReasonBuilder:
     @staticmethod
@@ -224,4 +228,41 @@ class ReasonBuilder:
             f"{StatusMessages.MARKED_ALREADY_THERE_CONFIRMED} "
             f"{element} {type_} has marker '{marker_text}' "
             f"and was found in {target_env}."
+        )
+
+    @staticmethod
+    def hippa_listener(
+        element: str,
+        type_: str,
+        listener: str,
+        listener_transactions: str,
+    ) -> str:
+        detail = f"{StatusMessages.HIPPA_LISTENER} {element} {type_}."
+
+        if listener:
+            detail += f" Listener: {listener}."
+
+        if listener_transactions:
+            detail += f" Listener Transactions: {listener_transactions}."
+
+        return detail
+
+    @staticmethod
+    def ods_element(
+        element: str,
+        type_: str,
+    ) -> str:
+        return f"{StatusMessages.ODS_ELEMENT} {element} {type_}."
+
+    @staticmethod
+    def ndvr_rc_too_high(
+        element: str,
+        type_: str,
+        ndvr_rc: int,
+        threshold: int,
+    ) -> str:
+        return (
+            f"NDVR return code {ndvr_rc:05d} is greater than allowed threshold "
+            f"{threshold:05d} and may cause packaging issues. "
+            f"{element} {type_} is not selectable."
         )

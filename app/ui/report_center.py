@@ -20,6 +20,7 @@
 #     Report content belongs inside report classes.
 
 from datetime import date
+from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
 from tkinter import messagebox
@@ -28,6 +29,8 @@ import customtkinter as ctk
 
 from app.reports.report_utils import archive_existing_reports
 from app.reports.report_utils import get_date_folder_path
+from app.reports.report_utils import safe_release_name
+from app.services.after_action_service import AfterActionService
 from app.services.forecast_service import ForecastService
 from app.services.inventory_forecast_service import InventoryForecastService
 from app.services.sharepoint_report_service import SharePointReportService
@@ -83,6 +86,7 @@ class ReportCenter(ctk.CTkToplevel):
 
         self.progress_var = ctk.DoubleVar(value=0)
         self.current_report_var = ctk.StringVar(value="Ready")
+        self.after_action_date_var = ctk.StringVar(value=date.today().isoformat())
 
         self._build_ui()
         self.after(
@@ -139,6 +143,13 @@ class ReportCenter(ctk.CTkToplevel):
             text="Inventory Issues",
             command=self.generate_inventory_forecast,
             width=150,
+        ).pack(side="left", padx=(0, 8))
+
+        ctk.CTkButton(
+            button_bar,
+            text="After Action",
+            command=self.generate_after_action,
+            width=135,
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
@@ -265,6 +276,17 @@ class ReportCenter(ctk.CTkToplevel):
             command=self.browse_folder,
             width=100,
         ).grid(row=5, column=2, sticky="e", padx=(0, 18), pady=(0, 12))
+
+        ctk.CTkLabel(
+            frame,
+            text="After Action Date",
+        ).grid(row=6, column=0, sticky="w", padx=18, pady=(0, 4))
+
+        ctk.CTkEntry(
+            frame,
+            textvariable=self.after_action_date_var,
+            width=160,
+        ).grid(row=7, column=0, sticky="w", padx=18, pady=(0, 12))
 
     def _build_progress_area(
         self,
@@ -591,6 +613,92 @@ class ReportCenter(ctk.CTkToplevel):
         self.current_report_var.set("Inventory Forecast Complete")
         self.set_results_text(
             "Inventory issues forecast generated:\n"
+            + "\n".join(f"- {path.name}" for path in generated_files)
+        )
+
+    def generate_after_action(
+        self,
+    ) -> None:
+        if self.context is None:
+            messagebox.showerror(
+                "After Action Error",
+                "After-action generation requires application context.",
+            )
+            return
+
+        formats = self.get_selected_formats()
+        if not formats:
+            messagebox.showwarning(
+                "No Output Format Selected",
+                "Select CSV, XLSX, PDF, or any combination.",
+            )
+            return
+
+        try:
+            selected_date = datetime.strptime(
+                self.after_action_date_var.get().strip(),
+                "%Y-%m-%d",
+            ).date()
+        except ValueError:
+            messagebox.showwarning(
+                "Invalid Date",
+                "Enter the after-action date as YYYY-MM-DD.",
+            )
+            return
+
+        if selected_date >= date.today():
+            messagebox.showwarning(
+                "Date Not Passed",
+                "After-action reports require a date before today.",
+            )
+            return
+
+        try:
+            sharepoint_service = self._get_sharepoint_service()
+        except ValueError as exc:
+            messagebox.showerror("Report Destination Error", str(exc))
+            return
+
+        output_root = (
+            sharepoint_service.root
+            if sharepoint_service is not None
+            else self.base_output_folder
+        )
+        output_folder = (
+            output_root
+            / "After Action"
+            / safe_release_name(selected_date.isoformat())
+        )
+
+        self.progress_bar.set(0)
+        self.current_report_var.set("Generating after-action report...")
+        self.set_results_text("")
+        self.update_idletasks()
+
+        try:
+            generated_files = AfterActionService(
+                context=self.context,
+            ).generate(
+                selected_date=selected_date,
+                output_folder=output_folder,
+                formats=formats,
+            )
+            if sharepoint_service is not None:
+                generated_files = sharepoint_service.timestamp_files(
+                    generated_files,
+                    f"After Action {selected_date.isoformat()}",
+                )
+        except PermissionError as exc:
+            messagebox.showerror(
+                "Report File In Use",
+                str(exc),
+            )
+            return
+
+        self.progress_bar.set(1)
+        self.current_report_var.set("After Action Complete")
+        self.set_results_text(
+            "After-action report generated:\n"
             + "\n".join(f"- {path.name}" for path in generated_files)
         )
 

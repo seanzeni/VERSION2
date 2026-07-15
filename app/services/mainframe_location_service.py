@@ -38,6 +38,9 @@ class MainframeLocationService:
         ("user", 8),
         ("ccid", 7),
         ("comments", 40),
+        ("ndvr_rc", 5),
+        ("_ignore_", 1),
+        ("ndvr_package", 16),
     ]
 
     ENV_LEVELS: dict[str, int] = {
@@ -147,7 +150,34 @@ class MainframeLocationService:
             user=values.get("user", ""),
             ccid=values.get("ccid", ""),
             comments=values.get("comments", ""),
+            ndvr_rc=self._parse_optional_int(
+                value=values.get(
+                    "ndvr_rc",
+                    "",
+                ),
+                line_number=line_number,
+                field_name="ndvr_rc",
+            ),
+            ndvr_package=values.get("ndvr_package", ""),
         )
+
+    def _parse_optional_int(
+        self,
+        value: str,
+        line_number: int,
+        field_name: str,
+    ) -> int | None:
+        clean_value = str(value).strip()
+
+        if not clean_value:
+            return None
+
+        if not clean_value.isdigit():
+            raise ValueError(
+                f"Invalid {field_name} on line {line_number}: {clean_value!r}"
+            )
+
+        return int(clean_value)
 
     def _parse_version(
         self,

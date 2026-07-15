@@ -8,9 +8,9 @@
   "files": {
     "default_input_file": "\\\\rset\\rset\\DB\\Consolidated-Inventory.xls",
     "default_input_folder": "\\\\rset\\rset\\DB\\",
-    "default_ndvr_file": "\\\\rset\\rset\\DB\\endevor-inventory\\ndvr-inv.txt",
+    "default_ndvr_file": "\\\\rset\\rset\\DB\\endevor-inventory",
     "default_output_folder": "Output",
-    "hipaa_listener_file": "",
+    "hippa_listener_file": "",
     "ods_file": "",
     "remember_last_used_files": true
   },
@@ -22,9 +22,9 @@
     },
     "forecast_reports": {
       "Effort Summary Report": true,
-      "HIPAA Listener Report": true,
+      "HIPPA Listeners": true,
       "Issues Report": true,
-      "ODS Report": true,
+      "ODS Elements": true,
       "OSG/COPS Report": true,
       "Release Estimate Report": true,
       "Release Inventory Report": true,
@@ -63,6 +63,8 @@
     "inventory_when_sql_no_inventory_selectable": true,
     "marked_already_there_missing_selectable": true,
     "missing_ndvr_selectable": false,
+    "ndvr_rc_max_allowed": 8,
+    "ndvr_rc_too_high_selectable": false,
     "overlap_selectable": false,
     "potential_missing_archive_selectable": false,
     "potential_missing_program_move_selectable": true,

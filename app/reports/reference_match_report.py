@@ -10,8 +10,9 @@ from app.reports.pdf_utils import build_table
 from app.reports.pdf_utils import heading
 from app.reports.pdf_utils import spacer
 from app.reports.pdf_utils import write_pdf
-from app.reports.report_schemas import MOVEMENT_MATCH_COLUMNS
+from app.reports.report_schemas import HIPPA_LISTENER_COLUMNS
 from app.reports.report_schemas import names
+from app.reports.report_schemas import ODS_ELEMENTS_COLUMNS
 from app.reports.report_utils import export_csv
 from app.reports.report_utils import export_xlsx
 from app.services.reference_element_service import ReferenceElementService
@@ -24,11 +25,13 @@ class ReferenceMatchReport:
         file_stem: str,
         list_name: str,
         reference_service: ReferenceElementService,
+        include_listener_details: bool = False,
     ) -> None:
         self.title = title
         self.file_stem = file_stem
         self.list_name = list_name
         self.reference_service = reference_service
+        self.include_listener_details = include_listener_details
 
     def generate(
         self,
@@ -39,7 +42,7 @@ class ReferenceMatchReport:
         output_path = output_folder / f"{self.file_stem}.csv"
         export_csv(
             output_path,
-            names(MOVEMENT_MATCH_COLUMNS),
+            self._headers(),
             self._build_rows(elements, include_empty),
         )
         return output_path
@@ -54,7 +57,7 @@ class ReferenceMatchReport:
         export_xlsx(
             output_path,
             {self.title[:31]: (
-                names(MOVEMENT_MATCH_COLUMNS),
+                self._headers(),
                 self._build_rows(elements, include_empty),
             )},
         )
@@ -72,11 +75,19 @@ class ReferenceMatchReport:
             heading(self.title),
             spacer(),
             build_table(
-                headers=names(MOVEMENT_MATCH_COLUMNS),
-                rows=rows or [["", "", "", "", "No matching moves found."]],
+                headers=self._headers(),
+                rows=rows or [self._empty_row()],
             ),
         ]
         return write_pdf(output_path, story, use_landscape=True)
+
+    def _headers(
+        self,
+    ) -> list[str]:
+        if self.include_listener_details:
+            return names(HIPPA_LISTENER_COLUMNS)
+
+        return names(ODS_ELEMENTS_COLUMNS)
 
     def _build_rows(
         self,
@@ -84,7 +95,15 @@ class ReferenceMatchReport:
         include_empty: bool,
     ) -> list[list[str]]:
         matches = {
-            element.key: element
+            element.key: (
+                element,
+                self.reference_service.get(
+                    self.list_name,
+                    element.element,
+                    element.type,
+                )
+                or {},
+            )
             for element in elements
             if element.visible
             and element.selected
@@ -95,23 +114,50 @@ class ReferenceMatchReport:
             )
         }
         rows = [
-            [
-                element.release,
-                element.project,
-                element.element,
-                element.type,
-                str(element.source_row.get("Submitter", "")),
-            ]
-            for element in sorted(
+            self._row_for(
+                element,
+                reference_row,
+            )
+            for element, reference_row in sorted(
                 matches.values(),
                 key=lambda item: (
-                    item.project.upper(),
-                    item.element.upper(),
-                    item.type.upper(),
+                    item[0].project.upper(),
+                    item[0].element.upper(),
+                    item[0].type.upper(),
                 ),
             )
         ]
         if not rows and include_empty:
-            return [["", "", "", "", "No matching moves found."]]
+            return self._empty_row()
         return rows
 
+    def _row_for(
+        self,
+        element: Element,
+        reference_row: dict[str, str],
+    ) -> list[str]:
+        row = [
+            element.release,
+            element.project,
+            element.element,
+            element.type,
+            str(element.source_row.get("Submitter", "")),
+        ]
+
+        if self.include_listener_details:
+            row.extend(
+                [
+                    reference_row.get("Listener", ""),
+                    reference_row.get("Listener Transactions", ""),
+                ]
+            )
+
+        return row
+
+    def _empty_row(
+        self,
+    ) -> list[str]:
+        row = ["", "", "", "", "No matching moves found."]
+        if self.include_listener_details:
+            row.extend(["", ""])
+        return row

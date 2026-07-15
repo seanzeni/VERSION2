@@ -260,6 +260,56 @@ class ResyncStatus(StrEnum):
         }.get(self, "")
 
 
+class AwarenessStatus(StrEnum):
+    OK = "OK"
+    HIPPA_LISTENER = "HIPPA_LISTENER"
+    ODS_ELEMENT = "ODS_ELEMENT"
+    HIPPA_LISTENER_AND_ODS_ELEMENT = "HIPPA_LISTENER_AND_ODS_ELEMENT"
+
+    @property
+    def severity(self) -> Severity:
+        return Severity.INFO
+
+    @property
+    def color(self) -> str:
+        return ""
+
+    @property
+    def description(self) -> str:
+        return {
+            AwarenessStatus.OK: "No reference-list awareness match was detected.",
+            AwarenessStatus.HIPPA_LISTENER: "Element/type matched the configured HIPPA listener list.",
+            AwarenessStatus.ODS_ELEMENT: "Element/type matched the configured ODS elements list.",
+            AwarenessStatus.HIPPA_LISTENER_AND_ODS_ELEMENT: "Element/type matched both configured awareness lists.",
+        }.get(self, "")
+
+
+class PackagingStatus(StrEnum):
+    OK = "OK"
+    NDVR_RC_TOO_HIGH = "NDVR_RC_TOO_HIGH"
+
+    @property
+    def severity(self) -> Severity:
+        return {
+            PackagingStatus.OK: Severity.INFO,
+            PackagingStatus.NDVR_RC_TOO_HIGH: Severity.ERROR,
+        }.get(self, Severity.INFO)
+
+    @property
+    def color(self) -> str:
+        return {
+            PackagingStatus.OK: "",
+            PackagingStatus.NDVR_RC_TOO_HIGH: "error",
+        }.get(self, "")
+
+    @property
+    def description(self) -> str:
+        return {
+            PackagingStatus.OK: "No NDVR return code packaging issue was detected.",
+            PackagingStatus.NDVR_RC_TOO_HIGH: "A loaded NDVR record has a return code above the configured packaging threshold.",
+        }.get(self, "")
+
+
 @dataclass(slots=True)
 class Element:
     release: str
@@ -282,6 +332,8 @@ class Element:
     movement_status: MovementStatus = MovementStatus.OK
     fix_status: FixStatus = FixStatus.OK
     resync_status: ResyncStatus = ResyncStatus.OK
+    awareness_status: AwarenessStatus = AwarenessStatus.OK
+    packaging_status: PackagingStatus = PackagingStatus.OK
 
     reasons: list[str] = field(default_factory=list)
     source_row: dict[str, Any] = field(default_factory=dict)
@@ -304,6 +356,8 @@ class Element:
             self.movement_status,
             self.fix_status,
             self.resync_status,
+            self.awareness_status,
+            self.packaging_status,
         ]
 
         return [
@@ -323,6 +377,8 @@ class Element:
             self.movement_status.severity,
             self.fix_status.severity,
             self.resync_status.severity,
+            self.awareness_status.severity,
+            self.packaging_status.severity,
         ]
 
         if Severity.ERROR in severities:
@@ -343,6 +399,8 @@ class Element:
             self.movement_status,
             self.fix_status,
             self.resync_status,
+            self.awareness_status,
+            self.packaging_status,
         ]:
             if status.color:
                 return status.color
@@ -406,6 +464,8 @@ class MainframeLocationRecord:
     user: str
     ccid: str
     comments: str
+    ndvr_rc: int | None = None
+    ndvr_package: str = ""
 
     @property
     def key(self) -> tuple[str, str]:

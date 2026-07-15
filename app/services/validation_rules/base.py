@@ -34,6 +34,7 @@ from typing import Protocol
 from app.core.models import Element
 from app.core.models import ReleaseEffort
 from app.services.mainframe_location_service import MainframeLocationService
+from app.services.reference_element_service import ReferenceElementService
 from app.services.status_marker_service import StatusMarkerService
 
 
@@ -47,6 +48,8 @@ class RulePhase(str, Enum):
     LOCATION = "location"
     ARCHIVE = "archive"
     FIX = "fix"
+    AWARENESS = "awareness"
+    PACKAGING = "packaging"
     SELECTION = "selection"
 
 
@@ -86,6 +89,7 @@ class ValidatorContext:
     archive_pairs: list[list[str]] = field(default_factory=list)
     skip_location_validation_effort_ids: set[str] = field(default_factory=set)
     location_service: MainframeLocationService | None = None
+    reference_element_service: ReferenceElementService | None = None
     status_marker_service: StatusMarkerService | None = None
     add_reason: AddReason = _noop_add_reason
 

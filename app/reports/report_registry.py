@@ -104,15 +104,15 @@ class ReportRegistry:
                     pdf_generator=self._generate_resync_pdf,
                 ),
                 ReportDefinition(
-                    name="HIPAA Listener Report",
-                    xlsx_name="HIPAA_Listener_Report.xlsx",
-                    csv_generator=self._generate_hipaa_csv,
-                    pdf_generator=self._generate_hipaa_pdf,
-                    xlsx_generator=self._generate_hipaa_xlsx,
+                    name="HIPPA Listeners",
+                    xlsx_name="HIPPA_Listeners.xlsx",
+                    csv_generator=self._generate_hippa_csv,
+                    pdf_generator=self._generate_hippa_pdf,
+                    xlsx_generator=self._generate_hippa_xlsx,
                 ),
                 ReportDefinition(
-                    name="ODS Report",
-                    xlsx_name="ODS_Report.xlsx",
+                    name="ODS Elements",
+                    xlsx_name="ODS_Elements.xlsx",
                     csv_generator=self._generate_ods_csv,
                     pdf_generator=self._generate_ods_pdf,
                     xlsx_generator=self._generate_ods_xlsx,
@@ -349,36 +349,37 @@ class ReportRegistry:
             file_stem=file_stem,
             list_name=list_name,
             reference_service=self.reference_element_service,
+            include_listener_details=list_name == "hippa_listener",
         )
 
-    def _generate_hipaa_csv(self, state, output_folder: Path, include_empty: bool) -> Path:
+    def _generate_hippa_csv(self, state, output_folder: Path, include_empty: bool) -> Path:
         return self._reference_report(
-            "HIPAA Listener Report", "HIPAA_Listener_Report", "hipaa_listener"
+            "HIPPA Listeners", "HIPPA_Listeners", "hippa_listener"
         ).generate(state.loaded_elements, output_folder, include_empty)
 
-    def _generate_hipaa_xlsx(self, state, output_folder: Path, include_empty: bool) -> Path:
+    def _generate_hippa_xlsx(self, state, output_folder: Path, include_empty: bool) -> Path:
         return self._reference_report(
-            "HIPAA Listener Report", "HIPAA_Listener_Report", "hipaa_listener"
+            "HIPPA Listeners", "HIPPA_Listeners", "hippa_listener"
         ).generate_xlsx(state.loaded_elements, output_folder, include_empty)
 
-    def _generate_hipaa_pdf(self, state, output_folder: Path, include_empty: bool) -> Path:
+    def _generate_hippa_pdf(self, state, output_folder: Path, include_empty: bool) -> Path:
         return self._reference_report(
-            "HIPAA Listener Report", "HIPAA_Listener_Report", "hipaa_listener"
+            "HIPPA Listeners", "HIPPA_Listeners", "hippa_listener"
         ).generate_pdf(state.loaded_elements, output_folder, include_empty)
 
     def _generate_ods_csv(self, state, output_folder: Path, include_empty: bool) -> Path:
         return self._reference_report(
-            "ODS Report", "ODS_Report", "ods"
+            "ODS Elements", "ODS_Elements", "ods"
         ).generate(state.loaded_elements, output_folder, include_empty)
 
     def _generate_ods_xlsx(self, state, output_folder: Path, include_empty: bool) -> Path:
         return self._reference_report(
-            "ODS Report", "ODS_Report", "ods"
+            "ODS Elements", "ODS_Elements", "ods"
         ).generate_xlsx(state.loaded_elements, output_folder, include_empty)
 
     def _generate_ods_pdf(self, state, output_folder: Path, include_empty: bool) -> Path:
         return self._reference_report(
-            "ODS Report", "ODS_Report", "ods"
+            "ODS Elements", "ODS_Elements", "ods"
         ).generate_pdf(state.loaded_elements, output_folder, include_empty)
 
     def _generate_resync_csv(

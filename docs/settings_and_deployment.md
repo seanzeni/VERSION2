@@ -8,12 +8,15 @@ source or from a packaged executable.
 Important file settings:
 
 - `files.default_input_file`: inventory spreadsheet path.
-- `files.default_ndvr_file`: NDVR/mainframe location file path.
+- `files.default_ndvr_file`: NDVR/mainframe location file path or directory. If
+  this points to a directory, the app loads the newest `.txt`, `.dat`, or `.csv`
+  file in that directory so timestamped NDVR drops can rotate without changing
+  settings.
 - `files.default_output_folder`: base folder for exports, reports, history, and
   forecast output.
-- `files.hipaa_listener_file`: workbook containing HIPAA Listener `Element` and
-  `Type` reference columns.
-- `files.ods_file`: workbook containing ODS `Element` and `Type` reference
+- `files.hippa_listener_file`: CSV containing HIPPA Listeners `Element`, `Type`,
+  `Listener`, and `Listener Transactions` columns.
+- `files.ods_file`: CSV containing ODS Elements `Element` and `Type` reference
   columns.
 - `files.remember_last_used_files`: when `true`, selected Excel and NDVR paths
   are written back to `settings.json`.
@@ -35,9 +38,9 @@ Report Center checkboxes.
   },
   "forecast_reports": {
     "Effort Summary Report": true,
-    "HIPAA Listener Report": true,
+    "HIPPA Listeners": true,
     "Issues Report": true,
-    "ODS Report": true,
+    "ODS Elements": true,
     "OSG/COPS Report": true,
     "Release Estimate Report": true,
     "Release Inventory Report": true,
@@ -53,6 +56,15 @@ Set a report or format to `false` to exclude it from forecast generation.
 Set `use_sharepoint` to choose the initial Report Center destination. Users can
 switch between Local and SharePoint with the radio buttons. SharePoint output
 uses the logged-on user's Windows WebDAV session; no password is stored.
+
+## Selection Rule Settings
+
+`selection_rules.ndvr_rc_max_allowed` defaults to `8`. Any loaded NDVR record for
+the same element/type with a higher return code sets `Packaging Status` to
+`NDVR_RC_TOO_HIGH`.
+
+`selection_rules.ndvr_rc_too_high_selectable` controls whether those rows can be
+selected. The recommended/default value is `false`.
 
 ## PyInstaller
 
