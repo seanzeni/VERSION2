@@ -170,6 +170,38 @@ time when a matching record is found.
 The report supports CSV, XLSX, and PDF using the Report Center format
 checkboxes.
 
+## Standalone NDVR Daily Move Audit
+
+`scripts/ndvr_daily_move_audit.py` is intentionally separate from the desktop
+program. It scans all `.txt`, `.dat`, and `.csv` files in the configured NDVR
+source directory, filters movement records for the requested date, and keeps
+only `QUAL1` or `PROD1` records in `PRIVATE1` or `SHARED01`.
+
+By default it audits the previous calendar day:
+
+```powershell
+py -3.14 scripts/ndvr_daily_move_audit.py
+```
+
+To audit a specific date:
+
+```powershell
+py -3.14 scripts/ndvr_daily_move_audit.py --date 2026-07-14
+```
+
+The script uses `settings.json` by default and writes XLSX and PDF only under:
+
+`<default output folder>/NDVR Daily Move Audit/<yyyy-mm-dd>/`
+
+Statuses:
+
+- `APPROVED_MOVE`: inventory and SQL show the project was authorized for that
+  QUAL/PROD move date.
+- `TRACKED_NOT_AUTHORIZED_FOR_DATE`: the element/type is in inventory, but no
+  matching project had that move date. Expected SQL dates are listed.
+- `NOT_TRACKED_IN_INVENTORY`: the element/type moved in NDVR but was not found
+  in the inventory file.
+
 ## Forecast Reports
 
 The Forecast button generates reports from settings, not from the visible report
