@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from app.core.models import PackagingStatus
 from app.core.status_messages import ReasonBuilder
+from app.services.validation_rules import location_rules
 from app.services.validation_rules import selection_rules
 from app.services.validation_rules.base import RuleDefinition
 from app.services.validation_rules.base import RulePhase
@@ -18,7 +19,7 @@ RULE = RuleDefinition(
     name="packaging",
     phase=RulePhase.PACKAGING,
     dependencies=("location",),
-    description="Block non-archive PROD rows when any NDVR return code exceeds the threshold.",
+    description="Block non-archive PROD rows when the expected source location has an RC above the threshold.",
 )
 
 
@@ -44,13 +45,30 @@ def apply(
         if selection_rules.is_archive_move(element):
             continue
 
+        expected_env = location_rules.get_source_env_for_move(
+            mode=context.mode,
+            element=element,
+        )
+        expected_system = location_rules.get_expected_system_for_move(
+            mode=context.mode,
+            element=element,
+        )
+        expected_subsystem = location_rules.get_expected_subsystem_for_move(
+            mode=context.mode,
+            element=element,
+        )
+
         bad_records = [
             record
             for record in location_service.find(
                 element.element,
                 element.type,
             )
-            if record.ndvr_rc is not None and record.ndvr_rc > threshold
+            if record.env.strip().upper() == expected_env
+            and record.system.strip().upper() == expected_system
+            and record.subsystem.strip().upper() == expected_subsystem
+            and record.ndvr_rc is not None
+            and record.ndvr_rc > threshold
         ]
 
         if not bad_records:

@@ -179,13 +179,15 @@ def test_ndvr_rc_above_threshold_blocks_selection() -> None:
     """Verifies high NDVR return codes are non-selectable for PROD moves."""
     service = make_service()
     element = make_element()
-    location_service = FakeLocationService(set())
+    location_service = FakeLocationServiceWithLocations(
+        {("PGM001", "OCOB", "QUAL1", "PRIVATE1", "SYS1")}
+    )
     location_service.find = lambda *args, **kwargs: [
         MainframeLocationRecord(
             element="PGM001",
             type="OCOB",
             subsystem="SYS1",
-            system="PRIVATE0",
+            system="PRIVATE1",
             env="QUAL1",
             date_generated="2026/07/14",
             time_generated="12:00:00:00",
@@ -214,6 +216,66 @@ def test_ndvr_rc_above_threshold_blocks_selection() -> None:
     assert validated[0].selected is False
     assert validated[0].selectable is False
     assert "00012" in validated[0].display_reason
+
+
+def test_ndvr_rc_ignores_lower_environment_not_used_for_prod_move() -> None:
+    """Verifies PROD RC check only uses the QUAL pull-from location."""
+    service = make_service()
+    element = make_element()
+    location_service = FakeLocationServiceWithLocations(
+        {("PGM001", "OCOB", "QUAL1", "PRIVATE1", "SYS1")}
+    )
+    location_service.find = lambda *args, **kwargs: [
+        MainframeLocationRecord(
+            element="PGM001",
+            type="OCOB",
+            subsystem="SYS1",
+            system="PRIVATE1",
+            env="QUAL1",
+            date_generated="2026/07/14",
+            time_generated="12:00:00:00",
+            version="01.01",
+            major_version=1,
+            level=1,
+            user="USER1",
+            ccid="CCID1",
+            comments="",
+            ndvr_rc=0,
+            ndvr_package="PKG001",
+        ),
+        MainframeLocationRecord(
+            element="PGM001",
+            type="OCOB",
+            subsystem="SYS1",
+            system="PRIVATE0",
+            env="MAIN1",
+            date_generated="2026/07/14",
+            time_generated="12:00:00:00",
+            version="01.01",
+            major_version=1,
+            level=1,
+            user="USER1",
+            ccid="CCID1",
+            comments="",
+            ndvr_rc=12,
+            ndvr_package="PKG002",
+        ),
+    ]
+
+    validated, _issues = service.validate_elements(
+        elements=[element],
+        all_release_elements=[element],
+        release_efforts=[ReleaseEffort(effort_id="ABC")],
+        effort_release_lookup={},
+        location_service=location_service,
+        mode="PROD",
+        release="REL1",
+    )
+
+    assert validated[0].location_status == LocationStatus.FOUND
+    assert validated[0].packaging_status == PackagingStatus.OK
+    assert validated[0].selected is True
+    assert "00012" not in validated[0].display_reason
 
 
 def test_ndvr_rc_does_not_apply_to_qual_moves() -> None:
