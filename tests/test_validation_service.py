@@ -176,7 +176,48 @@ def test_reference_awareness_adds_hippa_listener_info() -> None:
 
 
 def test_ndvr_rc_above_threshold_blocks_selection() -> None:
-    """Verifies high NDVR return codes are non-selectable."""
+    """Verifies high NDVR return codes are non-selectable for PROD moves."""
+    service = make_service()
+    element = make_element()
+    location_service = FakeLocationService(set())
+    location_service.find = lambda *args, **kwargs: [
+        MainframeLocationRecord(
+            element="PGM001",
+            type="OCOB",
+            subsystem="SYS1",
+            system="PRIVATE0",
+            env="QUAL1",
+            date_generated="2026/07/14",
+            time_generated="12:00:00:00",
+            version="01.01",
+            major_version=1,
+            level=1,
+            user="USER1",
+            ccid="CCID1",
+            comments="",
+            ndvr_rc=12,
+            ndvr_package="PKG001",
+        )
+    ]
+
+    validated, _issues = service.validate_elements(
+        elements=[element],
+        all_release_elements=[element],
+        release_efforts=[ReleaseEffort(effort_id="ABC")],
+        effort_release_lookup={},
+        location_service=location_service,
+        mode="PROD",
+        release="REL1",
+    )
+
+    assert validated[0].packaging_status == PackagingStatus.NDVR_RC_TOO_HIGH
+    assert validated[0].selected is False
+    assert validated[0].selectable is False
+    assert "00012" in validated[0].display_reason
+
+
+def test_ndvr_rc_does_not_apply_to_qual_moves() -> None:
+    """Verifies high NDVR return codes are ignored outside PROD movement."""
     service = make_service()
     element = make_element()
     location_service = FakeLocationService(set())
@@ -210,10 +251,47 @@ def test_ndvr_rc_above_threshold_blocks_selection() -> None:
         release="REL1",
     )
 
-    assert validated[0].packaging_status == PackagingStatus.NDVR_RC_TOO_HIGH
-    assert validated[0].selected is False
-    assert validated[0].selectable is False
-    assert "00012" in validated[0].display_reason
+    assert validated[0].packaging_status == PackagingStatus.OK
+    assert "00012" not in validated[0].display_reason
+
+
+def test_ndvr_rc_does_not_apply_to_archive_package_moves() -> None:
+    """Verifies archive package rows are not blocked by NDVR return code."""
+    service = make_service()
+    element = make_element(type_="OAPS", package="ARCHIVE")
+    location_service = FakeLocationService(set())
+    location_service.find = lambda *args, **kwargs: [
+        MainframeLocationRecord(
+            element="PGM001",
+            type="OAPS",
+            subsystem="SYS1",
+            system="PRIVATE1",
+            env="PROD1",
+            date_generated="2026/07/14",
+            time_generated="12:00:00:00",
+            version="01.01",
+            major_version=1,
+            level=1,
+            user="USER1",
+            ccid="CCID1",
+            comments="",
+            ndvr_rc=12,
+            ndvr_package="PKG001",
+        )
+    ]
+
+    validated, _issues = service.validate_elements(
+        elements=[element],
+        all_release_elements=[element],
+        release_efforts=[ReleaseEffort(effort_id="ABC")],
+        effort_release_lookup={},
+        location_service=location_service,
+        mode="PROD",
+        release="REL1",
+    )
+
+    assert validated[0].packaging_status == PackagingStatus.OK
+    assert "00012" not in validated[0].display_reason
 
 
 def test_duplicate_status() -> None:

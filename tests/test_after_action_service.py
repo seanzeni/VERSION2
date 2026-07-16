@@ -10,6 +10,7 @@ from app.core.models import ReleaseEffort
 from app.services.after_action_service import AfterActionService
 from app.services.element_service import ElementService
 from app.services.mainframe_location_service import MainframeLocationService
+from app.services.status_marker_service import StatusMarkerService
 
 
 class FakeDataLoader:
@@ -45,6 +46,7 @@ class FakeDbService:
                 ReleaseEffort(
                     effort_id="ABC",
                     qual_date=date(2026, 7, 14),
+                    prod_date=date(2026, 7, 15),
                 )
             ]
 
@@ -53,20 +55,26 @@ class FakeDbService:
 
 def make_location_line(
     ndvr_package: str,
+    element: str = "PGM001",
+    type_: str = "OCOB",
+    env: str = "QUAL1",
+    system: str = "PRIVATE0",
+    generated_date: str = "2026/07/14",
+    ndvr_rc: str = "00004",
 ) -> str:
     fields = [
-        ("PGM001", 8),
-        ("OCOB", 8),
-        ("PRIVATE0", 8),
+        (element, 8),
+        (type_, 8),
+        (system, 8),
         ("SYS1", 4),
-        ("QUAL1", 5),
-        ("2026/07/14", 10),
+        (env, 5),
+        (generated_date, 10),
         ("12:00:00:00", 11),
         ("01.01", 5),
         ("USER01", 8),
         ("CCID01", 7),
         ("COMMENTS", 40),
-        ("00004", 5),
+        (ndvr_rc, 5),
         ("", 1),
         (ndvr_package, 16),
     ]
@@ -110,3 +118,122 @@ def test_after_action_report_uses_ndvr_package_for_executed_date(
     output_text = output_files[0].read_text(encoding="utf-8")
     assert "PKG001" in output_text
     assert "Yes" in output_text
+
+
+def make_context(
+    dataframe: pd.DataFrame,
+    location_path: Path,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        data_loader=FakeDataLoader(dataframe),
+        db_service=FakeDbService(),
+        element_service=ElementService(),
+        location_service=MainframeLocationService().load_file(location_path),
+        status_marker_service=StatusMarkerService(
+            {
+                "marker_columns": ["Package"],
+                "do_not_move": ["DO NOT MOVE"],
+                "already_in_prod": ["PROD"],
+                "already_in_qual": ["QUAL"],
+            }
+        ),
+    )
+
+
+def test_after_action_archive_missing_from_prod_is_confirmed(
+    tmp_path: Path,
+) -> None:
+    """Archive rows are confirmed by no longer being present in PROD1."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC",
+                "Element": "ARCH001",
+                "Type": "OAPS",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "ARCHIVE",
+            }
+        ]
+    )
+    location_path = tmp_path / "locations.txt"
+    location_path.write_text(
+        make_location_line("PKG001"),
+        encoding="cp1252",
+    )
+
+    rows = AfterActionService(make_context(dataframe, location_path))._build_rows(
+        selected_date=date(2026, 7, 15),
+    )
+
+    assert rows[0][13] == "No longer in PROD1."
+
+
+def test_after_action_do_not_move_uses_marker_reason(
+    tmp_path: Path,
+) -> None:
+    """Do-not-move rows show the requested marker reason."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC",
+                "Element": "PGM001",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "DO NOT MOVE",
+            }
+        ]
+    )
+    location_path = tmp_path / "locations.txt"
+    location_path.write_text(
+        make_location_line("PKG001"),
+        encoding="cp1252",
+    )
+
+    rows = AfterActionService(make_context(dataframe, location_path))._build_rows(
+        selected_date=date(2026, 7, 14),
+    )
+
+    assert rows[0][13] == "Told us not to move."
+
+
+def test_after_action_already_there_marker_reports_outside_release_move(
+    tmp_path: Path,
+) -> None:
+    """Already-in-environment rows pull NDVR details and report outside release."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC",
+                "Element": "PGM001",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "IN PROD",
+            }
+        ]
+    )
+    location_path = tmp_path / "locations.txt"
+    location_path.write_text(
+        make_location_line(
+            "PKG999",
+            env="PROD1",
+            system="PRIVATE1",
+            generated_date="2026/07/10",
+            ndvr_rc="00012",
+        ),
+        encoding="cp1252",
+    )
+
+    rows = AfterActionService(make_context(dataframe, location_path))._build_rows(
+        selected_date=date(2026, 7, 15),
+    )
+
+    assert rows[0][9] == "No"
+    assert rows[0][10] == "PKG999"
+    assert rows[0][11] == "00012"
+    assert rows[0][13] == "Was moved outside of release."

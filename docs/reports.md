@@ -197,6 +197,8 @@ Statuses:
 
 - `APPROVED_MOVE`: inventory and SQL show the project was authorized for that
   QUAL/PROD move date.
+- `APPROVED_MOVE_AFTER_QUAL_DATE`: QUAL move happened after its QUAL date, but
+  before the PROD date passed.
 - `TRACKED_NOT_AUTHORIZED_FOR_DATE`: the element/type is in inventory, but no
   matching project had that move date. Expected SQL dates are listed.
 - `NOT_TRACKED_IN_INVENTORY`: the element/type moved in NDVR but was not found

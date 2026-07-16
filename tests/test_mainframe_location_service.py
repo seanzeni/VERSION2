@@ -16,6 +16,7 @@ def make_line(
     version: str,
     ccid: str = "CCID01",
     ndvr_rc: str = "00000",
+    ignored: str = "",
     ndvr_package: str = "",
 ) -> str:
     fields = [
@@ -31,7 +32,7 @@ def make_line(
         (ccid, 7),
         ("COMMENTS", 40),
         (ndvr_rc, 5),
-        ("", 1),
+        (ignored, 1),
         (ndvr_package, 16),
     ]
     return " ".join(value.ljust(width)[:width] for value, width in fields)
@@ -108,6 +109,33 @@ def test_parse_line_maps_added_ndvr_fields(
     record = MainframeLocationService().load_file(path).records[0]
 
     assert record.ndvr_rc == 123
+    assert record.ndvr_package == "PKG001"
+
+
+def test_parse_line_handles_ignore_character_before_package(
+    tmp_path: Path,
+) -> None:
+    """Verifies NDVR RC, ignored character, and package spacing."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line(
+                "PGM001",
+                "OCOB",
+                "PRIVATE1",
+                "SUB1",
+                "QUAL1",
+                "01.01",
+                ndvr_rc="00008",
+                ignored="X",
+                ndvr_package="PKG001",
+            ),
+        ],
+    )
+
+    record = MainframeLocationService().load_file(path).records[0]
+
+    assert record.ndvr_rc == 8
     assert record.ndvr_package == "PKG001"
 
 

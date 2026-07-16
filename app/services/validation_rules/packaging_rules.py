@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 # Purpose:
-#     Block rows whose loaded NDVR return code can break packaging.
+#     Block PROD rows whose loaded NDVR return code can break packaging.
 
 from app.core.models import PackagingStatus
 from app.core.status_messages import ReasonBuilder
+from app.services.validation_rules import selection_rules
 from app.services.validation_rules.base import RuleDefinition
 from app.services.validation_rules.base import RulePhase
 from app.services.validation_rules.base import ValidatorContext
@@ -17,7 +18,7 @@ RULE = RuleDefinition(
     name="packaging",
     phase=RulePhase.PACKAGING,
     dependencies=("location",),
-    description="Block element/type rows when any NDVR return code exceeds the threshold.",
+    description="Block non-archive PROD rows when any NDVR return code exceeds the threshold.",
 )
 
 
@@ -29,6 +30,9 @@ def apply(
     if location_service is None:
         return
 
+    if context.mode.upper() != "PROD":
+        return
+
     threshold = int(
         context.selection_rules.get(
             "ndvr_rc_max_allowed",
@@ -37,6 +41,9 @@ def apply(
     )
 
     for element in context.elements:
+        if selection_rules.is_archive_move(element):
+            continue
+
         bad_records = [
             record
             for record in location_service.find(

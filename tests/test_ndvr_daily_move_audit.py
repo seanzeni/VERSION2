@@ -213,3 +213,65 @@ def test_daily_move_audit_writes_xlsx_and_pdf(
     workbook = load_workbook(output_files[0], read_only=True)
     assert workbook.sheetnames == ["Summary", "Detail"]
     workbook.close()
+
+
+def test_qual_move_after_qual_date_before_prod_date_is_approved(
+    tmp_path: Path,
+) -> None:
+    """QUAL moves after QUAL date are approved while PROD date has not passed."""
+    inventory_path = write_inventory(tmp_path)
+    ndvr_folder = tmp_path / "ndvr"
+    ndvr_folder.mkdir()
+    ndvr_file = ndvr_folder / "NDVR-202607151200.txt"
+    ndvr_file.write_text(
+        make_ndvr_line(
+            "PGM001",
+            "OCOB",
+            "QUAL1",
+            "PRIVATE1",
+            "2026/07/15",
+            "PKG001",
+        ),
+        encoding="cp1252",
+    )
+    audit = audit_module.DailyMoveAudit(
+        settings=make_settings(tmp_path, inventory_path, ndvr_folder),
+        base_dir=tmp_path,
+        db_service=FakeDbService(),
+    )
+
+    rows = audit.build_rows(date(2026, 7, 15))
+
+    assert rows[0][0] == "APPROVED_MOVE_AFTER_QUAL_DATE"
+    assert "PROD 2026-07-15" in rows[0][13]
+    assert "moved after the QUAL date" in rows[0][14]
+
+
+def test_qual_move_after_prod_date_is_not_authorized(
+    tmp_path: Path,
+) -> None:
+    """QUAL grace does not apply once the PROD date has passed."""
+    inventory_path = write_inventory(tmp_path)
+    ndvr_folder = tmp_path / "ndvr"
+    ndvr_folder.mkdir()
+    ndvr_file = ndvr_folder / "NDVR-202607161200.txt"
+    ndvr_file.write_text(
+        make_ndvr_line(
+            "PGM001",
+            "OCOB",
+            "QUAL1",
+            "PRIVATE1",
+            "2026/07/16",
+            "PKG001",
+        ),
+        encoding="cp1252",
+    )
+    audit = audit_module.DailyMoveAudit(
+        settings=make_settings(tmp_path, inventory_path, ndvr_folder),
+        base_dir=tmp_path,
+        db_service=FakeDbService(),
+    )
+
+    rows = audit.build_rows(date(2026, 7, 16))
+
+    assert rows[0][0] == "TRACKED_NOT_AUTHORIZED_FOR_DATE"

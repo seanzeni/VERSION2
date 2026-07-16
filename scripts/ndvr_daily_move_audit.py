@@ -333,11 +333,13 @@ class DailyMoveAudit:
                 project=inventory_row.project,
             )
             expected_date = mode_date(effort, mode) if effort is not None else None
-            if expected_date is not None:
-                expected_dates.append(
-                    f"{inventory_row.release} / {inventory_row.project}: "
-                    f"{mode} {expected_date.isoformat()}"
+            expected_dates.extend(
+                self._format_expected_dates(
+                    release=inventory_row.release,
+                    project=inventory_row.project,
+                    effort=effort,
                 )
+            )
 
             if expected_date == target_date:
                 return AuthorizationResult(
@@ -351,6 +353,27 @@ class DailyMoveAudit:
                     ),
                 )
 
+            prod_date = mode_date(effort, "PROD") if effort is not None else None
+            if (
+                mode.upper() == "QUAL"
+                and expected_date is not None
+                and target_date > expected_date
+                and prod_date is not None
+                and prod_date >= target_date
+            ):
+                return AuthorizationResult(
+                    status="APPROVED_MOVE_AFTER_QUAL_DATE",
+                    release=inventory_row.release,
+                    project=inventory_row.project,
+                    expected_dates="; ".join(sorted(set(expected_dates))),
+                    reason=(
+                        "Inventory project was authorized for QUAL movement "
+                        f"on {expected_date.isoformat()}, moved after the QUAL "
+                        f"date on {target_date.isoformat()}, and PROD date "
+                        f"{prod_date.isoformat()} has not passed."
+                    ),
+                )
+
         return AuthorizationResult(
             status="TRACKED_NOT_AUTHORIZED_FOR_DATE",
             release=", ".join(sorted({row.release for row in inventory_rows})),
@@ -361,6 +384,27 @@ class DailyMoveAudit:
                 f"was authorized for {mode} movement on {target_date.isoformat()}."
             ),
         )
+
+    def _format_expected_dates(
+        self,
+        release: str,
+        project: str,
+        effort,
+    ) -> list[str]:
+        if effort is None:
+            return []
+
+        dates: list[str] = []
+        for mode in ("QUAL", "PROD"):
+            expected_date = mode_date(effort, mode)
+            if expected_date is None:
+                continue
+
+            dates.append(
+                f"{release} / {project}: {mode} {expected_date.isoformat()}"
+            )
+
+        return dates
 
     def _find_effort(
         self,

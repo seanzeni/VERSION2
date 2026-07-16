@@ -126,6 +126,8 @@ def build_after_action_row(
     expected_system: str,
     expected_subsystem: str,
     record: MainframeLocationRecord | None,
+    moved_on_date: str | None = None,
+    reason: str | None = None,
 ) -> list[object]:
     moved = record is not None
     return [
@@ -138,11 +140,17 @@ def build_after_action_row(
         expected_env,
         expected_system,
         expected_subsystem,
-        "Yes" if moved else "No",
+        moved_on_date if moved_on_date is not None else ("Yes" if moved else "No"),
         record.ndvr_package if record is not None else "",
         f"{record.ndvr_rc:05d}" if record is not None and record.ndvr_rc is not None else "",
         record.time_generated if record is not None else "",
-        "" if moved else "No matching NDVR record was found for the selected move date.",
+        reason
+        if reason is not None
+        else (
+            ""
+            if moved
+            else "No matching NDVR record was found for the selected move date."
+        ),
     ]
 
 

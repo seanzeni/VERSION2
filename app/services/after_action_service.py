@@ -10,6 +10,7 @@ from typing import Any
 from app.core.models import Element
 from app.core.models import MainframeLocationRecord
 from app.core.models import ReleaseEffort
+from app.core.package_rules import is_archive_package
 from app.reports.after_action_report import AfterActionReport
 from app.reports.after_action_report import build_after_action_row
 from app.reports.after_action_report import parse_report_date
@@ -105,16 +106,8 @@ class AfterActionService:
                     expected_env = self._target_env(mode)
                     expected_system = self._expected_system(mode, element)
                     expected_subsystem = self._expected_subsystem(element)
-                    record = self._find_matching_record(
-                        element=element,
-                        mode=mode,
-                        selected_date=selected_date,
-                        expected_env=expected_env,
-                        expected_system=expected_system,
-                        expected_subsystem=expected_subsystem,
-                    )
                     rows.append(
-                        build_after_action_row(
+                        self._build_element_row(
                             release=release,
                             mode=mode,
                             move_date=selected_date,
@@ -122,11 +115,104 @@ class AfterActionService:
                             expected_env=expected_env,
                             expected_system=expected_system,
                             expected_subsystem=expected_subsystem,
-                            record=record,
                         )
                     )
 
         return rows
+
+    def _build_element_row(
+        self,
+        release: str,
+        mode: str,
+        move_date: date,
+        element: Element,
+        expected_env: str,
+        expected_system: str,
+        expected_subsystem: str,
+    ) -> list[object]:
+        marker_service = getattr(
+            self.context,
+            "status_marker_service",
+            None,
+        )
+
+        if marker_service is not None and marker_service.is_do_not_move(element):
+            return build_after_action_row(
+                release=release,
+                mode=mode,
+                move_date=move_date,
+                element=element,
+                expected_env=expected_env,
+                expected_system=expected_system,
+                expected_subsystem=expected_subsystem,
+                record=None,
+                moved_on_date="No",
+                reason="Told us not to move.",
+            )
+
+        marker_record = self._find_marked_environment_record(
+            element=element,
+            expected_system=expected_system,
+            expected_subsystem=expected_subsystem,
+        )
+        if marker_record is not None:
+            return build_after_action_row(
+                release=release,
+                mode=mode,
+                move_date=move_date,
+                element=element,
+                expected_env=marker_record.env,
+                expected_system=marker_record.system,
+                expected_subsystem=marker_record.subsystem,
+                record=marker_record,
+                moved_on_date="No",
+                reason="Was moved outside of release.",
+            )
+
+        if (
+            mode.upper() == "PROD"
+            and is_archive_package(
+                element.source_row.get(
+                    "Package",
+                    "",
+                )
+            )
+            and not self._exists_in_env(
+                element=element,
+                env="PROD1",
+            )
+        ):
+            return build_after_action_row(
+                release=release,
+                mode=mode,
+                move_date=move_date,
+                element=element,
+                expected_env=expected_env,
+                expected_system=expected_system,
+                expected_subsystem=expected_subsystem,
+                record=None,
+                moved_on_date="No",
+                reason="No longer in PROD1.",
+            )
+
+        record = self._find_matching_record(
+            element=element,
+            mode=mode,
+            selected_date=move_date,
+            expected_env=expected_env,
+            expected_system=expected_system,
+            expected_subsystem=expected_subsystem,
+        )
+        return build_after_action_row(
+            release=release,
+            mode=mode,
+            move_date=move_date,
+            element=element,
+            expected_env=expected_env,
+            expected_system=expected_system,
+            expected_subsystem=expected_subsystem,
+            record=record,
+        )
 
     def _find_matching_record(
         self,
@@ -168,6 +254,69 @@ class AfterActionService:
             key=lambda record: record.time_generated,
             reverse=True,
         )[0]
+
+    def _find_marked_environment_record(
+        self,
+        element: Element,
+        expected_system: str,
+        expected_subsystem: str,
+    ) -> MainframeLocationRecord | None:
+        marker_service = getattr(
+            self.context,
+            "status_marker_service",
+            None,
+        )
+        location_service = self.context.location_service
+
+        if marker_service is None or location_service is None:
+            return None
+
+        records: list[MainframeLocationRecord] = []
+        for env, _label in marker_service.get_marked_environments(element):
+            env_records = [
+                record
+                for record in location_service.find(
+                    element.element,
+                    element.type,
+                )
+                if record.env.strip().upper() == env
+            ]
+            if env == "PROD1":
+                env_records = [
+                    record
+                    for record in env_records
+                    if record.system.strip().upper() == expected_system
+                    and record.subsystem.strip().upper() == expected_subsystem
+                ]
+            records.extend(env_records)
+
+        if not records:
+            return None
+
+        return sorted(
+            records,
+            key=lambda record: (
+                parse_report_date(record.date_generated) or date.min,
+                record.time_generated,
+            ),
+            reverse=True,
+        )[0]
+
+    def _exists_in_env(
+        self,
+        element: Element,
+        env: str,
+    ) -> bool:
+        location_service = self.context.location_service
+
+        if location_service is None:
+            return False
+
+        return location_service.exists_in_env(
+            element=element.element,
+            type_=element.type,
+            env=env,
+        )
 
     def _effort_move_date(
         self,
