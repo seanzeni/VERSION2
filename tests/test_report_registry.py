@@ -102,6 +102,7 @@ def make_location_service(
     path.write_text(
         "\n".join(
             [
+                make_location_line("PGM001", "OCOB", "PROD1", "01.03", "CCID00"),
                 make_location_line("PGM001", "OCOB", "DEVL1", "01.02", "CCID01"),
                 make_location_line("PGM001", "OCOB", "QUAL1", "01.01", "CCID02"),
             ]
@@ -291,7 +292,7 @@ def test_generate_resync_report_csv(tmp_path: Path) -> None:
     )
 
     assert output is not None and output.exists()
-    assert "Higher version exists" in output.read_text(encoding="utf-8")
+    assert "PROD1 has newer version" in output.read_text(encoding="utf-8")
     make_writable(output)
 
 

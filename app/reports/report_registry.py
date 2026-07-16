@@ -390,6 +390,7 @@ class ReportRegistry:
     ) -> Path:
         return ResyncReport().generate(
             release=state.release,
+            mode=state.mode,
             elements=state.loaded_elements,
             location_service=self.get_location_service(),
             output_folder=output_folder,
@@ -404,6 +405,7 @@ class ReportRegistry:
     ) -> Path:
         return ResyncReport().generate_pdf(
             release=state.release,
+            mode=state.mode,
             elements=state.loaded_elements,
             location_service=self.get_location_service(),
             output_folder=output_folder,

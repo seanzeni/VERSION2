@@ -128,9 +128,15 @@ Output is written under:
 ## Resync Report
 
 `Resync_Report.csv`, `.xlsx`, and `.pdf` identify possible resync candidates
-from NDVR data. A row appears only when a matching element/type has a newer
-version in an equal or lower environment level. CCID differences do not create
-resync rows, and FIXP1 remains excluded from version comparisons.
+from NDVR data using the selected move mode.
+
+For QUAL moves, `QUAL1` is the newer source. The report compares that version
+against `MAIN1` and `DEVL1`, skipping the inventory row's current moving
+location so the row being promoted does not report itself.
+
+For PROD moves, `PROD1` is the newer source. The report compares that version
+against `QUAL1`, `MAIN1`, and `DEVL1`, again skipping the inventory row's
+current moving location. `FIXP1` is always ignored for resync.
 
 ## OSG/COPS Report
 

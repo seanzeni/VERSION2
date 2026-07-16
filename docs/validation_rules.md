@@ -88,11 +88,13 @@ two rules are otherwise independent.
 ## Resync Report Logic
 
 The Resync Report is not part of the element validation rule pipeline. It is a
-report-only NDVR analysis in `app/reports/resync_report.py` using helper methods
-from `app/services/mainframe_location_service.py`.
+report-only NDVR analysis in `app/reports/resync_report.py`.
 
-It looks for matching element/type records where a lower environment has an
-older version or different latest CCID than a higher environment.
+For QUAL mode, `QUAL1` is treated as the newer source and is compared to
+`MAIN1` and `DEVL1`. For PROD mode, `PROD1` is treated as the newer source and
+is compared to `QUAL1`, `MAIN1`, and `DEVL1`. In both modes, the selected
+inventory row's current moving location is ignored so the move itself does not
+create a resync row. `FIXP1` is excluded.
 
 ## How To Add A Rule
 
