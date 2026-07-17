@@ -27,6 +27,8 @@
 import math
 from typing import Any
 
+from app.core.package_rules import is_archive_package
+
 RECORD_SIZE = 150  # Record length for output
 
 
@@ -97,8 +99,8 @@ def build_record(
         elif act_region.startswith("LO"):
             env = "MAIN1"
 
-    # For archive elements, they will be coming from PROD1.
-    if mode.upper() == "PROD":
+    # For PROD moves, normal rows come from QUAL1. Archive rows come from PROD1.
+    if mode.upper() == "PROD" and is_archive_package(source_row.get("Package", "")):
         env = "PROD1"
 
     write(60, 5, env)

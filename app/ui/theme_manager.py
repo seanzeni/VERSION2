@@ -13,7 +13,7 @@
 #     StatusBar
 #
 # Responsibilities:
-#     - Apply Light/Dark/System appearance mode.
+#     - Apply Light/Dark appearance mode.
 #     - Store the active theme choice in UI settings.
 #     - Provide theme-aware colors.
 #     - Notify registered UI widgets when appearance changes.
@@ -27,9 +27,8 @@ import customtkinter as ctk
 
 class ThemeManager:
     THEMES = (
-        "System",
-        "Light",
         "Dark",
+        "Light",
     )
 
     def __init__(
@@ -42,7 +41,7 @@ class ThemeManager:
         self.current_theme = str(
             self.ui_settings.get(
                 "appearance_mode",
-                "System",
+                "Dark",
             )
         )
 
@@ -62,7 +61,7 @@ class ThemeManager:
         theme: str,
     ) -> None:
         if theme not in self.THEMES:
-            theme = "System"
+            theme = "Dark"
 
         self.current_theme = theme
         self.ui_settings["appearance_mode"] = theme

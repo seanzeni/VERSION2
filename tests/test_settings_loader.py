@@ -30,7 +30,7 @@ def make_settings() -> dict:
             "window_height": 900,
             "min_threads": 1,
             "max_threads": 20,
-            "appearance_mode": "System",
+            "appearance_mode": "Dark",
             "color_theme": "blue",
         },
         "workload": {
