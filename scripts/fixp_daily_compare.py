@@ -58,6 +58,7 @@ DETAIL_HEADERS = [
     "Type",
     "FIXP Date",
     "FIXP CCID",
+    "Inventory CCIDs",
     "Owner",
     "Manager",
     "Inventory",
@@ -250,6 +251,7 @@ class FixpDailyCompare:
             owner_info = self._resolve_owner_info(
                 user_id=display_record.user,
             )
+            inventory_ccids = self._format_inventory_ccids(inventory_references)
             inventory = self._format_inventory(inventory_references)
             remarks = self._build_remarks(
                 fixp_record=display_record,
@@ -265,6 +267,7 @@ class FixpDailyCompare:
                     display_record.type,
                     self._format_fixp_date(display_record.date_generated),
                     display_record.ccid,
+                    inventory_ccids,
                     owner_info.owner,
                     owner_info.manager,
                     inventory,
@@ -540,6 +543,20 @@ class FixpDailyCompare:
             )
         )
 
+    def _format_inventory_ccids(
+        self,
+        references: list[InventoryReference],
+    ) -> str:
+        return "; ".join(
+            sorted(
+                {
+                    reference.project
+                    for reference in references
+                    if reference.project
+                }
+            )
+        )
+
     def _build_remarks(
         self,
         fixp_record: MainframeLocationRecord,
@@ -596,6 +613,7 @@ class FixpDailyCompare:
                 "",
                 "",
                 compare_dates.target_date.strftime("%d-%b-%y"),
+                "",
                 "",
                 "",
                 "",

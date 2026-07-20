@@ -365,17 +365,18 @@ def test_fixp_daily_compare_builds_expected_rows(
             "SAME001": "no change",
         }
     assert next(row[7] for row in rows if row[4] == "SAME001") == "CCID99"
-    assert next(row[8] for row in rows if row[4] == "MOD001") == "User Two"
-    assert next(row[9] for row in rows if row[4] == "MOD001") == "Manager Two"
-    assert next(row[10] for row in rows if row[4] == "MOD001") == (
+    assert next(row[8] for row in rows if row[4] == "MOD001") == "XYZ"
+    assert next(row[9] for row in rows if row[4] == "MOD001") == "User Two"
+    assert next(row[10] for row in rows if row[4] == "MOD001") == "Manager Two"
+    assert next(row[11] for row in rows if row[4] == "MOD001") == (
         "2026/08 release-XYZ-Taylor Two"
     )
-    assert next(row[11] for row in rows if row[4] == "SAME001") == (
+    assert next(row[12] for row in rows if row[4] == "SAME001") == (
         "Newer version in PROD"
     )
-    assert next(row[11] for row in rows if row[4] == "KEEP001") == ""
+    assert next(row[12] for row in rows if row[4] == "KEEP001") == ""
     assert next(row[6] for row in rows if row[4] == "DROP001") == "14-Jul-26"
-    assert next(row[8] for row in rows if row[4] == "DROP001") == "User One"
+    assert next(row[9] for row in rows if row[4] == "DROP001") == "User One"
 
 
 def test_fixp_daily_compare_writes_xlsx(
@@ -399,7 +400,13 @@ def test_fixp_daily_compare_writes_xlsx(
     assert workbook.sheetnames == ["FIXP Compare"]
     worksheet = workbook["FIXP Compare"]
     headers = [cell.value for cell in next(worksheet.iter_rows(max_row=1))]
-    assert headers[8:12] == ["Owner", "Manager", "Inventory", "Remarks"]
+    assert headers[8:13] == [
+        "Inventory CCIDs",
+        "Owner",
+        "Manager",
+        "Inventory",
+        "Remarks",
+    ]
     workbook.close()
 
 
