@@ -6,6 +6,7 @@
     "trusted_connection": true
   },
   "files": {
+    "default_fixp_folder": "",
     "default_input_file": "\\\\rset\\rset\\DB\\Consolidated-Inventory.xls",
     "default_input_folder": "\\\\rset\\rset\\DB\\",
     "default_ndvr_file": "\\\\rset\\rset\\DB\\endevor-inventory",
