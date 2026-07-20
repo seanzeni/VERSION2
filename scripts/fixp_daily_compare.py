@@ -702,6 +702,25 @@ class PersonApiResolver:
         self,
         criteria: str,
     ) -> str:
+        if "{criteria}" in self.lookup_url:
+            return self.lookup_url.replace(
+                "{criteria}",
+                urlencode({"": criteria})[1:],
+            )
+
+        for placeholder in (
+            "xxxxx",
+            "XXXXX",
+        ):
+            if placeholder in self.lookup_url:
+                return self.lookup_url.replace(
+                    placeholder,
+                    urlencode({"": criteria})[1:],
+                )
+
+        if self.lookup_url.endswith(("criteria=", "criteria%3D")):
+            return f"{self.lookup_url}{urlencode({'': criteria})[1:]}"
+
         separator = "&" if "?" in self.lookup_url else "?"
         return f"{self.lookup_url}{separator}{urlencode({'criteria': criteria})}"
 
@@ -811,8 +830,16 @@ class ActiveDirectoryNameResolver:
         return (
             "$ErrorActionPreference = 'Stop'; "
             "Import-Module ActiveDirectory; "
-            f"$user = Get-ADUser -Identity '{escaped_ad_id}' "
-            "-Properties DisplayName; "
+            f"$lookup = '{escaped_ad_id}'; "
+            "$user = $null; "
+            "try { "
+            "$user = Get-ADUser -Identity $lookup -Properties DisplayName "
+            "} catch { "
+            "$safeLookup = $lookup.Replace(\"'\", \"''\"); "
+            "$user = Get-ADUser "
+            "-Filter \"EmployeeID -eq '$safeLookup' -or SamAccountName -eq '$safeLookup'\" "
+            "-Properties DisplayName | Select-Object -First 1 "
+            "}; "
             "[PSCustomObject]@{ "
             "DisplayName = $user.DisplayName "
             "} | ConvertTo-Json -Compress"

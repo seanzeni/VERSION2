@@ -522,6 +522,30 @@ def test_person_api_resolver_uses_api_ids_and_ad_names(
     assert resolver.resolve_name(person.supervisor_id) == "Manager Two"
 
 
+def test_person_api_resolver_supports_configured_criteria_url() -> None:
+    """Verifies settings can include the criteria placeholder directly."""
+    resolver = fixp_module.PersonApiResolver(
+        "https://people.example/search?criteria=xxxxx",
+        name_resolver=FakeNameResolver(),
+    )
+
+    assert resolver._lookup_request_url("USER02") == (
+        "https://people.example/search?criteria=USER02"
+    )
+
+
+def test_person_api_resolver_supports_trailing_criteria_url() -> None:
+    """Verifies settings can end with an empty criteria query parameter."""
+    resolver = fixp_module.PersonApiResolver(
+        "https://people.example/search?criteria=",
+        name_resolver=FakeNameResolver(),
+    )
+
+    assert resolver._lookup_request_url("USER02") == (
+        "https://people.example/search?criteria=USER02"
+    )
+
+
 def test_parse_target_date_defaults_to_previous_day() -> None:
     """Verifies an explicit CLI date is parsed as the requested report date."""
     assert fixp_module.parse_target_date("2026-07-19", today=date(2026, 7, 20)) == date(
