@@ -23,6 +23,10 @@ from urllib.parse import urlencode
 
 import requests
 
+requests.packages.urllib3.disable_warnings(
+    requests.packages.urllib3.exceptions.InsecureRequestWarning
+)
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -739,12 +743,17 @@ class PersonApiResolver:
             )
             response.raise_for_status()
             return response.json()
-        except requests.HTTPError as exc:
+        except requests.exceptions.HTTPError as exc:
             self._debug(
                 f"Requests API lookup failed for {criteria!r}: HTTP "
                 f"{exc.response.status_code if exc.response is not None else 'unknown'}"
             )
-        except requests.RequestException as exc:
+        except requests.exceptions.SSLError as exc:
+            self._debug(
+                f"Requests SSL issue ignored for {criteria!r}; "
+                f"falling back to PowerShell: {exc}"
+            )
+        except requests.exceptions.RequestException as exc:
             self._debug(
                 f"Requests API lookup failed for {criteria!r}: "
                 f"{type(exc).__name__}: {exc}"

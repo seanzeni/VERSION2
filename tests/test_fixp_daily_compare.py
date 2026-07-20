@@ -526,7 +526,9 @@ def test_person_api_resolver_falls_back_to_powershell(
         timeout,
         verify,
     ):
-        raise requests.ConnectionError("corporate proxy requires Windows auth")
+        raise requests.exceptions.ConnectionError(
+            "corporate proxy requires Windows auth"
+        )
 
     def fake_run(
         command,
@@ -542,6 +544,55 @@ def test_person_api_resolver_falls_back_to_powershell(
             args=command,
             returncode=0,
             stdout='[{"employeeId":"ADU2","supervisorId":"MGR2"}]',
+            stderr="",
+        )
+
+    monkeypatch.setattr(
+        fixp_module.requests,
+        "get",
+        fake_get,
+    )
+    monkeypatch.setattr(
+        fixp_module.subprocess,
+        "run",
+        fake_run,
+    )
+    resolver = fixp_module.PersonApiResolver(
+        "https://people.example/api",
+        name_resolver=FakeNameResolver(),
+    )
+
+    person = resolver.resolve("USER02")
+
+    assert person.name == "User Two"
+    assert person.employee_id == "ADU2"
+    assert person.supervisor_id == "MGR2"
+
+
+def test_person_api_resolver_ignores_ssl_errors_with_powershell_fallback(
+    monkeypatch,
+) -> None:
+    """Verifies SSL handshake errors do not stop person lookup."""
+
+    def fake_get(
+        url,
+        timeout,
+        verify,
+    ):
+        raise requests.exceptions.SSLError("sslv3 alert handshake failure")
+
+    def fake_run(
+        command,
+        capture_output,
+        check,
+        encoding,
+        errors,
+        timeout,
+    ):
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout='{"employeeId":"ADU2","supervisorId":"MGR2"}',
             stderr="",
         )
 
