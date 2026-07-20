@@ -479,23 +479,12 @@ class FixpDailyCompare:
         if previous_record is None:
             return "modified"
 
-        if self._record_signature(previous_record.record) == self._record_signature(
-            target_record.record
+        if coerce_date(previous_record.record.date_generated) == coerce_date(
+            target_record.record.date_generated
         ):
             return "no change"
 
         return "modified"
-
-    def _record_signature(
-        self,
-        record: MainframeLocationRecord,
-    ) -> tuple[str, str, str, str]:
-        return (
-            record.version.strip().upper(),
-            record.ccid.strip().upper(),
-            record.user.strip().upper(),
-            record.comments.strip().upper(),
-        )
 
     def _record_key(
         self,

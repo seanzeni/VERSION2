@@ -235,7 +235,7 @@ def write_fixp_files(
                     "SYSTEM01",
                     "SUB1",
                     "FIXP1",
-                    "2026/07/15",
+                    "2026/07/14",
                     "01.01",
                     "USER01",
                     "CCID01",
@@ -274,7 +274,7 @@ def write_fixp_files(
             "SYSTEM01",
             "SUB1",
             "FIXP1",
-            "2026/07/15",
+            "2026/07/14",
             "01.01",
             "USER01",
             "CCID99",
@@ -360,11 +360,11 @@ def test_fixp_daily_compare_builds_expected_rows(
     statuses = {row[4]: row[0] for row in rows}
 
     assert statuses == {
-        "DROP001": "deleted",
-        "KEEP001": "no change",
-        "MOD001": "modified",
-        "SAME001": "modified",
-    }
+            "DROP001": "deleted",
+            "KEEP001": "modified",
+            "MOD001": "modified",
+            "SAME001": "no change",
+        }
     assert next(row[7] for row in rows if row[4] == "SAME001") == "CCID99"
     assert next(row[8] for row in rows if row[4] == "MOD001") == "User Two"
     assert next(row[9] for row in rows if row[4] == "MOD001") == "Manager Two"
