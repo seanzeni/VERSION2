@@ -18,27 +18,63 @@ sys.modules["fixp_daily_compare"] = fixp_module
 SPEC.loader.exec_module(fixp_module)
 
 
-class FakeAdResolver:
+class FakePersonResolver:
     def resolve(
         self,
-        user_id: str,
+        criteria: str,
     ):
         return {
-            "TL01": fixp_module.OwnerDirectoryInfo(
-                owner="Taylor One",
-                manager="Morgan Manager",
+            "USER01": fixp_module.PersonDirectoryInfo(
+                name="User One",
+                employee_id="ADU1",
+                supervisor_id="MGR1",
             ),
-            "TL02": fixp_module.OwnerDirectoryInfo(
-                owner="Taylor Two",
-                manager="Mara Manager",
+            "USER02": fixp_module.PersonDirectoryInfo(
+                name="User Two",
+                employee_id="ADU2",
+                supervisor_id="MGR2",
             ),
-            "TL03": fixp_module.OwnerDirectoryInfo(
-                owner="Taylor Three",
-                manager="Morgan Manager",
+            "TL01": fixp_module.PersonDirectoryInfo(
+                name="Taylor One",
+                employee_id="ADT1",
+            ),
+            "TL02": fixp_module.PersonDirectoryInfo(
+                name="Taylor Two",
+                employee_id="ADT2",
+            ),
+            "TL03": fixp_module.PersonDirectoryInfo(
+                name="Taylor Three",
+                employee_id="ADT3",
             ),
         }.get(
-            user_id,
-            fixp_module.OwnerDirectoryInfo(owner=user_id),
+            criteria,
+            fixp_module.PersonDirectoryInfo(name=criteria),
+        )
+
+    def resolve_name(
+        self,
+        ad_id: str,
+    ) -> str:
+        return {
+            "MGR1": "Manager One",
+            "MGR2": "Manager Two",
+        }.get(
+            ad_id,
+            ad_id,
+        )
+
+
+class FakeNameResolver:
+    def resolve_name(
+        self,
+        ad_id: str,
+    ) -> str:
+        return {
+            "ADU2": "User Two",
+            "MGR2": "Manager Two",
+        }.get(
+            ad_id,
+            ad_id,
         )
 
 
@@ -315,7 +351,7 @@ def test_fixp_daily_compare_builds_expected_rows(
     report = fixp_module.FixpDailyCompare(
         settings=make_settings(tmp_path, inventory_path, fixp_folder, ndvr_folder),
         base_dir=tmp_path,
-        ad_resolver=FakeAdResolver(),
+        person_resolver=FakePersonResolver(),
     )
 
     rows = report.build_rows(date(2026, 7, 15))
@@ -328,17 +364,17 @@ def test_fixp_daily_compare_builds_expected_rows(
         "SAME001": "modified",
     }
     assert next(row[7] for row in rows if row[4] == "SAME001") == "CCID99"
-    assert next(row[8] for row in rows if row[4] == "MOD001") == "Taylor Two"
-    assert next(row[9] for row in rows if row[4] == "MOD001") == "Mara Manager"
+    assert next(row[8] for row in rows if row[4] == "MOD001") == "User Two"
+    assert next(row[9] for row in rows if row[4] == "MOD001") == "Manager Two"
     assert next(row[10] for row in rows if row[4] == "MOD001") == (
-        "2026/08 release-XYZ-TL02"
+        "2026/08 release-XYZ-Taylor Two"
     )
     assert next(row[11] for row in rows if row[4] == "SAME001") == (
         "Newer version in PROD"
     )
     assert next(row[11] for row in rows if row[4] == "KEEP001") == ""
     assert next(row[6] for row in rows if row[4] == "DROP001") == "14-Jul-26"
-    assert next(row[8] for row in rows if row[4] == "DROP001") == "USER01"
+    assert next(row[8] for row in rows if row[4] == "DROP001") == "User One"
 
 
 def test_fixp_daily_compare_writes_xlsx(
@@ -350,7 +386,7 @@ def test_fixp_daily_compare_writes_xlsx(
     report = fixp_module.FixpDailyCompare(
         settings=make_settings(tmp_path, inventory_path, fixp_folder),
         base_dir=tmp_path,
-        ad_resolver=FakeAdResolver(),
+        person_resolver=FakePersonResolver(),
     )
 
     output_files = report.run(date(2026, 7, 15))
@@ -389,7 +425,7 @@ def test_fixp_daily_compare_defaults_to_latest_two_file_dates(
     report = fixp_module.FixpDailyCompare(
         settings=make_settings(tmp_path, inventory_path, fixp_folder),
         base_dir=tmp_path,
-        ad_resolver=FakeAdResolver(),
+        person_resolver=FakePersonResolver(),
     )
 
     output_files = report.run(None)
@@ -422,7 +458,7 @@ def test_fixp_daily_compare_archives_previous_latest_file(
         settings=make_settings(tmp_path, inventory_path, fixp_folder),
         base_dir=tmp_path,
         output_folder=output_folder,
-        ad_resolver=FakeAdResolver(),
+        person_resolver=FakePersonResolver(),
     )
 
     output_files = report.run(date(2026, 7, 15))
@@ -432,6 +468,58 @@ def test_fixp_daily_compare_archives_previous_latest_file(
     assert len(archived_files) == 1
     assert archived_files[0].read_text(encoding="utf-8") == "old workbook"
     assert previous_latest.exists()
+
+
+def test_person_api_resolver_uses_api_ids_and_ad_names(
+    monkeypatch,
+) -> None:
+    """Verifies API IDs are translated to display names through AD lookup."""
+
+    class FakeResponse:
+        def __enter__(
+            self,
+        ):
+            return self
+
+        def __exit__(
+            self,
+            exc_type,
+            exc,
+            traceback,
+        ) -> None:
+            return None
+
+        def read(
+            self,
+        ) -> bytes:
+            return (
+                b'{"employeeId": "ADU2", "supervisorId": "MGR2"}'
+            )
+
+    def fake_urlopen(
+        url,
+        timeout,
+    ):
+        assert url == "https://people.example/api?criteria=USER02"
+        assert timeout == 10
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        fixp_module,
+        "urlopen",
+        fake_urlopen,
+    )
+    resolver = fixp_module.PersonApiResolver(
+        "https://people.example/api",
+        name_resolver=FakeNameResolver(),
+    )
+
+    person = resolver.resolve("USER02")
+
+    assert person.name == "User Two"
+    assert person.employee_id == "ADU2"
+    assert person.supervisor_id == "MGR2"
+    assert resolver.resolve_name(person.supervisor_id) == "Manager Two"
 
 
 def test_parse_target_date_defaults_to_previous_day() -> None:

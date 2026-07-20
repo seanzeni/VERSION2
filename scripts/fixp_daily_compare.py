@@ -19,6 +19,10 @@ from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError
+from urllib.error import URLError
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -63,6 +67,7 @@ class InventoryReference:
     release: str
     project: str
     team_lead: str
+    team_lead_name: str = ""
 
     @property
     def label(self) -> str:
@@ -71,14 +76,21 @@ class InventoryReference:
             for value in (
                 self.release,
                 self.project,
-                self.team_lead,
+                self.team_lead_name or self.team_lead,
             )
             if value
         )
 
 
 @dataclass(frozen=True, slots=True)
-class OwnerDirectoryInfo:
+class PersonDirectoryInfo:
+    name: str
+    employee_id: str = ""
+    supervisor_id: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerManagerInfo:
     owner: str
     manager: str = ""
 
@@ -104,7 +116,7 @@ class FixpDailyCompare:
         ndvr_source: Path | None = None,
         inventory_file: Path | None = None,
         output_folder: Path | None = None,
-        ad_resolver=None,
+        person_resolver=None,
     ) -> None:
         self.settings = settings
         self.base_dir = base_dir
@@ -136,7 +148,15 @@ class FixpDailyCompare:
                 "Output",
             )
         )
-        self.ad_resolver = ad_resolver or ActiveDirectoryResolver()
+        self.person_resolver = person_resolver or PersonApiResolver(
+            settings.get(
+                "directory",
+                {},
+            ).get(
+                "person_lookup_url",
+                "",
+            )
+        )
 
     def run(
         self,
@@ -223,8 +243,7 @@ class FixpDailyCompare:
 
             inventory_references = inventory_lookup.get(display_record.key, [])
             owner_info = self._resolve_owner_info(
-                inventory_references=inventory_references,
-                fallback_owner=display_record.user,
+                user_id=display_record.user,
             )
             inventory = self._format_inventory(inventory_references)
             remarks = self._build_remarks(
@@ -429,6 +448,9 @@ class FixpDailyCompare:
                     release=str(row.get("Release", "")).strip(),
                     project=str(row.get("Project", "")).strip(),
                     team_lead=str(row.get("DSN ID", "")).strip()[:4],
+                    team_lead_name=self.person_resolver.resolve(
+                        str(row.get("DSN ID", "")).strip()[:4]
+                    ).name,
                 )
             )
 
@@ -546,44 +568,18 @@ class FixpDailyCompare:
 
     def _resolve_owner_info(
         self,
-        inventory_references: list[InventoryReference],
-        fallback_owner: str,
-    ) -> OwnerDirectoryInfo:
-        team_leads = sorted(
-            {
-                reference.team_lead.strip().upper()
-                for reference in inventory_references
-                if reference.team_lead.strip()
-            }
+        user_id: str,
+    ) -> OwnerManagerInfo:
+        owner = self.person_resolver.resolve(user_id)
+        manager = (
+            self.person_resolver.resolve_name(owner.supervisor_id)
+            if owner.supervisor_id
+            else ""
         )
 
-        if not team_leads:
-            return OwnerDirectoryInfo(
-                owner=str(fallback_owner).strip(),
-            )
-
-        resolved = [
-            self.ad_resolver.resolve(team_lead)
-            for team_lead in team_leads
-        ]
-
-        return OwnerDirectoryInfo(
-            owner=self._join_unique_values(info.owner for info in resolved),
-            manager=self._join_unique_values(info.manager for info in resolved),
-        )
-
-    def _join_unique_values(
-        self,
-        values,
-    ) -> str:
-        return "; ".join(
-            sorted(
-                {
-                    str(value).strip()
-                    for value in values
-                    if str(value).strip()
-                }
-            )
+        return OwnerManagerInfo(
+            owner=owner.name,
+            manager=manager,
         )
 
     def _empty_rows(
@@ -621,29 +617,161 @@ class FixpDailyCompare:
         return self.base_dir / path
 
 
-class ActiveDirectoryResolver:
+class PersonApiResolver:
     def __init__(
         self,
+        lookup_url: str,
+        name_resolver=None,
     ) -> None:
-        self._cache: dict[str, OwnerDirectoryInfo] = {}
+        self.lookup_url = str(lookup_url).strip()
+        self.name_resolver = name_resolver or ActiveDirectoryNameResolver()
+        self._cache: dict[str, PersonDirectoryInfo] = {}
 
     def resolve(
         self,
-        user_id: str,
-    ) -> OwnerDirectoryInfo:
-        clean_user_id = str(user_id).strip().upper()
-        if not clean_user_id:
-            return OwnerDirectoryInfo(owner="")
+        criteria: str,
+    ) -> PersonDirectoryInfo:
+        clean_criteria = str(criteria).strip()
+        if not clean_criteria:
+            return PersonDirectoryInfo(name="")
 
-        if clean_user_id not in self._cache:
-            self._cache[clean_user_id] = self._lookup(clean_user_id)
+        cache_key = clean_criteria.upper()
+        if cache_key not in self._cache:
+            self._cache[cache_key] = self._lookup(clean_criteria)
 
-        return self._cache[clean_user_id]
+        return self._cache[cache_key]
 
     def _lookup(
         self,
-        user_id: str,
-    ) -> OwnerDirectoryInfo:
+        criteria: str,
+    ) -> PersonDirectoryInfo:
+        if not self.lookup_url:
+            return PersonDirectoryInfo(
+                name=self.resolve_name(criteria),
+            )
+
+        try:
+            with urlopen(
+                self._lookup_request_url(criteria),
+                timeout=10,
+            ) as response:
+                payload = json.loads(response.read().decode("utf-8-sig"))
+        except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError):
+            return PersonDirectoryInfo(name=criteria)
+
+        person = self._extract_person_payload(payload)
+        if not person:
+            return PersonDirectoryInfo(name=criteria)
+
+        employee_id = self._first_value(
+            person,
+            (
+                "employeeId",
+                "employeeID",
+                "id",
+            ),
+        )
+        supervisor_id = self._first_value(
+            person,
+            (
+                "supervisorId",
+                "supervisorID",
+                "managerId",
+                "managerID",
+                "supervisorEmployeeId",
+            ),
+        )
+
+        return PersonDirectoryInfo(
+            name=self.resolve_name(employee_id or criteria),
+            employee_id=employee_id,
+            supervisor_id=supervisor_id,
+        )
+
+    def resolve_name(
+        self,
+        ad_id: str,
+    ) -> str:
+        clean_ad_id = str(ad_id).strip()
+        if not clean_ad_id:
+            return ""
+
+        return self.name_resolver.resolve_name(clean_ad_id)
+
+    def _lookup_request_url(
+        self,
+        criteria: str,
+    ) -> str:
+        separator = "&" if "?" in self.lookup_url else "?"
+        return f"{self.lookup_url}{separator}{urlencode({'criteria': criteria})}"
+
+    def _extract_person_payload(
+        self,
+        payload,
+    ) -> dict[str, Any]:
+        if isinstance(payload, list):
+            return self._extract_person_payload(payload[0]) if payload else {}
+
+        if not isinstance(payload, dict):
+            return {}
+
+        for key in (
+            "data",
+            "result",
+            "results",
+            "items",
+            "value",
+        ):
+            value = payload.get(key)
+            if isinstance(value, (dict, list)):
+                extracted = self._extract_person_payload(value)
+                if extracted:
+                    return extracted
+
+        return payload
+
+    def _first_value(
+        self,
+        payload: dict[str, Any],
+        keys: tuple[str, ...],
+    ) -> str:
+        normalized = {
+            str(key).lower(): value
+            for key, value in payload.items()
+        }
+
+        for key in keys:
+            value = normalized.get(key.lower())
+            if value is not None and str(value).strip():
+                return str(value).strip()
+
+        return ""
+
+
+class ActiveDirectoryNameResolver:
+    def __init__(
+        self,
+    ) -> None:
+        self._cache: dict[str, str] = {}
+
+    def resolve_name(
+        self,
+        ad_id: str,
+    ) -> str:
+        clean_ad_id = str(ad_id).strip()
+        if not clean_ad_id:
+            return ""
+
+        cache_key = clean_ad_id.upper()
+        if cache_key not in self._cache:
+            self._cache[cache_key] = self._lookup_name(clean_ad_id)
+
+        return self._cache[cache_key]
+
+    def _lookup_name(
+        self,
+        ad_id: str,
+    ) -> str:
         try:
             result = subprocess.run(
                 [
@@ -651,7 +779,7 @@ class ActiveDirectoryResolver:
                     "-NoProfile",
                     "-NonInteractive",
                     "-Command",
-                    self._build_lookup_script(user_id),
+                    self._build_lookup_script(ad_id),
                 ],
                 capture_output=True,
                 check=False,
@@ -660,42 +788,33 @@ class ActiveDirectoryResolver:
                 timeout=10,
             )
         except (OSError, subprocess.TimeoutExpired):
-            return OwnerDirectoryInfo(owner=user_id)
+            return ad_id
 
         if result.returncode != 0 or not result.stdout.strip():
-            return OwnerDirectoryInfo(owner=user_id)
+            return ad_id
 
         try:
             payload = json.loads(result.stdout)
         except json.JSONDecodeError:
-            return OwnerDirectoryInfo(owner=user_id)
+            return ad_id
 
-        return OwnerDirectoryInfo(
-            owner=str(payload.get("Owner") or user_id).strip(),
-            manager=str(payload.get("Manager") or "").strip(),
-        )
+        return str(payload.get("DisplayName") or ad_id).strip()
 
     def _build_lookup_script(
         self,
-        user_id: str,
+        ad_id: str,
     ) -> str:
-        escaped_user_id = user_id.replace(
+        escaped_ad_id = ad_id.replace(
             "'",
             "''",
         )
         return (
             "$ErrorActionPreference = 'Stop'; "
             "Import-Module ActiveDirectory; "
-            f"$user = Get-ADUser -Identity '{escaped_user_id}' "
-            "-Properties DisplayName,Manager; "
-            "$managerName = ''; "
-            "if ($user.Manager) { "
-            "$manager = Get-ADUser -Identity $user.Manager -Properties DisplayName; "
-            "$managerName = $manager.DisplayName "
-            "}; "
+            f"$user = Get-ADUser -Identity '{escaped_ad_id}' "
+            "-Properties DisplayName; "
             "[PSCustomObject]@{ "
-            "Owner = $user.DisplayName; "
-            "Manager = $managerName "
+            "DisplayName = $user.DisplayName "
             "} | ConvertTo-Json -Compress"
         )
 
@@ -713,7 +832,10 @@ def parse_args(
     )
     parser.add_argument(
         "--date",
-        help="Report date in YYYY-MM-DD format. Defaults to previous calendar day.",
+        help=(
+            "Report date in YYYY-MM-DD format. Defaults to the latest two FIXP "
+            "file dates available."
+        ),
     )
     parser.add_argument(
         "--fixp-source",
