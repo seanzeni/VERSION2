@@ -76,6 +76,12 @@ class FixpSnapshotRecord:
     file_timestamp: datetime
 
 
+@dataclass(frozen=True, slots=True)
+class FixpCompareDates:
+    previous_date: date
+    target_date: date
+
+
 class FixpDailyCompare:
     def __init__(
         self,
@@ -109,26 +115,29 @@ class FixpDailyCompare:
 
     def run(
         self,
-        target_date: date,
+        target_date: date | None,
     ) -> list[Path]:
-        rows = self.build_rows(target_date)
+        compare_dates = self._resolve_compare_dates(target_date)
+        rows = self._build_rows(compare_dates)
         output_folder = (
             self.output_folder
             / "FIXP Daily Compare"
-            / safe_release_name(target_date.isoformat())
+            / safe_release_name(compare_dates.target_date.isoformat())
         )
         output_folder.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-        xlsx_path = output_folder / f"FIXP_Daily_Compare_{target_date:%Y%m%d}.xlsx"
+        xlsx_path = (
+            output_folder / f"FIXP_Daily_Compare_{compare_dates.target_date:%Y%m%d}.xlsx"
+        )
         export_xlsx(
             output_path=xlsx_path,
             sheets={
                 "FIXP Compare": (
                     DETAIL_HEADERS,
-                    rows or self._empty_rows(target_date),
+                    rows or self._empty_rows(compare_dates),
                 ),
             },
         )
@@ -136,11 +145,16 @@ class FixpDailyCompare:
 
     def build_rows(
         self,
-        target_date: date,
+        target_date: date | None,
     ) -> list[list[object]]:
-        previous_date = target_date - timedelta(days=1)
-        previous_snapshot = self._build_snapshot(previous_date)
-        target_snapshot = self._build_snapshot(target_date)
+        return self._build_rows(self._resolve_compare_dates(target_date))
+
+    def _build_rows(
+        self,
+        compare_dates: FixpCompareDates,
+    ) -> list[list[object]]:
+        previous_snapshot = self._build_snapshot(compare_dates.previous_date)
+        target_snapshot = self._build_snapshot(compare_dates.target_date)
         inventory_lookup = self._build_inventory_lookup()
 
         rows: list[list[object]] = []
@@ -188,6 +202,27 @@ class FixpDailyCompare:
 
         return rows
 
+    def _resolve_compare_dates(
+        self,
+        target_date: date | None,
+    ) -> FixpCompareDates:
+        if target_date is not None:
+            return FixpCompareDates(
+                previous_date=target_date - timedelta(days=1),
+                target_date=target_date,
+            )
+
+        available_dates = self._available_file_dates()
+        if len(available_dates) < 2:
+            raise FileNotFoundError(
+                "At least two FIXP file dates are required when --date is not provided."
+            )
+
+        return FixpCompareDates(
+            previous_date=available_dates[-2],
+            target_date=available_dates[-1],
+        )
+
     def _build_snapshot(
         self,
         target_date: date,
@@ -213,23 +248,8 @@ class FixpDailyCompare:
         self,
         target_date: date,
     ) -> list[tuple[Path, datetime]]:
-        source = self.fixp_source
-        if source is None:
-            raise FileNotFoundError(
-                "FIXP source folder was not configured. Set files.default_fixp_folder "
-                "or pass --fixp-source."
-            )
-
-        folder = source.parent if source.is_file() else source
-
-        if not folder.exists():
-            raise FileNotFoundError(f"FIXP source was not found: {folder}")
-
-        if not folder.is_dir():
-            raise NotADirectoryError(f"FIXP source is not a directory: {folder}")
-
         files: list[tuple[Path, datetime]] = []
-        for file_path in folder.glob("FIXP-*.txt"):
+        for file_path in self._fixp_source_folder().glob("FIXP-*.txt"):
             file_timestamp = self._parse_file_timestamp(file_path)
             if file_timestamp is None or file_timestamp.date() != target_date:
                 continue
@@ -248,6 +268,38 @@ class FixpDailyCompare:
                 item[0].name,
             ),
         )
+
+    def _available_file_dates(
+        self,
+    ) -> list[date]:
+        return sorted(
+            {
+                file_timestamp.date()
+                for file_path in self._fixp_source_folder().glob("FIXP-*.txt")
+                if (file_timestamp := self._parse_file_timestamp(file_path))
+                is not None
+            }
+        )
+
+    def _fixp_source_folder(
+        self,
+    ) -> Path:
+        source = self.fixp_source
+        if source is None:
+            raise FileNotFoundError(
+                "FIXP source folder was not configured. Set files.default_fixp_folder "
+                "or pass --fixp-source."
+            )
+
+        folder = source.parent if source.is_file() else source
+
+        if not folder.exists():
+            raise FileNotFoundError(f"FIXP source was not found: {folder}")
+
+        if not folder.is_dir():
+            raise NotADirectoryError(f"FIXP source is not a directory: {folder}")
+
+        return folder
 
     def _parse_file_timestamp(
         self,
@@ -379,7 +431,7 @@ class FixpDailyCompare:
 
     def _empty_rows(
         self,
-        target_date: date,
+        compare_dates: FixpCompareDates,
     ) -> list[list[object]]:
         return [
             [
@@ -389,10 +441,14 @@ class FixpDailyCompare:
                 "",
                 "",
                 "",
-                target_date.strftime("%d-%b-%y"),
+                compare_dates.target_date.strftime("%d-%b-%y"),
                 "",
                 "",
-                "No FIXP records found for the compared dates.",
+                (
+                    "No FIXP records found between "
+                    f"{compare_dates.previous_date.isoformat()} and "
+                    f"{compare_dates.target_date.isoformat()}."
+                ),
             ]
         ]
 
@@ -439,9 +495,9 @@ def parse_args(
 def parse_target_date(
     value: str | None,
     today: date | None = None,
-) -> date:
+) -> date | None:
     if not value:
-        return (today or date.today()) - timedelta(days=1)
+        return None
 
     return datetime.strptime(value, "%Y-%m-%d").date()
 

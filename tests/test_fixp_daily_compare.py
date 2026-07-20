@@ -267,10 +267,49 @@ def test_fixp_daily_compare_writes_xlsx(
     workbook.close()
 
 
+def test_fixp_daily_compare_defaults_to_latest_two_file_dates(
+    tmp_path: Path,
+) -> None:
+    """Verifies default comparison uses the latest two FIXP file dates available."""
+    inventory_path = write_inventory(tmp_path)
+    fixp_folder = write_fixp_files(tmp_path)
+    (fixp_folder / "FIXP-20260720_080000.txt").write_text(
+        make_fixp_line(
+            "KEEP001",
+            "OCOB",
+            "SYSTEM01",
+            "SUB1",
+            "FIXP1",
+            "2026/07/20",
+            "01.02",
+            "USER01",
+            "CCID20",
+        ),
+        encoding="cp1252",
+    )
+    report = fixp_module.FixpDailyCompare(
+        settings=make_settings(tmp_path, inventory_path, fixp_folder),
+        base_dir=tmp_path,
+    )
+
+    output_files = report.run(None)
+
+    assert output_files[0].name == "FIXP_Daily_Compare_20260720.xlsx"
+    rows = report.build_rows(None)
+    statuses = {row[4]: row[0] for row in rows}
+    assert statuses["KEEP001"] == "modified"
+    assert statuses["SAME001"] == "deleted"
+
+
 def test_parse_target_date_defaults_to_previous_day() -> None:
-    """Verifies the CLI date default is yesterday."""
-    assert fixp_module.parse_target_date(None, today=date(2026, 7, 20)) == date(
+    """Verifies an explicit CLI date is parsed as the requested report date."""
+    assert fixp_module.parse_target_date("2026-07-19", today=date(2026, 7, 20)) == date(
         2026,
         7,
         19,
     )
+
+
+def test_parse_target_date_returns_none_for_default_file_window() -> None:
+    """Verifies no CLI date allows the report to use latest available files."""
+    assert fixp_module.parse_target_date(None, today=date(2026, 7, 20)) is None
