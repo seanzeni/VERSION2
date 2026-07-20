@@ -3,8 +3,10 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
+import subprocess
 from datetime import date
 from pathlib import Path
+from urllib.error import URLError
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -520,6 +522,56 @@ def test_person_api_resolver_uses_api_ids_and_ad_names(
     assert person.employee_id == "ADU2"
     assert person.supervisor_id == "MGR2"
     assert resolver.resolve_name(person.supervisor_id) == "Manager Two"
+
+
+def test_person_api_resolver_falls_back_to_powershell(
+    monkeypatch,
+) -> None:
+    """Verifies Windows-native API lookup is tried when Python URL open fails."""
+
+    def fake_urlopen(
+        url,
+        timeout,
+    ):
+        raise URLError("corporate proxy requires Windows auth")
+
+    def fake_run(
+        command,
+        capture_output,
+        check,
+        encoding,
+        errors,
+        timeout,
+    ):
+        assert "Invoke-RestMethod" in command[-1]
+        assert "-UseDefaultCredentials" in command[-1]
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout='[{"employeeId":"ADU2","supervisorId":"MGR2"}]',
+            stderr="",
+        )
+
+    monkeypatch.setattr(
+        fixp_module,
+        "urlopen",
+        fake_urlopen,
+    )
+    monkeypatch.setattr(
+        fixp_module.subprocess,
+        "run",
+        fake_run,
+    )
+    resolver = fixp_module.PersonApiResolver(
+        "https://people.example/api",
+        name_resolver=FakeNameResolver(),
+    )
+
+    person = resolver.resolve("USER02")
+
+    assert person.name == "User Two"
+    assert person.employee_id == "ADU2"
+    assert person.supervisor_id == "MGR2"
 
 
 def test_person_api_resolver_supports_configured_criteria_url() -> None:

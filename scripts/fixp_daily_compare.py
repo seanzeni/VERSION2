@@ -673,20 +673,11 @@ class PersonApiResolver:
         request_url = self._lookup_request_url(criteria)
         self._debug(f"API lookup for {criteria!r}: {request_url}")
 
-        try:
-            with urlopen(
-                request_url,
-                timeout=10,
-            ) as response:
-                payload = json.loads(response.read().decode("utf-8-sig"))
-        except HTTPError as exc:
-            self._debug(f"API lookup failed for {criteria!r}: HTTP {exc.code}")
-            return PersonDirectoryInfo(name=criteria)
-        except (URLError, TimeoutError, OSError) as exc:
-            self._debug(f"API lookup failed for {criteria!r}: {type(exc).__name__}")
-            return PersonDirectoryInfo(name=criteria)
-        except json.JSONDecodeError as exc:
-            self._debug(f"API lookup failed for {criteria!r}: invalid JSON {exc}")
+        payload = self._request_payload(
+            criteria=criteria,
+            request_url=request_url,
+        )
+        if payload is None:
             return PersonDirectoryInfo(name=criteria)
 
         self._debug(f"API payload for {criteria!r}: {self._payload_summary(payload)}")
@@ -734,6 +725,91 @@ class PersonApiResolver:
             name=self.resolve_name(employee_id or criteria),
             employee_id=employee_id,
             supervisor_id=supervisor_id,
+        )
+
+    def _request_payload(
+        self,
+        criteria: str,
+        request_url: str,
+    ):
+        try:
+            with urlopen(
+                request_url,
+                timeout=10,
+            ) as response:
+                return json.loads(response.read().decode("utf-8-sig"))
+        except HTTPError as exc:
+            self._debug(f"Python API lookup failed for {criteria!r}: HTTP {exc.code}")
+        except (URLError, TimeoutError, OSError) as exc:
+            self._debug(
+                f"Python API lookup failed for {criteria!r}: "
+                f"{type(exc).__name__}: {exc}"
+            )
+        except json.JSONDecodeError as exc:
+            self._debug(
+                f"Python API lookup failed for {criteria!r}: invalid JSON {exc}"
+            )
+
+        return self._request_payload_with_powershell(
+            criteria=criteria,
+            request_url=request_url,
+        )
+
+    def _request_payload_with_powershell(
+        self,
+        criteria: str,
+        request_url: str,
+    ):
+        self._debug(f"Trying PowerShell API lookup for {criteria!r}.")
+
+        try:
+            result = subprocess.run(
+                [
+                    "powershell.exe",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    self._build_api_lookup_script(request_url),
+                ],
+                capture_output=True,
+                check=False,
+                encoding="utf-8",
+                errors="replace",
+                timeout=15,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            self._debug(
+                f"PowerShell API lookup failed for {criteria!r}: "
+                f"{type(exc).__name__}: {exc}"
+            )
+            return None
+
+        if result.returncode != 0 or not result.stdout.strip():
+            error = result.stderr.strip() if result.stderr else "no output"
+            self._debug(f"PowerShell API lookup failed for {criteria!r}: {error}")
+            return None
+
+        try:
+            return json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            self._debug(
+                f"PowerShell API lookup failed for {criteria!r}: invalid JSON {exc}"
+            )
+            return None
+
+    def _build_api_lookup_script(
+        self,
+        request_url: str,
+    ) -> str:
+        escaped_url = request_url.replace(
+            "'",
+            "''",
+        )
+        return (
+            "$ErrorActionPreference = 'Stop'; "
+            f"$response = Invoke-RestMethod -Method Get -Uri '{escaped_url}' "
+            "-UseDefaultCredentials; "
+            "$response | ConvertTo-Json -Depth 10 -Compress"
         )
 
     def resolve_name(
