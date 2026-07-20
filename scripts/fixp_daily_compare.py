@@ -117,6 +117,7 @@ class FixpDailyCompare:
         inventory_file: Path | None = None,
         output_folder: Path | None = None,
         person_resolver=None,
+        verbose: bool = False,
     ) -> None:
         self.settings = settings
         self.base_dir = base_dir
@@ -155,7 +156,8 @@ class FixpDailyCompare:
             ).get(
                 "person_lookup_url",
                 "",
-            )
+            ),
+            verbose=verbose,
         )
 
     def run(
@@ -444,17 +446,24 @@ class FixpDailyCompare:
                     type_,
                 )
             ].append(
-                InventoryReference(
-                    release=str(row.get("Release", "")).strip(),
-                    project=str(row.get("Project", "")).strip(),
-                    team_lead=str(row.get("DSN ID", "")).strip()[:4],
-                    team_lead_name=self.person_resolver.resolve(
-                        str(row.get("DSN ID", "")).strip()[:4]
-                    ).name,
-                )
+                self._build_inventory_reference(row)
             )
 
         return dict(lookup)
+
+    def _build_inventory_reference(
+        self,
+        row,
+    ) -> InventoryReference:
+        team_lead = str(row.get("DSN ID", "")).strip()[:4]
+        team_lead_name = self.person_resolver.resolve(team_lead).name if team_lead else ""
+
+        return InventoryReference(
+            release=str(row.get("Release", "")).strip(),
+            project=str(row.get("Project", "")).strip(),
+            team_lead=team_lead,
+            team_lead_name=team_lead_name,
+        )
 
     def _compare(
         self,
@@ -622,10 +631,18 @@ class PersonApiResolver:
         self,
         lookup_url: str,
         name_resolver=None,
+        verbose: bool = False,
     ) -> None:
         self.lookup_url = str(lookup_url).strip()
-        self.name_resolver = name_resolver or ActiveDirectoryNameResolver()
+        self.verbose = verbose
+        self.name_resolver = name_resolver or ActiveDirectoryNameResolver(
+            verbose=verbose,
+        )
         self._cache: dict[str, PersonDirectoryInfo] = {}
+        self._debug(
+            "Person lookup URL configured: "
+            f"{'yes' if self.lookup_url else 'no'}"
+        )
 
     def resolve(
         self,
@@ -646,21 +663,36 @@ class PersonApiResolver:
         criteria: str,
     ) -> PersonDirectoryInfo:
         if not self.lookup_url:
+            self._debug(
+                f"API lookup skipped for {criteria!r}; no person_lookup_url configured."
+            )
             return PersonDirectoryInfo(
                 name=self.resolve_name(criteria),
             )
 
+        request_url = self._lookup_request_url(criteria)
+        self._debug(f"API lookup for {criteria!r}: {request_url}")
+
         try:
             with urlopen(
-                self._lookup_request_url(criteria),
+                request_url,
                 timeout=10,
             ) as response:
                 payload = json.loads(response.read().decode("utf-8-sig"))
-        except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError):
+        except HTTPError as exc:
+            self._debug(f"API lookup failed for {criteria!r}: HTTP {exc.code}")
+            return PersonDirectoryInfo(name=criteria)
+        except (URLError, TimeoutError, OSError) as exc:
+            self._debug(f"API lookup failed for {criteria!r}: {type(exc).__name__}")
+            return PersonDirectoryInfo(name=criteria)
+        except json.JSONDecodeError as exc:
+            self._debug(f"API lookup failed for {criteria!r}: invalid JSON {exc}")
             return PersonDirectoryInfo(name=criteria)
 
+        self._debug(f"API payload for {criteria!r}: {self._payload_summary(payload)}")
         person = self._extract_person_payload(payload)
         if not person:
+            self._debug(f"API lookup found no person object for {criteria!r}.")
             return PersonDirectoryInfo(name=criteria)
 
         employee_id = self._first_value(
@@ -668,7 +700,15 @@ class PersonApiResolver:
             (
                 "employeeId",
                 "employeeID",
+                "adId",
+                "adID",
                 "id",
+                "networkId",
+                "networkID",
+                "samAccountName",
+                "sAMAccountName",
+                "userId",
+                "userID",
             ),
         )
         supervisor_id = self._first_value(
@@ -678,8 +718,16 @@ class PersonApiResolver:
                 "supervisorID",
                 "managerId",
                 "managerID",
+                "supervisorAdId",
+                "supervisorADID",
+                "supervisorUserId",
+                "supervisorUserID",
                 "supervisorEmployeeId",
             ),
+        )
+        self._debug(
+            f"API extracted for {criteria!r}: employee_id={employee_id!r}, "
+            f"supervisor_id={supervisor_id!r}"
         )
 
         return PersonDirectoryInfo(
@@ -697,6 +745,16 @@ class PersonApiResolver:
             return ""
 
         return self.name_resolver.resolve_name(clean_ad_id)
+
+    def _debug(
+        self,
+        message: str,
+    ) -> None:
+        if self.verbose:
+            print(
+                f"[fixp-directory] {message}",
+                file=sys.stderr,
+            )
 
     def _lookup_request_url(
         self,
@@ -749,6 +807,19 @@ class PersonApiResolver:
 
         return payload
 
+    def _payload_summary(
+        self,
+        payload,
+    ) -> str:
+        if isinstance(payload, list):
+            return f"list(len={len(payload)})"
+
+        if isinstance(payload, dict):
+            keys = ", ".join(sorted(str(key) for key in payload)[:20])
+            return f"dict(keys=[{keys}])"
+
+        return type(payload).__name__
+
     def _first_value(
         self,
         payload: dict[str, Any],
@@ -770,7 +841,9 @@ class PersonApiResolver:
 class ActiveDirectoryNameResolver:
     def __init__(
         self,
+        verbose: bool = False,
     ) -> None:
+        self.verbose = verbose
         self._cache: dict[str, str] = {}
 
     def resolve_name(
@@ -792,6 +865,7 @@ class ActiveDirectoryNameResolver:
         ad_id: str,
     ) -> str:
         try:
+            self._debug(f"AD lookup for {ad_id!r}.")
             result = subprocess.run(
                 [
                     "powershell.exe",
@@ -807,17 +881,33 @@ class ActiveDirectoryNameResolver:
                 timeout=10,
             )
         except (OSError, subprocess.TimeoutExpired):
+            self._debug(f"AD lookup failed for {ad_id!r}: process error or timeout.")
             return ad_id
 
         if result.returncode != 0 or not result.stdout.strip():
+            error = result.stderr.strip() if result.stderr else "no output"
+            self._debug(f"AD lookup failed for {ad_id!r}: {error}")
             return ad_id
 
         try:
             payload = json.loads(result.stdout)
         except json.JSONDecodeError:
+            self._debug(f"AD lookup failed for {ad_id!r}: invalid JSON.")
             return ad_id
 
-        return str(payload.get("DisplayName") or ad_id).strip()
+        display_name = str(payload.get("DisplayName") or ad_id).strip()
+        self._debug(f"AD lookup result for {ad_id!r}: {display_name!r}")
+        return display_name
+
+    def _debug(
+        self,
+        message: str,
+    ) -> None:
+        if self.verbose:
+            print(
+                f"[fixp-directory] {message}",
+                file=sys.stderr,
+            )
 
     def _build_lookup_script(
         self,
@@ -880,6 +970,11 @@ def parse_args(
         "--output-folder",
         help="Optional output folder. Defaults to settings.",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print person API and AD lookup diagnostics to stderr.",
+    )
     return parser.parse_args(argv)
 
 
@@ -909,6 +1004,7 @@ def main(
         ndvr_source=Path(args.ndvr_source) if args.ndvr_source else None,
         inventory_file=Path(args.inventory_file) if args.inventory_file else None,
         output_folder=Path(args.output_folder) if args.output_folder else None,
+        verbose=args.verbose,
     ).run(target_date)
 
     print("Generated:")
