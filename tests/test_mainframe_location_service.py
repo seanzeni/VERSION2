@@ -16,7 +16,6 @@ def make_line(
     version: str,
     ccid: str = "CCID01",
     ndvr_rc: str = "00000",
-    ignored: str = "",
     ndvr_package: str = "",
 ) -> str:
     fields = [
@@ -32,7 +31,6 @@ def make_line(
         (ccid, 7),
         ("COMMENTS", 40),
         (ndvr_rc, 5),
-        (ignored, 1),
         (ndvr_package, 16),
     ]
     return " ".join(value.ljust(width)[:width] for value, width in fields)
@@ -112,10 +110,10 @@ def test_parse_line_maps_added_ndvr_fields(
     assert record.ndvr_package == "PKG001"
 
 
-def test_parse_line_handles_ignore_character_before_package(
+def test_parse_line_uses_single_space_between_rc_and_package(
     tmp_path: Path,
 ) -> None:
-    """Verifies NDVR RC, ignored character, and package spacing."""
+    """Verifies NDVR RC and package are separated by one delimiter."""
     path = write_location_file(
         tmp_path,
         [
@@ -127,7 +125,6 @@ def test_parse_line_handles_ignore_character_before_package(
                 "QUAL1",
                 "01.01",
                 ndvr_rc="00008",
-                ignored="X",
                 ndvr_package="PKG001",
             ),
         ],

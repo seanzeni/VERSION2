@@ -192,7 +192,7 @@ class AfterActionService:
                 expected_subsystem=expected_subsystem,
                 record=None,
                 moved_on_date="No",
-                reason="No longer in PROD1.",
+                reason="Archived Requested - confirmed no longer in Prod",
             )
 
         record = self._find_matching_record(
@@ -203,6 +203,20 @@ class AfterActionService:
             expected_system=expected_system,
             expected_subsystem=expected_subsystem,
         )
+        reason = "OK"
+        if record is None:
+            last_move_record = self._find_last_move_record(
+                element=element,
+                mode=mode,
+                expected_env=expected_env,
+                expected_system=expected_system,
+                expected_subsystem=expected_subsystem,
+            )
+            reason = self._missing_move_reason(
+                element=element,
+                last_move_record=last_move_record,
+            )
+
         return build_after_action_row(
             release=release,
             mode=mode,
@@ -212,6 +226,7 @@ class AfterActionService:
             expected_system=expected_system,
             expected_subsystem=expected_subsystem,
             record=record,
+            reason=reason,
         )
 
     def _find_matching_record(
@@ -254,6 +269,95 @@ class AfterActionService:
             key=lambda record: record.time_generated,
             reverse=True,
         )[0]
+
+    def _find_last_move_record(
+        self,
+        element: Element,
+        mode: str,
+        expected_env: str,
+        expected_system: str,
+        expected_subsystem: str,
+    ) -> MainframeLocationRecord | None:
+        location_service = self.context.location_service
+
+        if location_service is None:
+            return None
+
+        records = [
+            record
+            for record in location_service.find(
+                element.element,
+                element.type,
+            )
+            if record.env.strip().upper() == expected_env
+            and parse_report_date(record.date_generated) is not None
+        ]
+
+        if mode.upper() == "PROD":
+            records = [
+                record
+                for record in records
+                if record.system.strip().upper() == expected_system
+                and record.subsystem.strip().upper() == expected_subsystem
+            ]
+
+        if not records:
+            return None
+
+        return sorted(
+            records,
+            key=lambda record: (
+                parse_report_date(record.date_generated) or date.min,
+                record.time_generated,
+            ),
+            reverse=True,
+        )[0]
+
+    def _missing_move_reason(
+        self,
+        element: Element,
+        last_move_record: MainframeLocationRecord | None,
+    ) -> str:
+        if last_move_record is None:
+            return (
+                "No move detected for this date. No prior NDVR move was found "
+                "for this expected location."
+            )
+
+        last_move_date = parse_report_date(last_move_record.date_generated)
+        last_move_text = (
+            last_move_date.isoformat()
+            if last_move_date is not None
+            else str(last_move_record.date_generated).strip()
+        )
+        associated_text = (
+            "Yes"
+            if self._is_associated_with_inventory_project(
+                element=element,
+                record=last_move_record,
+            )
+            else "No"
+        )
+
+        return (
+            "No move detected for this date. "
+            f"Last move was {last_move_text} using package "
+            f"{last_move_record.ndvr_package or 'Unknown'}. "
+            f"Associated with inventory project {element.project}: {associated_text}."
+        )
+
+    def _is_associated_with_inventory_project(
+        self,
+        element: Element,
+        record: MainframeLocationRecord,
+    ) -> bool:
+        project = str(element.project).strip().upper()
+        package = str(record.ndvr_package).strip().upper()
+
+        if not project or not package:
+            return False
+
+        return project.startswith(package) or package.startswith(project)
 
     def _find_marked_environment_record(
         self,

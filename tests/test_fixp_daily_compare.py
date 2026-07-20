@@ -128,7 +128,6 @@ def make_fixp_line(
         (ccid, 7),
         (comments, 40),
         ("00000", 5),
-        ("", 1),
         ("PKG001", 16),
     ]
     return " ".join(value.ljust(width)[:width] for value, width in fields)

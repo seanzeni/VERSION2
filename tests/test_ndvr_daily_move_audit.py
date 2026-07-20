@@ -85,7 +85,6 @@ def make_ndvr_line(
         ("CCID01", 7),
         ("COMMENTS", 40),
         ("00004", 5),
-        ("", 1),
         (package, 16),
     ]
     return " ".join(value.ljust(width)[:width] for value, width in fields)

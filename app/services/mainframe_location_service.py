@@ -39,7 +39,6 @@ class MainframeLocationService:
         ("ccid", 7),
         ("comments", 40),
         ("ndvr_rc", 5),
-        ("_ignore_", 1),
         ("ndvr_package", 16),
     ]
 
