@@ -19,10 +19,9 @@ from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError
-from urllib.error import URLError
 from urllib.parse import urlencode
-from urllib.request import urlopen
+
+import requests
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -733,21 +732,26 @@ class PersonApiResolver:
         request_url: str,
     ):
         try:
-            with urlopen(
+            response = requests.get(
                 request_url,
                 timeout=10,
-            ) as response:
-                return json.loads(response.read().decode("utf-8-sig"))
-        except HTTPError as exc:
-            self._debug(f"Python API lookup failed for {criteria!r}: HTTP {exc.code}")
-        except (URLError, TimeoutError, OSError) as exc:
+                verify=False,
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.HTTPError as exc:
             self._debug(
-                f"Python API lookup failed for {criteria!r}: "
+                f"Requests API lookup failed for {criteria!r}: HTTP "
+                f"{exc.response.status_code if exc.response is not None else 'unknown'}"
+            )
+        except requests.RequestException as exc:
+            self._debug(
+                f"Requests API lookup failed for {criteria!r}: "
                 f"{type(exc).__name__}: {exc}"
             )
-        except json.JSONDecodeError as exc:
+        except ValueError as exc:
             self._debug(
-                f"Python API lookup failed for {criteria!r}: invalid JSON {exc}"
+                f"Requests API lookup failed for {criteria!r}: invalid JSON {exc}"
             )
 
         return self._request_payload_with_powershell(

@@ -6,9 +6,9 @@ import sys
 import subprocess
 from datetime import date
 from pathlib import Path
-from urllib.error import URLError
 
 import pandas as pd
+import requests
 from openpyxl import load_workbook
 
 
@@ -478,38 +478,30 @@ def test_person_api_resolver_uses_api_ids_and_ad_names(
     """Verifies API IDs are translated to display names through AD lookup."""
 
     class FakeResponse:
-        def __enter__(
+        def raise_for_status(
             self,
-        ):
-            return self
-
-        def __exit__(
-            self,
-            exc_type,
-            exc,
-            traceback,
         ) -> None:
             return None
 
-        def read(
+        def json(
             self,
-        ) -> bytes:
-            return (
-                b'{"employeeId": "ADU2", "supervisorId": "MGR2"}'
-            )
+        ) -> dict:
+            return {"employeeId": "ADU2", "supervisorId": "MGR2"}
 
-    def fake_urlopen(
+    def fake_get(
         url,
         timeout,
+        verify,
     ):
         assert url == "https://people.example/api?criteria=USER02"
         assert timeout == 10
+        assert verify is False
         return FakeResponse()
 
     monkeypatch.setattr(
-        fixp_module,
-        "urlopen",
-        fake_urlopen,
+        fixp_module.requests,
+        "get",
+        fake_get,
     )
     resolver = fixp_module.PersonApiResolver(
         "https://people.example/api",
@@ -529,11 +521,12 @@ def test_person_api_resolver_falls_back_to_powershell(
 ) -> None:
     """Verifies Windows-native API lookup is tried when Python URL open fails."""
 
-    def fake_urlopen(
+    def fake_get(
         url,
         timeout,
+        verify,
     ):
-        raise URLError("corporate proxy requires Windows auth")
+        raise requests.ConnectionError("corporate proxy requires Windows auth")
 
     def fake_run(
         command,
@@ -553,9 +546,9 @@ def test_person_api_resolver_falls_back_to_powershell(
         )
 
     monkeypatch.setattr(
-        fixp_module,
-        "urlopen",
-        fake_urlopen,
+        fixp_module.requests,
+        "get",
+        fake_get,
     )
     monkeypatch.setattr(
         fixp_module.subprocess,
