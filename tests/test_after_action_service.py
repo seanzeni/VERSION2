@@ -52,7 +52,12 @@ class FakeDbService:
                     effort_id="ABC12345",
                     qual_date=date(2026, 7, 14),
                     prod_date=date(2026, 7, 15),
-                )
+                ),
+                ReleaseEffort(
+                    effort_id="FUTURE",
+                    qual_date=date(2026, 7, 20),
+                    prod_date=date(2026, 7, 21),
+                ),
             ]
 
         return []
@@ -366,3 +371,42 @@ def test_after_action_already_there_marker_reports_outside_release_move(
     assert rows[0][10] == "PKG999"
     assert rows[0][11] == "00012"
     assert rows[0][13] == "Was moved outside of release."
+
+
+def test_after_action_only_includes_inventory_scheduled_for_selected_date(
+    tmp_path: Path,
+) -> None:
+    """Rows are limited to inventory projects scheduled for the selected move date."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC",
+                "Element": "TODAY01",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "",
+            },
+            {
+                "Release": "2026/07 release",
+                "Project": "FUTURE",
+                "Element": "LATER01",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "",
+            },
+        ]
+    )
+    location_path = tmp_path / "locations.txt"
+    location_path.write_text(
+        make_location_line("PKG001"),
+        encoding="cp1252",
+    )
+
+    rows = AfterActionService(make_context(dataframe, location_path))._build_rows(
+        selected_date=date(2026, 7, 14),
+    )
+
+    assert [row[4] for row in rows] == ["TODAY01"]
