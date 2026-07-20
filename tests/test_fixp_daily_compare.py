@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -17,15 +18,41 @@ sys.modules["fixp_daily_compare"] = fixp_module
 SPEC.loader.exec_module(fixp_module)
 
 
+class FakeAdResolver:
+    def resolve(
+        self,
+        user_id: str,
+    ):
+        return {
+            "TL01": fixp_module.OwnerDirectoryInfo(
+                owner="Taylor One",
+                manager="Morgan Manager",
+            ),
+            "TL02": fixp_module.OwnerDirectoryInfo(
+                owner="Taylor Two",
+                manager="Mara Manager",
+            ),
+            "TL03": fixp_module.OwnerDirectoryInfo(
+                owner="Taylor Three",
+                manager="Morgan Manager",
+            ),
+        }.get(
+            user_id,
+            fixp_module.OwnerDirectoryInfo(owner=user_id),
+        )
+
+
 def make_settings(
     tmp_path: Path,
     inventory_path: Path,
     fixp_folder: Path,
+    ndvr_folder: Path | None = None,
 ) -> dict:
     return {
         "files": {
             "default_fixp_folder": str(fixp_folder),
             "default_input_file": str(inventory_path),
+            "default_ndvr_file": str(ndvr_folder or tmp_path / "missing-ndvr"),
             "default_output_folder": str(tmp_path / "output"),
         },
         "required_columns": [
@@ -220,15 +247,75 @@ def write_fixp_files(
     return folder
 
 
+def write_ndvr_files(
+    tmp_path: Path,
+) -> Path:
+    """Creates latest NDVR inventory data used to add FIXP remarks."""
+    folder = tmp_path / "ndvr"
+    folder.mkdir()
+    older_file = folder / "NDVR-older.txt"
+    latest_file = folder / "NDVR-latest.txt"
+
+    older_file.write_text(
+        make_fixp_line(
+            "SAME001",
+            "OCOB",
+            "SYSTEM01",
+            "SUB1",
+            "PROD1",
+            "2026/07/14",
+            "01.01",
+            "USER01",
+            "CCID01",
+        ),
+        encoding="cp1252",
+    )
+    latest_file.write_text(
+        "\n".join(
+            [
+                make_fixp_line(
+                    "SAME001",
+                    "OCOB",
+                    "SYSTEM01",
+                    "SUB1",
+                    "PROD1",
+                    "2026/07/16",
+                    "01.01",
+                    "USER01",
+                    "CCID99",
+                ),
+                make_fixp_line(
+                    "KEEP001",
+                    "OCOB",
+                    "SYSTEM01",
+                    "SUB1",
+                    "QUAL1",
+                    "2026/07/20",
+                    "01.01",
+                    "USER01",
+                    "CCID99",
+                ),
+            ]
+        ),
+        encoding="cp1252",
+    )
+    os.utime(older_file, (1_000, 1_000))
+    os.utime(latest_file, (2_000, 2_000))
+
+    return folder
+
+
 def test_fixp_daily_compare_builds_expected_rows(
     tmp_path: Path,
 ) -> None:
     """Verifies day-over-day FIXP rows and inventory references."""
     inventory_path = write_inventory(tmp_path)
     fixp_folder = write_fixp_files(tmp_path)
+    ndvr_folder = write_ndvr_files(tmp_path)
     report = fixp_module.FixpDailyCompare(
-        settings=make_settings(tmp_path, inventory_path, fixp_folder),
+        settings=make_settings(tmp_path, inventory_path, fixp_folder, ndvr_folder),
         base_dir=tmp_path,
+        ad_resolver=FakeAdResolver(),
     )
 
     rows = report.build_rows(date(2026, 7, 15))
@@ -241,29 +328,41 @@ def test_fixp_daily_compare_builds_expected_rows(
         "SAME001": "modified",
     }
     assert next(row[7] for row in rows if row[4] == "SAME001") == "CCID99"
-    assert next(row[9] for row in rows if row[4] == "MOD001") == (
+    assert next(row[8] for row in rows if row[4] == "MOD001") == "Taylor Two"
+    assert next(row[9] for row in rows if row[4] == "MOD001") == "Mara Manager"
+    assert next(row[10] for row in rows if row[4] == "MOD001") == (
         "2026/08 release-XYZ-TL02"
     )
+    assert next(row[11] for row in rows if row[4] == "SAME001") == (
+        "Newer version in PROD"
+    )
+    assert next(row[11] for row in rows if row[4] == "KEEP001") == ""
     assert next(row[6] for row in rows if row[4] == "DROP001") == "14-Jul-26"
+    assert next(row[8] for row in rows if row[4] == "DROP001") == "USER01"
 
 
 def test_fixp_daily_compare_writes_xlsx(
     tmp_path: Path,
 ) -> None:
-    """Verifies the standalone FIXP report writes one XLSX workbook."""
+    """Verifies the standalone FIXP report writes one stable latest workbook."""
     inventory_path = write_inventory(tmp_path)
     fixp_folder = write_fixp_files(tmp_path)
     report = fixp_module.FixpDailyCompare(
         settings=make_settings(tmp_path, inventory_path, fixp_folder),
         base_dir=tmp_path,
+        ad_resolver=FakeAdResolver(),
     )
 
     output_files = report.run(date(2026, 7, 15))
 
     assert len(output_files) == 1
-    assert output_files[0].suffix == ".xlsx"
+    assert output_files[0].name == "fixp1-daily-analysis.xlsx"
+    assert output_files[0].parent.name == "FIXP Daily Compare"
     workbook = load_workbook(output_files[0], read_only=True)
     assert workbook.sheetnames == ["FIXP Compare"]
+    worksheet = workbook["FIXP Compare"]
+    headers = [cell.value for cell in next(worksheet.iter_rows(max_row=1))]
+    assert headers[8:12] == ["Owner", "Manager", "Inventory", "Remarks"]
     workbook.close()
 
 
@@ -290,15 +389,49 @@ def test_fixp_daily_compare_defaults_to_latest_two_file_dates(
     report = fixp_module.FixpDailyCompare(
         settings=make_settings(tmp_path, inventory_path, fixp_folder),
         base_dir=tmp_path,
+        ad_resolver=FakeAdResolver(),
     )
 
     output_files = report.run(None)
 
-    assert output_files[0].name == "FIXP_Daily_Compare_20260720.xlsx"
+    assert output_files[0].name == "fixp1-daily-analysis.xlsx"
     rows = report.build_rows(None)
     statuses = {row[4]: row[0] for row in rows}
     assert statuses["KEEP001"] == "modified"
     assert statuses["SAME001"] == "deleted"
+
+
+def test_fixp_daily_compare_archives_previous_latest_file(
+    tmp_path: Path,
+) -> None:
+    """Verifies an existing latest workbook is renamed before replacement."""
+    inventory_path = write_inventory(tmp_path)
+    fixp_folder = write_fixp_files(tmp_path)
+    output_folder = tmp_path / "output"
+    latest_folder = output_folder / "FIXP Daily Compare"
+    latest_folder.mkdir(
+        parents=True,
+    )
+    previous_latest = latest_folder / "fixp1-daily-analysis.xlsx"
+    previous_latest.write_text(
+        "old workbook",
+        encoding="utf-8",
+    )
+    previous_latest.chmod(0o444)
+    report = fixp_module.FixpDailyCompare(
+        settings=make_settings(tmp_path, inventory_path, fixp_folder),
+        base_dir=tmp_path,
+        output_folder=output_folder,
+        ad_resolver=FakeAdResolver(),
+    )
+
+    output_files = report.run(date(2026, 7, 15))
+
+    archived_files = sorted(latest_folder.glob("fixp1-daily-analysis - *.xlsx"))
+    assert output_files == [previous_latest]
+    assert len(archived_files) == 1
+    assert archived_files[0].read_text(encoding="utf-8") == "old workbook"
+    assert previous_latest.exists()
 
 
 def test_parse_target_date_defaults_to_previous_day() -> None:

@@ -8,7 +8,9 @@ from __future__ import annotations
 #     py -3.14 scripts/fixp_daily_compare.py --date 2026-07-15
 
 import argparse
+import json
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
@@ -27,7 +29,9 @@ from app.config.settings_loader import SettingsLoader  # noqa: E402
 from app.core.models import MainframeLocationRecord  # noqa: E402
 from app.core.release_rules import coerce_date  # noqa: E402
 from app.reports.report_utils import export_xlsx  # noqa: E402
-from app.reports.report_utils import safe_release_name  # noqa: E402
+from app.reports.report_utils import get_unique_path  # noqa: E402
+from app.reports.report_utils import make_read_only  # noqa: E402
+from app.reports.report_utils import make_writable  # noqa: E402
 from app.services.data_loader import DataLoader  # noqa: E402
 from app.services.mainframe_location_service import MainframeLocationService  # noqa: E402
 
@@ -36,6 +40,7 @@ FIXP_FILE_PATTERN = re.compile(
     r"^FIXP-(?P<date>\d{8})_(?P<time>\d{6})\.txt$",
     re.IGNORECASE,
 )
+LATEST_OUTPUT_FILE = "fixp1-daily-analysis.xlsx"
 
 DETAIL_HEADERS = [
     "Compare",
@@ -47,7 +52,9 @@ DETAIL_HEADERS = [
     "FIXP Date",
     "FIXP CCID",
     "Owner",
+    "Manager",
     "Inventory",
+    "Remarks",
 ]
 
 
@@ -71,6 +78,12 @@ class InventoryReference:
 
 
 @dataclass(frozen=True, slots=True)
+class OwnerDirectoryInfo:
+    owner: str
+    manager: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class FixpSnapshotRecord:
     record: MainframeLocationRecord
     file_timestamp: datetime
@@ -88,8 +101,10 @@ class FixpDailyCompare:
         settings: dict[str, Any],
         base_dir: Path,
         fixp_source: Path | None = None,
+        ndvr_source: Path | None = None,
         inventory_file: Path | None = None,
         output_folder: Path | None = None,
+        ad_resolver=None,
     ) -> None:
         self.settings = settings
         self.base_dir = base_dir
@@ -102,6 +117,15 @@ class FixpDailyCompare:
             if str(fixp_source_value).strip()
             else None
         )
+        ndvr_source_value = ndvr_source or settings["files"].get(
+            "default_ndvr_file",
+            "",
+        )
+        self.ndvr_source = (
+            self._resolve_path(ndvr_source_value)
+            if str(ndvr_source_value).strip()
+            else None
+        )
         self.inventory_file = self._resolve_path(
             inventory_file or settings["files"]["default_input_file"]
         )
@@ -112,6 +136,7 @@ class FixpDailyCompare:
                 "Output",
             )
         )
+        self.ad_resolver = ad_resolver or ActiveDirectoryResolver()
 
     def run(
         self,
@@ -119,19 +144,9 @@ class FixpDailyCompare:
     ) -> list[Path]:
         compare_dates = self._resolve_compare_dates(target_date)
         rows = self._build_rows(compare_dates)
-        output_folder = (
-            self.output_folder
-            / "FIXP Daily Compare"
-            / safe_release_name(compare_dates.target_date.isoformat())
-        )
-        output_folder.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
+        xlsx_path = self._latest_output_path()
 
-        xlsx_path = (
-            output_folder / f"FIXP_Daily_Compare_{compare_dates.target_date:%Y%m%d}.xlsx"
-        )
+        self._archive_latest_output(xlsx_path)
         export_xlsx(
             output_path=xlsx_path,
             sheets={
@@ -142,6 +157,29 @@ class FixpDailyCompare:
             },
         )
         return [xlsx_path]
+
+    def _latest_output_path(
+        self,
+    ) -> Path:
+        return self.output_folder / "FIXP Daily Compare" / LATEST_OUTPUT_FILE
+
+    def _archive_latest_output(
+        self,
+        latest_output_path: Path,
+    ) -> None:
+        if not latest_output_path.exists():
+            return
+
+        archive_path = get_unique_path(
+            latest_output_path.with_name(
+                f"{latest_output_path.stem} - {date.today():%Y-%m-%d}"
+                f"{latest_output_path.suffix}"
+            )
+        )
+
+        make_writable(latest_output_path)
+        latest_output_path.rename(archive_path)
+        make_read_only(archive_path)
 
     def build_rows(
         self,
@@ -156,6 +194,7 @@ class FixpDailyCompare:
         previous_snapshot = self._build_snapshot(compare_dates.previous_date)
         target_snapshot = self._build_snapshot(compare_dates.target_date)
         inventory_lookup = self._build_inventory_lookup()
+        ndvr_service = self._load_latest_ndvr_service()
 
         rows: list[list[object]] = []
         all_keys = sorted(
@@ -182,8 +221,15 @@ class FixpDailyCompare:
             if display_record is None:
                 continue
 
-            inventory = self._format_inventory(
-                inventory_lookup.get(display_record.key, [])
+            inventory_references = inventory_lookup.get(display_record.key, [])
+            owner_info = self._resolve_owner_info(
+                inventory_references=inventory_references,
+                fallback_owner=display_record.user,
+            )
+            inventory = self._format_inventory(inventory_references)
+            remarks = self._build_remarks(
+                fixp_record=display_record,
+                ndvr_service=ndvr_service,
             )
             rows.append(
                 [
@@ -195,8 +241,10 @@ class FixpDailyCompare:
                     display_record.type,
                     self._format_fixp_date(display_record.date_generated),
                     display_record.ccid,
-                    display_record.user,
+                    owner_info.owner,
+                    owner_info.manager,
                     inventory,
+                    remarks,
                 ]
             )
 
@@ -300,6 +348,46 @@ class FixpDailyCompare:
             raise NotADirectoryError(f"FIXP source is not a directory: {folder}")
 
         return folder
+
+    def _load_latest_ndvr_service(
+        self,
+    ) -> MainframeLocationService | None:
+        latest_file = self._latest_ndvr_file()
+        if latest_file is None:
+            return None
+
+        return MainframeLocationService().load_file(latest_file)
+
+    def _latest_ndvr_file(
+        self,
+    ) -> Path | None:
+        source = self.ndvr_source
+        if source is None:
+            return None
+
+        if source.is_file():
+            return source
+
+        if not source.exists() or not source.is_dir():
+            return None
+
+        files = [
+            file_path
+            for pattern in ("*.txt", "*.dat", "*.csv")
+            for file_path in source.glob(pattern)
+            if file_path.is_file()
+        ]
+
+        if not files:
+            return None
+
+        return max(
+            files,
+            key=lambda file_path: (
+                file_path.stat().st_mtime,
+                file_path.name,
+            ),
+        )
 
     def _parse_file_timestamp(
         self,
@@ -429,6 +517,75 @@ class FixpDailyCompare:
             )
         )
 
+    def _build_remarks(
+        self,
+        fixp_record: MainframeLocationRecord,
+        ndvr_service: MainframeLocationService | None,
+    ) -> str:
+        if ndvr_service is None:
+            return ""
+
+        fixp_date = coerce_date(fixp_record.date_generated)
+        if fixp_date is None:
+            return ""
+
+        has_newer_prod = any(
+            record.env.strip().upper() == "PROD1"
+            and (prod_date := coerce_date(record.date_generated)) is not None
+            and prod_date > fixp_date
+            for record in ndvr_service.find(
+                element=fixp_record.element,
+                type_=fixp_record.type,
+            )
+        )
+
+        if has_newer_prod:
+            return "Newer version in PROD"
+
+        return ""
+
+    def _resolve_owner_info(
+        self,
+        inventory_references: list[InventoryReference],
+        fallback_owner: str,
+    ) -> OwnerDirectoryInfo:
+        team_leads = sorted(
+            {
+                reference.team_lead.strip().upper()
+                for reference in inventory_references
+                if reference.team_lead.strip()
+            }
+        )
+
+        if not team_leads:
+            return OwnerDirectoryInfo(
+                owner=str(fallback_owner).strip(),
+            )
+
+        resolved = [
+            self.ad_resolver.resolve(team_lead)
+            for team_lead in team_leads
+        ]
+
+        return OwnerDirectoryInfo(
+            owner=self._join_unique_values(info.owner for info in resolved),
+            manager=self._join_unique_values(info.manager for info in resolved),
+        )
+
+    def _join_unique_values(
+        self,
+        values,
+    ) -> str:
+        return "; ".join(
+            sorted(
+                {
+                    str(value).strip()
+                    for value in values
+                    if str(value).strip()
+                }
+            )
+        )
+
     def _empty_rows(
         self,
         compare_dates: FixpCompareDates,
@@ -444,11 +601,13 @@ class FixpDailyCompare:
                 compare_dates.target_date.strftime("%d-%b-%y"),
                 "",
                 "",
+                "",
                 (
                     "No FIXP records found between "
                     f"{compare_dates.previous_date.isoformat()} and "
                     f"{compare_dates.target_date.isoformat()}."
                 ),
+                "",
             ]
         ]
 
@@ -460,6 +619,85 @@ class FixpDailyCompare:
         if path.is_absolute():
             return path
         return self.base_dir / path
+
+
+class ActiveDirectoryResolver:
+    def __init__(
+        self,
+    ) -> None:
+        self._cache: dict[str, OwnerDirectoryInfo] = {}
+
+    def resolve(
+        self,
+        user_id: str,
+    ) -> OwnerDirectoryInfo:
+        clean_user_id = str(user_id).strip().upper()
+        if not clean_user_id:
+            return OwnerDirectoryInfo(owner="")
+
+        if clean_user_id not in self._cache:
+            self._cache[clean_user_id] = self._lookup(clean_user_id)
+
+        return self._cache[clean_user_id]
+
+    def _lookup(
+        self,
+        user_id: str,
+    ) -> OwnerDirectoryInfo:
+        try:
+            result = subprocess.run(
+                [
+                    "powershell.exe",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    self._build_lookup_script(user_id),
+                ],
+                capture_output=True,
+                check=False,
+                encoding="utf-8",
+                errors="replace",
+                timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return OwnerDirectoryInfo(owner=user_id)
+
+        if result.returncode != 0 or not result.stdout.strip():
+            return OwnerDirectoryInfo(owner=user_id)
+
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return OwnerDirectoryInfo(owner=user_id)
+
+        return OwnerDirectoryInfo(
+            owner=str(payload.get("Owner") or user_id).strip(),
+            manager=str(payload.get("Manager") or "").strip(),
+        )
+
+    def _build_lookup_script(
+        self,
+        user_id: str,
+    ) -> str:
+        escaped_user_id = user_id.replace(
+            "'",
+            "''",
+        )
+        return (
+            "$ErrorActionPreference = 'Stop'; "
+            "Import-Module ActiveDirectory; "
+            f"$user = Get-ADUser -Identity '{escaped_user_id}' "
+            "-Properties DisplayName,Manager; "
+            "$managerName = ''; "
+            "if ($user.Manager) { "
+            "$manager = Get-ADUser -Identity $user.Manager -Properties DisplayName; "
+            "$managerName = $manager.DisplayName "
+            "}; "
+            "[PSCustomObject]@{ "
+            "Owner = $user.DisplayName; "
+            "Manager = $managerName "
+            "} | ConvertTo-Json -Compress"
+        )
 
 
 def parse_args(
@@ -480,6 +718,10 @@ def parse_args(
     parser.add_argument(
         "--fixp-source",
         help="Optional FIXP source directory. Defaults to files.default_fixp_folder.",
+    )
+    parser.add_argument(
+        "--ndvr-source",
+        help="Optional NDVR inventory source directory or file. Defaults to settings.",
     )
     parser.add_argument(
         "--inventory-file",
@@ -515,6 +757,7 @@ def main(
         settings=settings,
         base_dir=base_dir,
         fixp_source=Path(args.fixp_source) if args.fixp_source else None,
+        ndvr_source=Path(args.ndvr_source) if args.ndvr_source else None,
         inventory_file=Path(args.inventory_file) if args.inventory_file else None,
         output_folder=Path(args.output_folder) if args.output_folder else None,
     ).run(target_date)
