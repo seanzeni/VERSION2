@@ -40,6 +40,10 @@ class FakeAssignmentClient:
                 region="DV01",
                 system="SYSTEM01",
                 effort_id="ABC12345",
+                bundle_test_environment="12",
+                bundle_prod_imp_date="2026-07-20",
+                region_id="DV0 Example",
+                region_prefix="DV0",
             ),
             audit_module.RegionAssignment(
                 bundle_id="2026/07 Release",
@@ -47,6 +51,21 @@ class FakeAssignmentClient:
                 region="DV01",
                 system="SYSTEM01",
                 effort_id="XYZ99999",
+                bundle_test_environment="12",
+                bundle_prod_imp_date="2026-07-20",
+                region_id="DV0 Example",
+                region_prefix="DV0",
+            ),
+            audit_module.RegionAssignment(
+                bundle_id="2026/08 NPR",
+                bundle_sequence="101",
+                region="DV02",
+                system="SYSTEM02",
+                effort_id="NPR12345",
+                bundle_test_environment="13",
+                bundle_prod_imp_date="2026-08-20",
+                region_id="DV0 Example",
+                region_prefix="DV0",
             ),
         ]
 
@@ -219,6 +238,8 @@ def test_sql_region_assignment_client_uses_regions_bridge() -> None:
 
     assert assignments == []
     assert "INNER JOIN Regions r" in db_service.cursor.query
+    assert "b.Id NOT LIKE '%Special%'" in db_service.cursor.query
+    assert "b.Id LIKE '%Release%'" not in db_service.cursor.query
     assert "CAST(r.TestEnvironment AS VARCHAR(50))" in db_service.cursor.query
     assert "LEFT(LTRIM(RTRIM(r.Id)), 3)" in db_service.cursor.query
     assert "LEFT(LTRIM(RTRIM(mes.Region)), 3)" in db_service.cursor.query
@@ -276,7 +297,20 @@ def test_region_inventory_audit_writes_xlsx(
 
     assert len(output_files) == 1
     workbook = load_workbook(output_files[0], read_only=True)
-    assert workbook.sheetnames == ["Summary", "Detail"]
+    assert workbook.sheetnames == ["Summary", "SQL Assignments", "Detail"]
     summary_rows = list(workbook["Summary"].iter_rows(values_only=True))
+    assignment_rows = list(workbook["SQL Assignments"].iter_rows(values_only=True))
     workbook.close()
     assert summary_rows[1] == ("DV01/SYSTEM01", "2026/07 Release", 1, 1, 1)
+    assert summary_rows[2] == ("DV02/SYSTEM02", "2026/08 NPR", 0, 0, 0)
+    assert assignment_rows[1] == (
+        "2026/07 Release",
+        "100",
+        "12",
+        "2026-07-20",
+        "DV0 Example",
+        "DV0",
+        "DV01",
+        "SYSTEM01",
+        "ABC12345",
+    )

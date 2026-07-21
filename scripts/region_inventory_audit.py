@@ -37,6 +37,18 @@ SUMMARY_HEADERS = [
     "Improper Activity Count",
 ]
 
+ASSIGNMENT_HEADERS = [
+    "Bundle Id",
+    "Bundle Sequence",
+    "Bundle TestEnvironment",
+    "Bundle Prod Imp Date",
+    "Region Id",
+    "Region Prefix",
+    "Misc Region",
+    "System",
+    "Effort Id",
+]
+
 DETAIL_HEADERS = [
     "Status",
     "Severity",
@@ -68,6 +80,10 @@ class RegionAssignment:
     region: str
     system: str
     effort_id: str
+    bundle_test_environment: str = ""
+    bundle_prod_imp_date: str = ""
+    region_id: str = ""
+    region_prefix: str = ""
 
     @property
     def region_system(self) -> str:
@@ -150,6 +166,10 @@ class SqlRegionAssignmentClient:
         SELECT
             b.Id AS BundleId,
             CAST(b.Sequence AS VARCHAR(50)) AS BundleSequence,
+            CAST(b.TestEnvironment AS VARCHAR(50)) AS BundleTestEnvironment,
+            b.BundleProdImpDate AS BundleProdImpDate,
+            r.Id AS RegionId,
+            LEFT(LTRIM(RTRIM(r.Id)), 3) AS RegionPrefix,
             mes.Region AS Region,
             mes.System AS System,
             e.Id AS EffortId
@@ -160,7 +180,7 @@ class SqlRegionAssignmentClient:
             ON CAST(r.TestEnvironment AS VARCHAR(50)) = CAST(b.TestEnvironment AS VARCHAR(50))
         INNER JOIN MiscEnvironmentSystem mes
             ON LEFT(LTRIM(RTRIM(r.Id)), 3) = LEFT(LTRIM(RTRIM(mes.Region)), 3)
-        WHERE b.Id LIKE '%Release%'
+        WHERE b.Id NOT LIKE '%Special%'
             AND ISNULL(b.TestEnvironment, 0) <> 0
             AND b.BundleProdImpDate >= ?
             AND b.BundleProdImpDate < ?
@@ -187,6 +207,22 @@ class SqlRegionAssignmentClient:
                                 "",
                             )
                         ).strip(),
+                        bundle_test_environment=str(
+                            getattr(
+                                row,
+                                "BundleTestEnvironment",
+                                "",
+                            )
+                        ).strip(),
+                        bundle_prod_imp_date=str(
+                            getattr(
+                                row,
+                                "BundleProdImpDate",
+                                "",
+                            )
+                        ).strip(),
+                        region_id=str(getattr(row, "RegionId", "")).strip(),
+                        region_prefix=str(getattr(row, "RegionPrefix", "")).strip(),
                         region=str(getattr(row, "Region", "")).strip(),
                         system=str(getattr(row, "System", "")).strip(),
                         effort_id=str(getattr(row, "EffortId", "")).strip(),
@@ -232,7 +268,12 @@ class RegionInventoryAudit:
         self,
         today: date | None = None,
     ) -> list[Path]:
-        rows = self.build_rows(today=today)
+        start_date, end_date = report_window(today or date.today())
+        assignments = self.assignment_client.load_region_assignments(
+            start_date=start_date,
+            end_date=end_date,
+        )
+        rows = self._build_rows(assignments)
         output_folder = self.output_folder / "Region Inventory Audit"
         output_folder.mkdir(
             parents=True,
@@ -244,7 +285,14 @@ class RegionInventoryAudit:
             sheets={
                 "Summary": (
                     SUMMARY_HEADERS,
-                    self._summary_rows(rows),
+                    self._summary_rows(
+                        rows=rows,
+                        assignments=assignments,
+                    ),
+                ),
+                "SQL Assignments": (
+                    ASSIGNMENT_HEADERS,
+                    self._assignment_rows(assignments),
                 ),
                 "Detail": (
                     DETAIL_HEADERS,
@@ -263,6 +311,12 @@ class RegionInventoryAudit:
             start_date=start_date,
             end_date=end_date,
         )
+        return self._build_rows(assignments)
+
+    def _build_rows(
+        self,
+        assignments: list[RegionAssignment],
+    ) -> list[RegionAuditRow]:
         groups = self._group_assignments(assignments)
         inventory_lookup = self._build_inventory_lookup()
         location_service = MainframeLocationService().load_file(
@@ -295,6 +349,35 @@ class RegionInventoryAudit:
                 row.type.upper(),
             ),
         )
+
+    def _assignment_rows(
+        self,
+        assignments: list[RegionAssignment],
+    ) -> list[list[object]]:
+        rows = [
+            [
+                assignment.bundle_id,
+                assignment.bundle_sequence,
+                assignment.bundle_test_environment,
+                assignment.bundle_prod_imp_date,
+                assignment.region_id,
+                assignment.region_prefix,
+                assignment.region,
+                assignment.system,
+                assignment.effort_id,
+            ]
+            for assignment in sorted(
+                assignments,
+                key=lambda assignment: (
+                    assignment.bundle_id.upper(),
+                    assignment.region.upper(),
+                    assignment.system.upper(),
+                    assignment.effort_id.upper(),
+                ),
+            )
+        ]
+
+        return rows or [["", "", "", "", "", "", "", "", "No SQL assignments found."]]
 
     def _build_row(
         self,
@@ -488,8 +571,17 @@ class RegionInventoryAudit:
     def _summary_rows(
         self,
         rows: list[RegionAuditRow],
+        assignments: list[RegionAssignment] | None = None,
     ) -> list[list[object]]:
         grouped: dict[tuple[str, str], list[RegionAuditRow]] = defaultdict(list)
+        for group in self._group_assignments(assignments or []):
+            grouped[
+                (
+                    group.region_system,
+                    group.bundle_id,
+                )
+            ] = []
+
         for row in rows:
             grouped[
                 (
@@ -502,7 +594,13 @@ class RegionInventoryAudit:
             return [["", "", 0, 0, 0]]
 
         summary_rows: list[list[object]] = []
-        for (region_system, bundle_id), group_rows in sorted(grouped.items()):
+        for (region_system, bundle_id), group_rows in sorted(
+            grouped.items(),
+            key=lambda item: (
+                item[0][1].upper(),
+                item[0][0].upper(),
+            ),
+        ):
             summary_rows.append(
                 [
                     region_system,
