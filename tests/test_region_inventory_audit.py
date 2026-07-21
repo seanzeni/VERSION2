@@ -67,6 +67,17 @@ class FakeAssignmentClient:
                 region_id="DV0 Example",
                 region_prefix="DV0",
             ),
+            audit_module.RegionAssignment(
+                bundle_id="2026/06 NPR",
+                bundle_sequence="99",
+                region="DV01",
+                system="SYSTEM01",
+                effort_id="OLD12345",
+                bundle_test_environment="12",
+                bundle_prod_imp_date="2026-06-20",
+                region_id="DV0 Example",
+                region_prefix="DV0",
+            ),
         ]
 
 
@@ -180,6 +191,12 @@ def write_inventory(
                 "Element": "BAD001",
                 "Type": "OCOB",
             },
+            {
+                "Release": "2026/06 NPR",
+                "Project": "OLD12345",
+                "Element": "OLDPGM",
+                "Type": "OCOB",
+            },
         ]
     ).to_excel(path, index=False)
     return path
@@ -202,6 +219,7 @@ def write_ndvr(
                 make_ndvr_line("PGM001", "OCOB", "SYSTEM01", "ABC"),
                 make_ndvr_line("MISS001", "OCOB", "SYSTEM01", "XYZ"),
                 make_ndvr_line("BAD001", "OCOB", "SYSTEM01", "BAD"),
+                make_ndvr_line("OLDPGM", "OCOB", "SYSTEM01", "DIFF"),
                 make_ndvr_line("DROP001", "OCOB", "OTHER001", "ABC"),
             ]
         ),
@@ -237,11 +255,12 @@ def test_sql_region_assignment_client_uses_regions_bridge() -> None:
     )
 
     assert assignments == []
-    assert "INNER JOIN Regions r" in db_service.cursor.query
+    assert "FROM Regions" in db_service.cursor.query
+    assert "GROUP BY" in db_service.cursor.query
     assert "b.Id NOT LIKE '%Special%'" in db_service.cursor.query
     assert "b.Id LIKE '%Release%'" not in db_service.cursor.query
-    assert "CAST(r.TestEnvironment AS VARCHAR(50))" in db_service.cursor.query
-    assert "LEFT(LTRIM(RTRIM(r.Id)), 3)" in db_service.cursor.query
+    assert "CAST(TestEnvironment AS VARCHAR(50))" in db_service.cursor.query
+    assert "LEFT(LTRIM(RTRIM(Id)), 3)" in db_service.cursor.query
     assert "LEFT(LTRIM(RTRIM(mes.Region)), 3)" in db_service.cursor.query
     assert db_service.cursor.params == (
         date(2026, 6, 1),
@@ -272,6 +291,7 @@ def test_region_inventory_audit_classifies_region_records(
     assert statuses == {
         "BAD001": audit_module.STATUS_IMPROPER_ACTIVITY,
         "MISS001": audit_module.STATUS_POTENTIAL_MISSING_INVENTORY,
+        "OLDPGM": audit_module.STATUS_APPROVED,
         "PGM001": audit_module.STATUS_APPROVED,
     }
     approved_row = next(row for row in rows if row.element == "PGM001")
@@ -279,6 +299,16 @@ def test_region_inventory_audit_classifies_region_records(
     assert approved_row.approved_effort_ids == ("ABC12345",)
     warning_row = next(row for row in rows if row.element == "MISS001")
     assert warning_row.reason == "Potential missing inventory but effort approved there."
+    old_row = next(row for row in rows if row.element == "OLDPGM")
+    assert old_row.bundle_id == "2026/06 NPR"
+    assert old_row.inventory_effort_ids == ("OLD12345",)
+    assert old_row.approved_effort_ids == ("OLD12345",)
+    assert not any(
+        row.element == "OLDPGM"
+        and row.bundle_id == "2026/07 Release"
+        and row.status == audit_module.STATUS_IMPROPER_ACTIVITY
+        for row in rows
+    )
 
 
 def test_region_inventory_audit_writes_xlsx(
@@ -301,9 +331,12 @@ def test_region_inventory_audit_writes_xlsx(
     summary_rows = list(workbook["Summary"].iter_rows(values_only=True))
     assignment_rows = list(workbook["SQL Assignments"].iter_rows(values_only=True))
     workbook.close()
-    assert summary_rows[1] == ("DV01/SYSTEM01", "2026/07 Release", 1, 1, 1)
-    assert summary_rows[2] == ("DV02/SYSTEM02", "2026/08 NPR", 0, 0, 0)
-    assert assignment_rows[1] == (
+    assert summary_rows[1:] == [
+        ("DV01/SYSTEM01", "2026/06 NPR", 1, 0, 0),
+        ("DV01/SYSTEM01", "2026/07 Release", 1, 1, 1),
+        ("DV02/SYSTEM02", "2026/08 NPR", 0, 0, 0),
+    ]
+    assert (
         "2026/07 Release",
         "100",
         "12",
@@ -313,4 +346,4 @@ def test_region_inventory_audit_writes_xlsx(
         "DV01",
         "SYSTEM01",
         "ABC12345",
-    )
+    ) in assignment_rows

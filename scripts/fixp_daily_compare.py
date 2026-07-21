@@ -66,6 +66,11 @@ DETAIL_HEADERS = [
     "Remarks",
 ]
 
+OVERVIEW_HEADERS = [
+    "Field",
+    "Value",
+]
+
 
 @dataclass(frozen=True, slots=True)
 class InventoryReference:
@@ -177,6 +182,10 @@ class FixpDailyCompare:
         export_xlsx(
             output_path=xlsx_path,
             sheets={
+                "Overview": (
+                    OVERVIEW_HEADERS,
+                    self._overview_rows(compare_dates),
+                ),
                 "FIXP Compare": (
                     DETAIL_HEADERS,
                     rows or self._empty_rows(compare_dates),
@@ -282,6 +291,39 @@ class FixpDailyCompare:
 
         return rows
 
+    def _overview_rows(
+        self,
+        compare_dates: FixpCompareDates,
+    ) -> list[list[object]]:
+        previous_files = self._fixp_files_for_date(compare_dates.previous_date)
+        target_files = self._fixp_files_for_date(compare_dates.target_date)
+
+        return [
+            [
+                "Comparison",
+                (
+                    f"Comparing {compare_dates.target_date.isoformat()} to "
+                    f"{compare_dates.previous_date.isoformat()} differences."
+                ),
+            ],
+            [
+                "This Date",
+                compare_dates.target_date.isoformat(),
+            ],
+            [
+                "That Date",
+                compare_dates.previous_date.isoformat(),
+            ],
+            [
+                f"Files for {compare_dates.target_date.isoformat()}",
+                self._format_file_list(target_files),
+            ],
+            [
+                f"Files for {compare_dates.previous_date.isoformat()}",
+                self._format_file_list(previous_files),
+            ],
+        ]
+
     def _resolve_compare_dates(
         self,
         target_date: date | None,
@@ -347,6 +389,18 @@ class FixpDailyCompare:
                 item[1],
                 item[0].name,
             ),
+        )
+
+    def _format_file_list(
+        self,
+        files: list[tuple[Path, datetime]],
+    ) -> str:
+        if not files:
+            return "No files found."
+
+        return "; ".join(
+            file_path.name
+            for file_path, _file_timestamp in files
         )
 
     def _available_file_dates(
@@ -485,7 +539,7 @@ class FixpDailyCompare:
             return "deleted"
 
         if previous_record is None:
-            return "modified"
+            return "added"
 
         if coerce_date(previous_record.record.date_generated) == coerce_date(
             target_record.record.date_generated

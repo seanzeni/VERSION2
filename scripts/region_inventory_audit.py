@@ -176,8 +176,17 @@ class SqlRegionAssignmentClient:
         FROM Bundles b
         INNER JOIN Efforts e
             ON CAST(e.BundleSequence AS VARCHAR(50)) = CAST(b.Sequence AS VARCHAR(50))
-        INNER JOIN Regions r
-            ON CAST(r.TestEnvironment AS VARCHAR(50)) = CAST(b.TestEnvironment AS VARCHAR(50))
+        INNER JOIN (
+            SELECT
+                CAST(TestEnvironment AS VARCHAR(50)) AS TestEnvironment,
+                LEFT(LTRIM(RTRIM(Id)), 3) AS RegionPrefix,
+                MIN(Id) AS Id
+            FROM Regions
+            GROUP BY
+                CAST(TestEnvironment AS VARCHAR(50)),
+                LEFT(LTRIM(RTRIM(Id)), 3)
+        ) r
+            ON r.TestEnvironment = CAST(b.TestEnvironment AS VARCHAR(50))
         INNER JOIN MiscEnvironmentSystem mes
             ON LEFT(LTRIM(RTRIM(r.Id)), 3) = LEFT(LTRIM(RTRIM(mes.Region)), 3)
         WHERE b.Id NOT LIKE '%Special%'
@@ -318,21 +327,23 @@ class RegionInventoryAudit:
         assignments: list[RegionAssignment],
     ) -> list[RegionAuditRow]:
         groups = self._group_assignments(assignments)
+        groups_by_region_system = self._groups_by_region_system(groups)
         inventory_lookup = self._build_inventory_lookup()
         location_service = MainframeLocationService().load_file(
             latest_ndvr_file(self.ndvr_source, self.base_dir)
         )
 
         rows: list[RegionAuditRow] = []
-        for group in groups:
+        for region_system_groups in groups_by_region_system.values():
+            first_group = region_system_groups[0]
             records = self._records_for_system(
                 location_service=location_service,
-                system=group.system,
+                system=first_group.system,
             )
             for record in records:
-                rows.append(
-                    self._build_row(
-                        group=group,
+                rows.extend(
+                    self._build_rows_for_record(
+                        groups=region_system_groups,
                         record=record,
                         inventory_references=inventory_lookup.get(record.key, []),
                     )
@@ -349,6 +360,66 @@ class RegionInventoryAudit:
                 row.type.upper(),
             ),
         )
+
+    def _build_rows_for_record(
+        self,
+        groups: list[RegionAssignmentGroup],
+        record: MainframeLocationRecord,
+        inventory_references: list[InventoryReference],
+    ) -> list[RegionAuditRow]:
+        approved_rows = [
+            row
+            for group in groups
+            if (
+                row := self._build_row(
+                    group=group,
+                    record=record,
+                    inventory_references=inventory_references,
+                    allow_unapproved=False,
+                )
+            )
+            is not None
+        ]
+        if approved_rows:
+            return approved_rows
+
+        unapproved_groups = self._unapproved_groups_for_record(
+            groups=groups,
+            inventory_references=inventory_references,
+        )
+        return [
+            self._build_row(
+                group=group,
+                record=record,
+                inventory_references=inventory_references,
+                allow_unapproved=True,
+            )
+            for group in unapproved_groups
+        ]
+
+    def _unapproved_groups_for_record(
+        self,
+        groups: list[RegionAssignmentGroup],
+        inventory_references: list[InventoryReference],
+    ) -> list[RegionAssignmentGroup]:
+        inventory_releases = {
+            normalize_release(reference.release)
+            for reference in inventory_references
+            if reference.release
+        }
+        matching_groups = [
+            group
+            for group in groups
+            if normalize_release(group.bundle_id) in inventory_releases
+        ]
+        if matching_groups:
+            return matching_groups
+
+        return sorted(
+            groups,
+            key=lambda group: group.bundle_id.upper(),
+            reverse=True,
+        )[:1]
 
     def _assignment_rows(
         self,
@@ -384,7 +455,8 @@ class RegionInventoryAudit:
         group: RegionAssignmentGroup,
         record: MainframeLocationRecord,
         inventory_references: list[InventoryReference],
-    ) -> RegionAuditRow:
+        allow_unapproved: bool = True,
+    ) -> RegionAuditRow | None:
         inventory_efforts = tuple(
             sorted(
                 {
@@ -412,6 +484,9 @@ class RegionInventoryAudit:
             )
 
         if not approved_efforts:
+            if not allow_unapproved:
+                return None
+
             return self._row(
                 group=group,
                 record=record,
@@ -510,6 +585,22 @@ class RegionInventoryAudit:
             )
             for (bundle_id, region, system), effort_ids in grouped.items()
         ]
+
+    def _groups_by_region_system(
+        self,
+        groups: list[RegionAssignmentGroup],
+    ) -> dict[tuple[str, str], list[RegionAssignmentGroup]]:
+        grouped: dict[tuple[str, str], list[RegionAssignmentGroup]] = defaultdict(list)
+
+        for group in groups:
+            grouped[
+                (
+                    group.region.upper(),
+                    group.system.upper(),
+                )
+            ].append(group)
+
+        return dict(grouped)
 
     def _records_for_system(
         self,
@@ -657,6 +748,12 @@ def effort_matches_ccid(
         return False
 
     return clean_effort.startswith(clean_ccid) or clean_ccid.startswith(clean_effort)
+
+
+def normalize_release(
+    value: str,
+) -> str:
+    return " ".join(str(value).strip().upper().split())
 
 
 def report_window(

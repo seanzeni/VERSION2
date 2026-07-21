@@ -261,9 +261,14 @@ def test_after_action_missing_move_reports_last_move_and_project_association(
     )
 
     assert rows[0][3] == "ABC12345"
+    assert rows[0][9] == "No"
+    assert rows[0][10] == "ABC"
+    assert rows[0][12] == "2026-07-12"
+    assert rows[0][13] == "10:00:00:00"
     assert rows[0][14] == (
         "No move detected for this date. Last move was 2026-07-12 using package "
-        "ABC. Associated with inventory project ABC12345: Yes."
+        "ABC. Last package associated with Project ABC12345: Yes; currently "
+        "associated with ABC12345."
     )
 
 
@@ -301,7 +306,8 @@ def test_after_action_missing_move_reports_unassociated_last_move(
 
     assert rows[0][14] == (
         "No move detected for this date. Last move was 2026-07-12 using package "
-        "XYZ. Associated with inventory project ABC12345: No."
+        "XYZ. Last package associated with Project ABC12345: No; currently "
+        "associated with ABC12345."
     )
 
 
@@ -407,6 +413,9 @@ def test_after_action_missing_qual_move_reports_higher_location(
         selected_date=date(2026, 7, 14),
     )
 
+    assert rows[0][9] == "No"
+    assert rows[0][10] == "PKG888"
+    assert rows[0][12] == "2026-07-13"
     assert rows[0][14] == (
         "No move detected for this date. Found equal or higher NDVR location(s): "
         "PROD1 / PRIVATE1 / SYS1 on 2026-07-13 using package PKG888."

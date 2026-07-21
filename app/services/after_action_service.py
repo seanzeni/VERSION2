@@ -205,6 +205,8 @@ class AfterActionService:
             expected_subsystem=expected_subsystem,
         )
         reason = "OK"
+        evidence_record = record
+        moved_on_date = None
         if record is None:
             equal_or_higher_records = self._find_equal_or_higher_records(
                 element=element,
@@ -213,6 +215,8 @@ class AfterActionService:
                 expected_subsystem=expected_subsystem,
             )
             if equal_or_higher_records:
+                evidence_record = equal_or_higher_records[0]
+                moved_on_date = "No"
                 reason = self._equal_or_higher_location_reason(
                     records=equal_or_higher_records,
                 )
@@ -224,6 +228,8 @@ class AfterActionService:
                     expected_system=expected_system,
                     expected_subsystem=expected_subsystem,
                 )
+                evidence_record = last_move_record
+                moved_on_date = "No"
                 reason = self._missing_move_reason(
                     element=element,
                     last_move_record=last_move_record,
@@ -237,7 +243,8 @@ class AfterActionService:
             expected_env=expected_env,
             expected_system=expected_system,
             expected_subsystem=expected_subsystem,
-            record=record,
+            record=evidence_record,
+            moved_on_date=moved_on_date,
             reason=reason,
         )
 
@@ -429,7 +436,8 @@ class AfterActionService:
             "No move detected for this date. "
             f"Last move was {last_move_text} using package "
             f"{last_move_record.ndvr_package or 'Unknown'}. "
-            f"Associated with inventory project {element.project}: {associated_text}."
+            f"Last package associated with Project {element.project}: "
+            f"{associated_text}; currently associated with {element.project}."
         )
 
     def _is_associated_with_inventory_project(
