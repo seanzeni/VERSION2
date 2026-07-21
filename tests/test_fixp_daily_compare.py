@@ -114,6 +114,8 @@ def make_fixp_line(
     user: str,
     ccid: str,
     comments: str = "COMMENTS",
+    source_date: str = "",
+    source_time: str = "",
 ) -> str:
     fields = [
         (element, 8),
@@ -129,6 +131,8 @@ def make_fixp_line(
         (comments, 40),
         ("00000", 5),
         ("PKG001", 16),
+        (source_date, 10),
+        (source_time, 11),
     ]
     return " ".join(value.ljust(width)[:width] for value, width in fields)
 
@@ -249,6 +253,8 @@ def write_fixp_files(
                     "01.02",
                     "USER02",
                     "CCID02",
+                    source_date="2026/07/10",
+                    source_time="08:30:00:00",
                 ),
                 make_fixp_line(
                     "KEEP001",
@@ -276,8 +282,10 @@ def write_fixp_files(
             "2026/07/14",
             "01.01",
             "USER01",
-            "CCID99",
-        ),
+        "CCID99",
+        source_date="2026/07/10",
+        source_time="08:30:00:00",
+    ),
         encoding="cp1252",
     )
 
@@ -364,19 +372,20 @@ def test_fixp_daily_compare_builds_expected_rows(
             "MOD001": "modified",
             "SAME001": "no change",
         }
-    assert next(row[7] for row in rows if row[4] == "SAME001") == "CCID99"
-    assert next(row[8] for row in rows if row[4] == "MOD001") == "XYZ"
-    assert next(row[9] for row in rows if row[4] == "MOD001") == "User Two"
-    assert next(row[10] for row in rows if row[4] == "MOD001") == "Manager Two"
-    assert next(row[11] for row in rows if row[4] == "MOD001") == (
+    assert next(row[7] for row in rows if row[4] == "MOD001") == 5
+    assert next(row[8] for row in rows if row[4] == "SAME001") == "CCID99"
+    assert next(row[9] for row in rows if row[4] == "MOD001") == "XYZ"
+    assert next(row[10] for row in rows if row[4] == "MOD001") == "User Two"
+    assert next(row[11] for row in rows if row[4] == "MOD001") == "Manager Two"
+    assert next(row[12] for row in rows if row[4] == "MOD001") == (
         "2026/08 release-XYZ-Taylor Two"
     )
-    assert next(row[12] for row in rows if row[4] == "SAME001") == (
+    assert next(row[13] for row in rows if row[4] == "SAME001") == (
         "Newer version in PROD"
     )
-    assert next(row[12] for row in rows if row[4] == "KEEP001") == ""
+    assert next(row[13] for row in rows if row[4] == "KEEP001") == ""
     assert next(row[6] for row in rows if row[4] == "DROP001") == "14-Jul-26"
-    assert next(row[9] for row in rows if row[4] == "DROP001") == "User One"
+    assert next(row[10] for row in rows if row[4] == "DROP001") == "User One"
 
 
 def test_fixp_daily_compare_writes_xlsx(
@@ -400,7 +409,9 @@ def test_fixp_daily_compare_writes_xlsx(
     assert workbook.sheetnames == ["FIXP Compare"]
     worksheet = workbook["FIXP Compare"]
     headers = [cell.value for cell in next(worksheet.iter_rows(max_row=1))]
-    assert headers[8:13] == [
+    assert headers[7:14] == [
+        "Days in FIXP",
+        "FIXP CCID",
         "Inventory CCIDs",
         "Owner",
         "Manager",

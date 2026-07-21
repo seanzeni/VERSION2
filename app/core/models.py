@@ -466,6 +466,8 @@ class MainframeLocationRecord:
     comments: str
     ndvr_rc: int | None = None
     ndvr_package: str = ""
+    source_date: str = ""
+    source_time: str = ""
 
     @property
     def key(self) -> tuple[str, str]:

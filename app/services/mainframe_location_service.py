@@ -40,6 +40,8 @@ class MainframeLocationService:
         ("comments", 40),
         ("ndvr_rc", 5),
         ("ndvr_package", 16),
+        ("source_date", 10),
+        ("source_time", 11),
     ]
 
     ENV_LEVELS: dict[str, int] = {
@@ -158,6 +160,8 @@ class MainframeLocationService:
                 field_name="ndvr_rc",
             ),
             ndvr_package=values.get("ndvr_package", ""),
+            source_date=values.get("source_date", ""),
+            source_time=values.get("source_time", ""),
         )
 
     def _parse_optional_int(

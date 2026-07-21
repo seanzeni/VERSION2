@@ -57,6 +57,7 @@ DETAIL_HEADERS = [
     "Element",
     "Type",
     "FIXP Date",
+    "Days in FIXP",
     "FIXP CCID",
     "Inventory CCIDs",
     "Owner",
@@ -266,6 +267,10 @@ class FixpDailyCompare:
                     display_record.element,
                     display_record.type,
                     self._format_fixp_date(display_record.date_generated),
+                    self._days_in_fixp(
+                        fixp_record=display_record,
+                        target_date=compare_dates.target_date,
+                    ),
                     display_record.ccid,
                     inventory_ccids,
                     owner_info.owner,
@@ -529,6 +534,20 @@ class FixpDailyCompare:
 
         return parsed_date.strftime("%d-%b-%y")
 
+    def _days_in_fixp(
+        self,
+        fixp_record: MainframeLocationRecord,
+        target_date: date,
+    ) -> int | str:
+        source_date = coerce_date(fixp_record.source_date)
+        if source_date is None:
+            return ""
+
+        return max(
+            (target_date - source_date).days,
+            0,
+        )
+
     def _format_inventory(
         self,
         references: list[InventoryReference],
@@ -613,6 +632,7 @@ class FixpDailyCompare:
                 "",
                 "",
                 compare_dates.target_date.strftime("%d-%b-%y"),
+                "",
                 "",
                 "",
                 "",

@@ -17,6 +17,8 @@ def make_line(
     ccid: str = "CCID01",
     ndvr_rc: str = "00000",
     ndvr_package: str = "",
+    source_date: str = "",
+    source_time: str = "",
 ) -> str:
     fields = [
         (element, 8),
@@ -32,6 +34,8 @@ def make_line(
         ("COMMENTS", 40),
         (ndvr_rc, 5),
         (ndvr_package, 16),
+        (source_date, 10),
+        (source_time, 11),
     ]
     return " ".join(value.ljust(width)[:width] for value, width in fields)
 
@@ -108,6 +112,34 @@ def test_parse_line_maps_added_ndvr_fields(
 
     assert record.ndvr_rc == 123
     assert record.ndvr_package == "PKG001"
+
+
+def test_parse_line_maps_fixp_source_date_and_time(
+    tmp_path: Path,
+) -> None:
+    """Verifies appended FIXP source date and time fields are parsed."""
+    path = write_location_file(
+        tmp_path,
+        [
+            make_line(
+                "PGM001",
+                "OCOB",
+                "PRIVATE1",
+                "SUB1",
+                "FIXP1",
+                "01.01",
+                ndvr_rc="00000",
+                ndvr_package="PKG001",
+                source_date="2026/07/10",
+                source_time="08:30:00:00",
+            ),
+        ],
+    )
+
+    record = MainframeLocationService().load_file(path).records[0]
+
+    assert record.source_date == "2026/07/10"
+    assert record.source_time == "08:30:00:00"
 
 
 def test_parse_line_uses_single_space_between_rc_and_package(
