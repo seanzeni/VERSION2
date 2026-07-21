@@ -98,6 +98,17 @@ class DataLoader:
             & (df["Project"].astype(str).str.strip().isin(clean_projects))
         ].copy()
 
+    def filter_projects(
+        self,
+        projects: set[str],
+    ) -> pd.DataFrame:
+        df = self._require_loaded()
+        clean_projects = {str(project).strip().upper() for project in projects}
+
+        return df[
+            df["Project"].astype(str).str.strip().str.upper().isin(clean_projects)
+        ].copy()
+
     def get_projects_for_release(
         self,
         release: str,

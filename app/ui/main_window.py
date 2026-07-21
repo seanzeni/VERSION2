@@ -28,6 +28,7 @@ from app.core.app_context import AppContext
 from app.core.app_state import AppState
 from app.core.release_rules import next_release_choice
 from app.core.release_rules import next_available_effort_ids
+from app.core.status_messages import ReasonBuilder
 from app.ui.action_bar import ActionBar
 from app.ui.element_table import ElementTable
 from app.ui.release_tree import ReleaseTree
@@ -318,13 +319,59 @@ class MainWindow(ctk.CTk):
         }
 
         inventory_not_in_sql_ids = self.app_state.inventory_effort_ids - sql_effort_ids
+        assignment_error_details = self._build_assignment_error_details(
+            sql_effort_ids=sql_effort_ids,
+        )
 
         self.release_tree.load_efforts(
             release_efforts=self.app_state.release_efforts,
             effort_dates=self.app_state.effort_dates,
             inventory_effort_ids=self.app_state.inventory_effort_ids,
             inventory_not_in_sql_ids=inventory_not_in_sql_ids,
+            assignment_error_details=assignment_error_details,
         )
+
+    def _build_assignment_error_details(
+        self,
+        sql_effort_ids: set[str],
+    ) -> dict[str, list[str]]:
+        candidate_effort_ids = sql_effort_ids - self.app_state.inventory_effort_ids
+        if not candidate_effort_ids:
+            return {}
+
+        dataframe = self.context.data_loader.filter_projects(candidate_effort_ids)
+        elements = self.context.element_service.build_elements(dataframe)
+        details: dict[str, list[str]] = {}
+        candidate_lookup = {
+            effort_id.upper(): effort_id
+            for effort_id in candidate_effort_ids
+        }
+
+        for element in elements:
+            if element.release.upper() == self.app_state.release.upper():
+                continue
+
+            effort_id = candidate_lookup.get(element.project.upper())
+            if effort_id is None:
+                continue
+
+            detail = (
+                f"{element.element} {element.type}: "
+                + ReasonBuilder.effort_release_mismatch(
+                    project=element.project,
+                    inventory_release=element.release,
+                    sql_release=self.app_state.release,
+                )
+            )
+            details.setdefault(
+                effort_id,
+                [],
+            ).append(detail)
+
+        return {
+            effort_id: sorted(set(effort_details))
+            for effort_id, effort_details in details.items()
+        }
 
     def select_default_release(
         self,

@@ -29,3 +29,12 @@ def test_filter_release_projects(tmp_path: Path) -> None:
     loader.load()
     df=loader.filter_release_projects('REL1', {'ABC'})
     assert len(df)==1 and df.iloc[0]['Project']=='ABC'
+
+def test_filter_projects_across_releases(tmp_path: Path) -> None:
+    """Verifies project filtering finds inventory rows assigned to any release."""
+    path=tmp_path/'inventory.xlsx'
+    pd.DataFrame([{'Release':'REL1','Project':'abc','Element':'PGM001','Type':'OCOB','Subsys':'SUB1','System':'SYS1','Act Rgn':'DV'},{'Release':'REL2','Project':'XYZ','Element':'PGM002','Type':'JCL','Subsys':'SUB2','System':'SYS2','Act Rgn':'LO'}]).to_excel(path,index=False)
+    loader=DataLoader(path, REQUIRED_COLUMNS)
+    loader.load()
+    df=loader.filter_projects({'ABC'})
+    assert len(df)==1 and df.iloc[0]['Element']=='PGM001'
