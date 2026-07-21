@@ -128,7 +128,7 @@ class ReferenceMatchReport:
             )
         ]
         if not rows and include_empty:
-            return self._empty_row()
+            return [self._empty_row()]
         return rows
 
     def _row_for(

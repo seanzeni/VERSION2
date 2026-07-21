@@ -5,6 +5,7 @@ from pathlib import Path
 from app.core.models import Element
 from app.reports.reference_match_report import ReferenceMatchReport
 from app.services.reference_element_service import ReferenceElementService
+from openpyxl import load_workbook
 
 
 def test_reference_report_only_includes_selected_visible_matches(
@@ -77,3 +78,43 @@ def test_hippa_listener_report_includes_listener_details(
     assert rows == [
         ["2026/07 release", "ABC", "PGM001", "OCOB", "USER1", "L1", "T1"]
     ]
+
+
+def test_hippa_listener_xlsx_allows_empty_report(
+    tmp_path: Path,
+) -> None:
+    """HIPPA XLSX empty output still writes one proper row."""
+    reference_path = tmp_path / "hippa.csv"
+    reference_path.write_text(
+        "Element,Type,Listener,Listener Transactions\nPGM001,OCOB,L1,T1\n",
+        encoding="utf-8",
+    )
+    service = ReferenceElementService()
+    service.load("hippa_listener", reference_path)
+
+    output_path = ReferenceMatchReport(
+        title="HIPPA Listeners",
+        file_stem="HIPPA_Listeners",
+        list_name="hippa_listener",
+        reference_service=service,
+        include_listener_details=True,
+    ).generate_xlsx(
+        elements=[],
+        output_folder=tmp_path,
+        include_empty=True,
+    )
+
+    workbook = load_workbook(output_path, read_only=True)
+    worksheet = workbook["HIPPA Listeners"]
+    rows = list(worksheet.iter_rows(values_only=True))
+    workbook.close()
+
+    assert rows[1] == (
+        None,
+        None,
+        None,
+        None,
+        "No matching moves found.",
+        None,
+        None,
+    )
