@@ -81,7 +81,7 @@ class AfterActionReport:
             story.append(
                 build_table(
                     headers=names(AFTER_ACTION_COLUMNS),
-                    rows=[["", "", selected_date.isoformat(), "", "", "", "", "", "", "No", "", "", "", "No matching executed bundles found."]],
+                    rows=[["", "", selected_date.isoformat(), "", "", "", "", "", "", "No", "", "", "", "", "No matching executed bundles found."]],
                 )
             )
             return write_pdf(output_path, story, use_landscape=True)
@@ -143,6 +143,7 @@ def build_after_action_row(
         moved_on_date if moved_on_date is not None else ("Yes" if moved else "No"),
         record.ndvr_package if record is not None else "",
         f"{record.ndvr_rc:05d}" if record is not None and record.ndvr_rc is not None else "",
+        _format_ndvr_date(record),
         record.time_generated if record is not None else "",
         reason
         if reason is not None
@@ -152,6 +153,19 @@ def build_after_action_row(
             else "No matching NDVR record was found for the selected move date."
         ),
     ]
+
+
+def _format_ndvr_date(
+    record: MainframeLocationRecord | None,
+) -> str:
+    if record is None:
+        return ""
+
+    parsed_date = parse_report_date(record.date_generated)
+    if parsed_date is None:
+        return str(record.date_generated).strip()
+
+    return parsed_date.isoformat()
 
 
 def parse_report_date(

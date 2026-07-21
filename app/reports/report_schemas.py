@@ -163,6 +163,7 @@ AFTER_ACTION_COLUMNS = [
     ReportColumn("Moved On Date"),
     ReportColumn("NDVR Package"),
     ReportColumn("NDVR RC"),
+    ReportColumn("NDVR Date"),
     ReportColumn("NDVR Time"),
     ReportColumn("Reason"),
 ]

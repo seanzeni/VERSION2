@@ -15,6 +15,7 @@ from app.reports.after_action_report import AfterActionReport
 from app.reports.after_action_report import build_after_action_row
 from app.reports.after_action_report import parse_report_date
 from app.reports.report_utils import archive_existing_reports
+from app.services.mainframe_location_service import MainframeLocationService
 
 
 class AfterActionService:
@@ -205,17 +206,28 @@ class AfterActionService:
         )
         reason = "OK"
         if record is None:
-            last_move_record = self._find_last_move_record(
+            equal_or_higher_records = self._find_equal_or_higher_records(
                 element=element,
-                mode=mode,
                 expected_env=expected_env,
                 expected_system=expected_system,
                 expected_subsystem=expected_subsystem,
             )
-            reason = self._missing_move_reason(
-                element=element,
-                last_move_record=last_move_record,
-            )
+            if equal_or_higher_records:
+                reason = self._equal_or_higher_location_reason(
+                    records=equal_or_higher_records,
+                )
+            else:
+                last_move_record = self._find_last_move_record(
+                    element=element,
+                    mode=mode,
+                    expected_env=expected_env,
+                    expected_system=expected_system,
+                    expected_subsystem=expected_subsystem,
+                )
+                reason = self._missing_move_reason(
+                    element=element,
+                    last_move_record=last_move_record,
+                )
 
         return build_after_action_row(
             release=release,
@@ -313,6 +325,80 @@ class AfterActionService:
             reverse=True,
         )[0]
 
+    def _find_equal_or_higher_records(
+        self,
+        element: Element,
+        expected_env: str,
+        expected_system: str,
+        expected_subsystem: str,
+    ) -> list[MainframeLocationRecord]:
+        location_service = self.context.location_service
+
+        if location_service is None:
+            return []
+
+        expected_level = self._env_level(expected_env)
+        records = [
+            record
+            for record in location_service.find(
+                element.element,
+                element.type,
+            )
+            if self._env_level(record.env) > expected_level
+        ]
+
+        if expected_env.strip().upper() == "PROD1":
+            records = [
+                record
+                for record in records
+                if record.env.strip().upper() != "PROD1"
+                or (
+                    record.system.strip().upper() == expected_system
+                    and record.subsystem.strip().upper() == expected_subsystem
+                )
+            ]
+
+        return sorted(
+            records,
+            key=lambda record: (
+                self._env_level(record.env),
+                parse_report_date(record.date_generated) or date.min,
+                record.time_generated,
+            ),
+            reverse=True,
+        )
+
+    def _equal_or_higher_location_reason(
+        self,
+        records: list[MainframeLocationRecord],
+    ) -> str:
+        locations = [
+            self._format_found_location(record)
+            for record in records
+        ]
+
+        return (
+            "No move detected for this date. "
+            f"Found equal or higher NDVR location(s): {', '.join(locations)}."
+        )
+
+    def _format_found_location(
+        self,
+        record: MainframeLocationRecord,
+    ) -> str:
+        found_date = parse_report_date(record.date_generated)
+        found_date_text = (
+            found_date.isoformat()
+            if found_date is not None
+            else str(record.date_generated).strip()
+        )
+        package = str(record.ndvr_package or "").strip() or "Unknown"
+
+        return (
+            f"{record.env} / {record.system} / {record.subsystem} "
+            f"on {found_date_text} using package {package}"
+        )
+
     def _missing_move_reason(
         self,
         element: Element,
@@ -358,6 +444,15 @@ class AfterActionService:
             return False
 
         return project.startswith(package) or package.startswith(project)
+
+    def _env_level(
+        self,
+        env: str,
+    ) -> int:
+        return MainframeLocationService.ENV_LEVELS.get(
+            str(env).strip().upper(),
+            0,
+        )
 
     def _find_marked_environment_record(
         self,

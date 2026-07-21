@@ -177,7 +177,7 @@ def test_after_action_archive_missing_from_prod_is_confirmed(
         selected_date=date(2026, 7, 15),
     )
 
-    assert rows[0][13] == "Archived Requested - confirmed no longer in Prod"
+    assert rows[0][14] == "Archived Requested - confirmed no longer in Prod"
 
 
 def test_after_action_regular_rows_are_ok(
@@ -212,7 +212,8 @@ def test_after_action_regular_rows_are_ok(
         selected_date=date(2026, 7, 15),
     )
 
-    assert rows[0][13] == "OK"
+    assert rows[0][12] == "2026-07-15"
+    assert rows[0][14] == "OK"
 
 
 def test_after_action_missing_move_reports_last_move_and_project_association(
@@ -260,7 +261,7 @@ def test_after_action_missing_move_reports_last_move_and_project_association(
     )
 
     assert rows[0][3] == "ABC12345"
-    assert rows[0][13] == (
+    assert rows[0][14] == (
         "No move detected for this date. Last move was 2026-07-12 using package "
         "ABC. Associated with inventory project ABC12345: Yes."
     )
@@ -298,7 +299,7 @@ def test_after_action_missing_move_reports_unassociated_last_move(
         selected_date=date(2026, 7, 15),
     )
 
-    assert rows[0][13] == (
+    assert rows[0][14] == (
         "No move detected for this date. Last move was 2026-07-12 using package "
         "XYZ. Associated with inventory project ABC12345: No."
     )
@@ -331,7 +332,7 @@ def test_after_action_do_not_move_uses_marker_reason(
         selected_date=date(2026, 7, 14),
     )
 
-    assert rows[0][13] == "Told us not to move."
+    assert rows[0][14] == "Told us not to move."
 
 
 def test_after_action_already_there_marker_reports_outside_release_move(
@@ -370,7 +371,46 @@ def test_after_action_already_there_marker_reports_outside_release_move(
     assert rows[0][9] == "No"
     assert rows[0][10] == "PKG999"
     assert rows[0][11] == "00012"
-    assert rows[0][13] == "Was moved outside of release."
+    assert rows[0][12] == "2026-07-10"
+    assert rows[0][14] == "Was moved outside of release."
+
+
+def test_after_action_missing_qual_move_reports_higher_location(
+    tmp_path: Path,
+) -> None:
+    """QUAL missing moves call out when the element already exists in PROD."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC",
+                "Element": "PGM001",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "",
+            }
+        ]
+    )
+    location_path = tmp_path / "locations.txt"
+    location_path.write_text(
+        make_location_line(
+            "PKG888",
+            env="PROD1",
+            system="PRIVATE1",
+            generated_date="2026/07/13",
+        ),
+        encoding="cp1252",
+    )
+
+    rows = AfterActionService(make_context(dataframe, location_path))._build_rows(
+        selected_date=date(2026, 7, 14),
+    )
+
+    assert rows[0][14] == (
+        "No move detected for this date. Found equal or higher NDVR location(s): "
+        "PROD1 / PRIVATE1 / SYS1 on 2026-07-13 using package PKG888."
+    )
 
 
 def test_after_action_only_includes_inventory_scheduled_for_selected_date(
