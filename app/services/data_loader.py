@@ -109,6 +109,29 @@ class DataLoader:
             df["Project"].astype(str).str.strip().str.upper().isin(clean_projects)
         ].copy()
 
+    def filter_release_projects_with_assigned_elsewhere(
+        self,
+        release: str,
+        projects: set[str],
+    ) -> pd.DataFrame:
+        release_df = self.filter_release_projects(
+            release=release,
+            projects=projects,
+        )
+        project_df = self.filter_projects(projects)
+        clean_release = str(release).strip().upper()
+        assigned_elsewhere_df = project_df[
+            project_df["Release"].astype(str).str.strip().str.upper() != clean_release
+        ].copy()
+
+        return pd.concat(
+            [
+                release_df,
+                assigned_elsewhere_df,
+            ],
+            ignore_index=True,
+        ).drop_duplicates()
+
     def get_projects_for_release(
         self,
         release: str,

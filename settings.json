@@ -58,6 +58,7 @@
   ],
   "selection_rules": {
     "already_in_environment_selectable": false,
+    "assignment_error_selectable": true,
     "archive_in_qual_selectable": false,
     "do_not_move_selectable": false,
     "duplicate_selectable": false,

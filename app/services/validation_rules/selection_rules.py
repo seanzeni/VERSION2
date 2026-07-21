@@ -111,8 +111,11 @@ def apply(
             element.selected = False
             element.selectable = bool(
                 selection_rules.get(
-                    "effort_release_mismatch_selectable",
-                    True,
+                    "assignment_error_selectable",
+                    selection_rules.get(
+                        "effort_release_mismatch_selectable",
+                        True,
+                    ),
                 )
             )
 

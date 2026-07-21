@@ -28,7 +28,6 @@ from app.core.app_context import AppContext
 from app.core.app_state import AppState
 from app.core.release_rules import next_release_choice
 from app.core.release_rules import next_available_effort_ids
-from app.core.status_messages import ReasonBuilder
 from app.ui.action_bar import ActionBar
 from app.ui.element_table import ElementTable
 from app.ui.release_tree import ReleaseTree
@@ -319,7 +318,7 @@ class MainWindow(ctk.CTk):
         }
 
         inventory_not_in_sql_ids = self.app_state.inventory_effort_ids - sql_effort_ids
-        assignment_error_details = self._build_assignment_error_details(
+        assignment_error_releases = self._build_assignment_error_releases(
             sql_effort_ids=sql_effort_ids,
         )
 
@@ -328,10 +327,10 @@ class MainWindow(ctk.CTk):
             effort_dates=self.app_state.effort_dates,
             inventory_effort_ids=self.app_state.inventory_effort_ids,
             inventory_not_in_sql_ids=inventory_not_in_sql_ids,
-            assignment_error_details=assignment_error_details,
+            assignment_error_releases=assignment_error_releases,
         )
 
-    def _build_assignment_error_details(
+    def _build_assignment_error_releases(
         self,
         sql_effort_ids: set[str],
     ) -> dict[str, list[str]]:
@@ -341,7 +340,7 @@ class MainWindow(ctk.CTk):
 
         dataframe = self.context.data_loader.filter_projects(candidate_effort_ids)
         elements = self.context.element_service.build_elements(dataframe)
-        details: dict[str, list[str]] = {}
+        releases: dict[str, list[str]] = {}
         candidate_lookup = {
             effort_id.upper(): effort_id
             for effort_id in candidate_effort_ids
@@ -355,22 +354,14 @@ class MainWindow(ctk.CTk):
             if effort_id is None:
                 continue
 
-            detail = (
-                f"{element.element} {element.type}: "
-                + ReasonBuilder.effort_release_mismatch(
-                    project=element.project,
-                    inventory_release=element.release,
-                    sql_release=self.app_state.release,
-                )
-            )
-            details.setdefault(
+            releases.setdefault(
                 effort_id,
                 [],
-            ).append(detail)
+            ).append(element.release)
 
         return {
-            effort_id: sorted(set(effort_details))
-            for effort_id, effort_details in details.items()
+            effort_id: sorted(set(effort_releases))
+            for effort_id, effort_releases in releases.items()
         }
 
     def select_default_release(
@@ -457,9 +448,11 @@ class MainWindow(ctk.CTk):
             self.refresh_statistics()
             return
 
-        release_df = self.context.data_loader.filter_release_projects(
-            release=self.app_state.release,
-            projects=self.app_state.selected_effort_ids,
+        release_df = (
+            self.context.data_loader.filter_release_projects_with_assigned_elsewhere(
+                release=self.app_state.release,
+                projects=self.app_state.selected_effort_ids,
+            )
         )
 
         selected_elements = self.context.element_service.build_elements(
@@ -467,17 +460,23 @@ class MainWindow(ctk.CTk):
         )
 
         all_release_elements = self.context.element_service.build_elements(
-            self.context.data_loader.filter_release(
-                self.app_state.release,
+            self.context.data_loader.filter_release_projects_with_assigned_elsewhere(
+                release=self.app_state.release,
+                projects={
+                    effort.effort_id.strip()
+                    for effort in self.app_state.release_efforts
+                    if effort.effort_id.strip()
+                },
             )
         )
+        effort_release_lookup = self._build_validation_effort_release_lookup()
 
         validated_elements, inventory_issues = (
             self.context.validation_service.validate_elements(
                 elements=selected_elements,
                 all_release_elements=all_release_elements,
                 release_efforts=self.app_state.release_efforts,
-                effort_release_lookup=self.app_state.effort_release_lookup,
+                effort_release_lookup=effort_release_lookup,
                 location_service=self.context.location_service,
                 mode=self.app_state.mode,
                 release=self.app_state.release,
@@ -492,6 +491,17 @@ class MainWindow(ctk.CTk):
         )
 
         self.refresh_statistics()
+
+    def _build_validation_effort_release_lookup(
+        self,
+    ) -> dict[str, str]:
+        lookup = dict(self.app_state.effort_release_lookup)
+        for effort in self.app_state.release_efforts:
+            effort_id = effort.effort_id.strip()
+            if effort_id:
+                lookup[effort_id] = self.app_state.release
+
+        return lookup
 
     def refresh_statistics(
         self,

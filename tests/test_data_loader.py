@@ -38,3 +38,12 @@ def test_filter_projects_across_releases(tmp_path: Path) -> None:
     loader.load()
     df=loader.filter_projects({'ABC'})
     assert len(df)==1 and df.iloc[0]['Element']=='PGM001'
+
+def test_filter_release_projects_with_assigned_elsewhere(tmp_path: Path) -> None:
+    """Verifies selected efforts include rows assigned to a different release."""
+    path=tmp_path/'inventory.xlsx'
+    pd.DataFrame([{'Release':'REL1','Project':'KEEP','Element':'PGM001','Type':'OCOB','Subsys':'SUB1','System':'SYS1','Act Rgn':'DV'},{'Release':'REL2','Project':'MISS','Element':'PGM002','Type':'JCL','Subsys':'SUB2','System':'SYS2','Act Rgn':'LO'}]).to_excel(path,index=False)
+    loader=DataLoader(path, REQUIRED_COLUMNS)
+    loader.load()
+    df=loader.filter_release_projects_with_assigned_elsewhere('REL1', {'KEEP', 'MISS'})
+    assert list(df['Element']) == ['PGM001', 'PGM002']

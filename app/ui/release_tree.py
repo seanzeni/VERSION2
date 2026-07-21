@@ -88,7 +88,7 @@ class ReleaseTree(ctk.CTkFrame):
         effort_dates: dict[str, str],
         inventory_effort_ids: set[str],
         inventory_not_in_sql_ids: set[str],
-        assignment_error_details: dict[str, list[str]],
+        assignment_error_releases: dict[str, list[str]],
     ) -> None:
         self.tree.delete(
             *self.tree.get_children(),
@@ -148,7 +148,7 @@ class ReleaseTree(ctk.CTkFrame):
                     parent=active_node,
                     effort=effort,
                     inventory_effort_ids=inventory_effort_ids,
-                    assignment_error_details=assignment_error_details,
+                    assignment_error_releases=assignment_error_releases,
                 )
 
             if grouped[move_date]["NoExpectedInv"]:
@@ -167,7 +167,7 @@ class ReleaseTree(ctk.CTkFrame):
                         parent=no_expected_node,
                         effort=effort,
                         inventory_effort_ids=inventory_effort_ids,
-                        assignment_error_details=assignment_error_details,
+                        assignment_error_releases=assignment_error_releases,
                         show_status_children=False,
                     )
 
@@ -179,7 +179,7 @@ class ReleaseTree(ctk.CTkFrame):
                     parent=withdrawn_node,
                     effort=effort,
                     inventory_effort_ids=inventory_effort_ids,
-                    assignment_error_details=assignment_error_details,
+                    assignment_error_releases=assignment_error_releases,
                     show_status_children=False,
                 )
 
@@ -202,7 +202,7 @@ class ReleaseTree(ctk.CTkFrame):
         parent: str,
         effort: ReleaseEffort,
         inventory_effort_ids: set[str],
-        assignment_error_details: dict[str, list[str]],
+        assignment_error_releases: dict[str, list[str]],
         show_status_children: bool = True,
     ) -> None:
         effort_id = effort.effort_id.strip()
@@ -224,18 +224,18 @@ class ReleaseTree(ctk.CTkFrame):
         if not show_status_children:
             return
 
-        if effort_id in assignment_error_details:
+        if effort_id in assignment_error_releases:
             assignment_node = self.tree.insert(
                 effort_node,
                 "end",
                 text="assign_err",
                 open=True,
             )
-            for detail in assignment_error_details[effort_id]:
+            for release in assignment_error_releases[effort_id]:
                 self.tree.insert(
                     assignment_node,
                     "end",
-                    text=detail,
+                    text=release,
                 )
             return
 

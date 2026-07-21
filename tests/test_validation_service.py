@@ -89,6 +89,7 @@ def make_service() -> ValidationService:
             "missing_ndvr_selectable": False,
             "inventory_not_in_release_selectable": True,
             "inventory_when_sql_no_inventory_selectable": True,
+            "assignment_error_selectable": True,
             "effort_release_mismatch_selectable": True,
             "hide_archive_rows_in_qual": True,
             "potential_missing_archive_selectable": False,
@@ -556,6 +557,27 @@ def test_missing_location_overrides_not_in_sql_selectable_rule() -> None:
     make_service().apply_selection_rules([element], mode="PROD")
 
     assert element.visible is True
+    assert element.selected is False
+    assert element.selectable is False
+
+
+def test_assignment_error_selectability_uses_setting() -> None:
+    """Verifies assignment error rows default selectable but can be blocked."""
+    element = make_element()
+    element.schedule_status = ScheduleStatus.EFFORT_RELEASE_MISMATCH
+    service = make_service()
+
+    service.apply_selection_rules([element])
+
+    assert element.selected is False
+    assert element.selectable is True
+
+    element = make_element()
+    element.schedule_status = ScheduleStatus.EFFORT_RELEASE_MISMATCH
+    service.selection_rules["assignment_error_selectable"] = False
+
+    service.apply_selection_rules([element])
+
     assert element.selected is False
     assert element.selectable is False
 
