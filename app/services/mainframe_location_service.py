@@ -47,14 +47,34 @@ class MainframeLocationService:
     ENV_LEVELS: dict[str, int] = {
         "MAIN1": 1,
         "DEVL1": 1,
-        "QUAL1": 2,
-        "PROD1": 3,
-        "FIXP1": 4,
+        "UNIT": 1,
+        "UNIT1": 1,
+        "UTDV1": 1,
+        "SYSTEM": 2,
+        "SYST1": 2,
+        "STDV1": 2,
+        "QUAL1": 3,
+        "PROD1": 4,
+        "FIXP1": 5,
+    }
+
+    ENV_GROUPS: dict[str, set[str]] = {
+        "MAIN1": {"MAIN1", "UNIT1", "SYST1"},
+        "DEVL1": {"DEVL1", "UTDV1", "STDV1"},
+        "UNIT": {"MAIN1", "DEVL1", "UNIT1", "UTDV1"},
+        "SYSTEM": {"SYST1", "STDV1"},
+        "QUAL1": {"QUAL1"},
+        "PROD1": {"PROD1"},
+        "FIXP1": {"FIXP1"},
     }
 
     VERSION_COMPARE_ENVS: set[str] = {
         "MAIN1",
         "DEVL1",
+        "UNIT1",
+        "UTDV1",
+        "SYST1",
+        "STDV1",
         "QUAL1",
         "PROD1",
     }
@@ -276,6 +296,40 @@ class MainframeLocationService:
                 type_=type_,
             )
         )
+
+    def exists_in_any_location(
+        self,
+        element: str,
+        type_: str,
+        envs: set[str],
+        system: str,
+        subsystem: str,
+    ) -> bool:
+        wanted_envs = {
+            str(env).strip().upper()
+            for env in envs
+            if str(env).strip()
+        }
+        wanted_system = str(system).strip().upper()
+        wanted_subsystem = str(subsystem).strip().upper()
+
+        return any(
+            record.env.strip().upper() in wanted_envs
+            and record.system.strip().upper() == wanted_system
+            and record.subsystem.strip().upper() == wanted_subsystem
+            for record in self.find(
+                element=element,
+                type_=type_,
+            )
+        )
+
+    @classmethod
+    def env_group(
+        cls,
+        env: str,
+    ) -> set[str]:
+        clean_env = str(env).strip().upper()
+        return set(cls.ENV_GROUPS.get(clean_env, {clean_env} if clean_env else set()))
 
     def exists_in_fixp1(
         self,

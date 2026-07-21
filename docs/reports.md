@@ -130,13 +130,17 @@ Output is written under:
 `Resync_Report.csv`, `.xlsx`, and `.pdf` identify possible resync candidates
 from NDVR data using the selected move mode.
 
+Lifecycle ordering is `UNIT1`/`UTDV1` < `SYST1`/`STDV1` < `QUAL1` < `PROD1`.
+Older `MAIN1` and `DEVL1` values are still treated as unit-level compatibility
+aliases when they appear in historical files.
+
 For QUAL moves, `QUAL1` is the newer source. The report compares that version
-against `MAIN1` and `DEVL1`, skipping the inventory row's current moving
-location so the row being promoted does not report itself.
+against unit and system lifecycle records, skipping the inventory row's current
+moving location so the row being promoted does not report itself.
 
 For PROD moves, `PROD1` is the newer source. The report compares that version
-against `QUAL1`, `MAIN1`, and `DEVL1`, again skipping the inventory row's
-current moving location. `FIXP1` is always ignored for resync.
+against `QUAL1`, unit, and system lifecycle records, again skipping the
+inventory row's current moving location. `FIXP1` is always ignored for resync.
 
 ## OSG/COPS Report
 

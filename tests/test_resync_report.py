@@ -68,8 +68,8 @@ def test_resync_qual_uses_qual_as_newer_source_and_skips_moving_record(
         tmp_path,
         [
             make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "QUAL1", "02.00", "QUAL"),
-            make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "DEVL1", "01.00", "MOVE"),
-            make_line("PGM001", "OCOB", "SHARED01", "SYS1", "MAIN1", "01.00", "MAIN"),
+            make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "STDV1", "01.00", "MOVE"),
+            make_line("PGM001", "OCOB", "SHARED01", "SYS1", "UNIT1", "01.00", "UNIT"),
             make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "FIXP1", "99.99", "FIXP"),
         ],
     )
@@ -82,7 +82,7 @@ def test_resync_qual_uses_qual_as_newer_source_and_skips_moving_record(
     )
 
     assert len(rows) == 1
-    assert rows[0][4] == "MAIN1"
+    assert rows[0][4] == "UNIT1"
     assert rows[0][9] == "QUAL1"
     assert rows[0][12] == "02.00"
 
@@ -97,7 +97,7 @@ def test_resync_prod_uses_prod_as_newer_source_and_skips_moving_qual_record(
             make_line("PGM001", "OCOB", "PRIVATE1", "SYS1", "PROD1", "03.00", "PROD"),
             make_line("PGM001", "OCOB", "PRIVATE1", "SYS1", "QUAL1", "02.00", "MOVE"),
             make_line("PGM001", "OCOB", "SHARED01", "SYS1", "QUAL1", "01.00", "QUAL"),
-            make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "DEVL1", "01.00", "DEVL"),
+            make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "UTDV1", "01.00", "UTDV"),
             make_line("PGM001", "OCOB", "PRIVATE1", "SYS1", "FIXP1", "99.99", "FIXP"),
         ],
     )
@@ -109,6 +109,6 @@ def test_resync_prod_uses_prod_as_newer_source_and_skips_moving_qual_record(
         location_service=service,
     )
 
-    assert [row[4] for row in rows] == ["DEVL1", "QUAL1"]
+    assert [row[4] for row in rows] == ["QUAL1", "UTDV1"]
     assert all(row[9] == "PROD1" for row in rows)
     assert all(row[12] == "03.00" for row in rows)

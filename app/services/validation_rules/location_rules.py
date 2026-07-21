@@ -69,6 +69,10 @@ def apply(
             mode=context.mode,
             element=element,
         )
+        expected_envs = get_source_envs_for_move(
+            mode=context.mode,
+            element=element,
+        )
         expected_system = get_expected_system_for_move(
             mode=context.mode,
             element=element,
@@ -78,10 +82,12 @@ def apply(
             element=element,
         )
 
-        if location_service.exists_in_location(
+        if exists_in_expected_location(
+            location_service=location_service,
             element=element.element,
             type_=element.type,
-            env=expected_env,
+            expected_env=expected_env,
+            expected_envs=expected_envs,
             system=expected_system,
             subsystem=expected_subsystem,
         ):
@@ -112,7 +118,9 @@ def apply(
             reason=ReasonBuilder.missing_ndvr(
                 element=element.element,
                 type_=element.type,
-                expected_env=expected_env,
+                expected_env=get_source_env_display(
+                    expected_env,
+                ),
                 expected_system=expected_system,
                 expected_subsystem=expected_subsystem,
                 found_locations=found_locations,
@@ -128,6 +136,39 @@ def should_skip_for_movement_status(
         MovementStatus.MARKED_IN_PROD,
         MovementStatus.MARKED_IN_QUAL,
     }
+
+
+def exists_in_expected_location(
+    location_service: MainframeLocationService,
+    element: str,
+    type_: str,
+    expected_env: str,
+    expected_envs: set[str],
+    system: str,
+    subsystem: str,
+) -> bool:
+    if hasattr(
+        location_service,
+        "exists_in_any_location",
+    ):
+        return location_service.exists_in_any_location(
+            element=element,
+            type_=type_,
+            envs=expected_envs,
+            system=system,
+            subsystem=subsystem,
+        )
+
+    return any(
+        location_service.exists_in_location(
+            element=element,
+            type_=type_,
+            env=env,
+            system=system,
+            subsystem=subsystem,
+        )
+        for env in (expected_envs or {expected_env})
+    )
 
 
 def get_env_level(
@@ -149,20 +190,30 @@ def get_source_env_for_move(
 
         return "QUAL1"
 
-    act_region = str(
-        element.source_row.get(
-            "Act Rgn",
-            "",
+    return "SYSTEM"
+
+
+def get_source_envs_for_move(
+    mode: str,
+    element: Element,
+) -> set[str]:
+    return MainframeLocationService.env_group(
+        get_source_env_for_move(
+            mode=mode,
+            element=element,
         )
-    ).strip().upper()
+    )
 
-    if act_region.startswith("DV"):
-        return "DEVL1"
 
-    if act_region.startswith("LO"):
-        return "MAIN1"
-
-    return "QUAL1"
+def get_source_env_display(
+    env: str,
+) -> str:
+    clean_env = str(env).strip().upper()
+    if clean_env == "SYSTEM":
+        return "SYST1/STDV1"
+    if clean_env == "UNIT":
+        return "UNIT1/UTDV1"
+    return clean_env
 
 
 def get_expected_system_for_move(

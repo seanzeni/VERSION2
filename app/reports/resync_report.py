@@ -35,8 +35,8 @@ class ResyncReport:
         "PROD": "PROD1",
     }
     COMPARE_ENVS_BY_MODE = {
-        "QUAL": {"MAIN1", "DEVL1"},
-        "PROD": {"MAIN1", "DEVL1", "QUAL1"},
+        "QUAL": {"MAIN1", "DEVL1", "UNIT1", "UTDV1", "SYST1", "STDV1"},
+        "PROD": {"MAIN1", "DEVL1", "UNIT1", "UTDV1", "SYST1", "STDV1", "QUAL1"},
     }
 
     def generate(
@@ -176,7 +176,7 @@ class ResyncReport:
             if source_record is None:
                 continue
 
-            moving_record_key = self._moving_record_key(
+            moving_record_keys = self._moving_record_keys(
                 element=element,
                 mode=clean_mode,
             )
@@ -185,7 +185,7 @@ class ResyncReport:
                 element=element,
                 location_service=location_service,
                 compare_envs=compare_envs,
-                moving_record_key=moving_record_key,
+                moving_record_keys=moving_record_keys,
             ):
                 if source_record.version_number <= target_record.version_number:
                     continue
@@ -253,7 +253,7 @@ class ResyncReport:
         element: Element,
         location_service: MainframeLocationService,
         compare_envs: set[str],
-        moving_record_key: tuple[str, str, str] | None,
+        moving_record_keys: set[tuple[str, str, str]],
     ) -> list[MainframeLocationRecord]:
         return [
             record
@@ -262,33 +262,46 @@ class ResyncReport:
                 type_=element.type,
             )
             if record.env.strip().upper() in compare_envs
-            and self._record_location_key(record) != moving_record_key
+            and self._record_location_key(record) not in moving_record_keys
         ]
 
-    def _moving_record_key(
+    def _moving_record_keys(
         self,
         element: Element,
         mode: str,
-    ) -> tuple[str, str, str] | None:
+    ) -> set[tuple[str, str, str]]:
         source_env = location_rules.get_source_env_for_move(
             mode=mode,
             element=element,
         )
-
-        if source_env.upper() not in self.COMPARE_ENVS_BY_MODE.get(mode, set()):
-            return None
-
-        return (
-            source_env.strip().upper(),
-            location_rules.get_expected_system_for_move(
-                mode=mode,
-                element=element,
-            ).strip().upper(),
-            location_rules.get_expected_subsystem_for_move(
-                mode=mode,
-                element=element,
-            ).strip().upper(),
+        source_envs = location_rules.get_source_envs_for_move(
+            mode=mode,
+            element=element,
         )
+
+        compare_envs = self.COMPARE_ENVS_BY_MODE.get(mode, set())
+        matching_envs = {
+            env.strip().upper()
+            for env in source_envs
+            if env.strip().upper() in compare_envs
+        }
+        if source_env.upper() in compare_envs:
+            matching_envs.add(source_env.upper())
+
+        return {
+            (
+                env,
+                location_rules.get_expected_system_for_move(
+                    mode=mode,
+                    element=element,
+                ).strip().upper(),
+                location_rules.get_expected_subsystem_for_move(
+                    mode=mode,
+                    element=element,
+                ).strip().upper(),
+            )
+            for env in matching_envs
+        }
 
     def _record_location_key(
         self,

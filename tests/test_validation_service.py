@@ -71,6 +71,36 @@ class FakeLocationServiceWithLocations(FakeLocationService):
             )
             for element, type_, env, system, subsystem in location_records
         }
+        self.records = [
+            MainframeLocationRecord(
+                element=element,
+                type=type_,
+                env=env,
+                system=system,
+                subsystem=subsystem,
+                date_generated="2026/07/16",
+                time_generated="12:00:00:00",
+                version="01.01",
+                major_version=1,
+                level=1,
+                user="USER01",
+                ccid="CCID01",
+                comments="COMMENTS",
+            )
+            for element, type_, env, system, subsystem in location_records
+        ]
+
+    def find(
+        self,
+        element: str,
+        type_: str,
+    ) -> list[MainframeLocationRecord]:
+        return [
+            record
+            for record in self.records
+            if record.element.upper() == element.upper()
+            and record.type.upper() == type_.upper()
+        ]
 
 
 def make_service() -> ValidationService:
@@ -479,17 +509,31 @@ def test_prod_archive_package_location_status_looks_in_prod() -> None:
     assert element.location_status == LocationStatus.FOUND
 
 
-def test_qual_location_status_uses_act_region_source_env() -> None:
-    """Verifies QUAL location status uses act region source env."""
+def test_qual_location_status_accepts_system_lifecycle_env() -> None:
+    """Verifies QUAL location status accepts system lifecycle envs."""
     element = make_element()
     make_service().apply_location_status(
         [element],
         FakeLocationServiceWithLocations(
-            {("PGM001", "OCOB", "DEVL1", "PRIVATE0", "SYS1")}
+            {("PGM001", "OCOB", "STDV1", "PRIVATE0", "SYS1")}
         ),
         "QUAL",
     )
     assert element.location_status == LocationStatus.FOUND
+
+
+def test_qual_location_status_rejects_unit_lifecycle_env() -> None:
+    """Verifies QUAL location status does not accept unit lifecycle envs."""
+    element = make_element()
+    make_service().apply_location_status(
+        [element],
+        FakeLocationServiceWithLocations(
+            {("PGM001", "OCOB", "UTDV1", "PRIVATE0", "SYS1")}
+        ),
+        "QUAL",
+    )
+    assert element.location_status == LocationStatus.NOT_FOUND
+    assert "UTDV1 / PRIVATE0 / SYS1" in element.display_reason
 
 
 def test_qual_archive_location_status_is_not_flagged() -> None:

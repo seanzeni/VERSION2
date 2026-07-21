@@ -59,6 +59,10 @@ two rules are otherwise independent.
    - Checks expected NDVR environment, system, and subsystem.
    - PROD normally validates from `QUAL1`.
    - PROD archive moves validate from `PROD1`.
+   - QUAL validates that the element/type is in the system/standard lifecycle
+     stage, accepted as either `SYST1` or `STDV1`.
+   - Unit lifecycle records (`UNIT1` or `UTDV1`) are lower-stage evidence for
+     QUAL moves, but do not satisfy the expected source location.
    - QUAL archive rows can be hidden/skipped when configured.
    - Skips rows already confirmed by movement markers (`MARKED_IN_PROD` or
      `MARKED_IN_QUAL`) and `DO_NOT_MOVE` rows.
@@ -90,11 +94,16 @@ two rules are otherwise independent.
 The Resync Report is not part of the element validation rule pipeline. It is a
 report-only NDVR analysis in `app/reports/resync_report.py`.
 
-For QUAL mode, `QUAL1` is treated as the newer source and is compared to
-`MAIN1` and `DEVL1`. For PROD mode, `PROD1` is treated as the newer source and
-is compared to `QUAL1`, `MAIN1`, and `DEVL1`. In both modes, the selected
-inventory row's current moving location is ignored so the move itself does not
-create a resync row. `FIXP1` is excluded.
+Lifecycle ordering is:
+`UNIT1`/`UTDV1` < `SYST1`/`STDV1` < `QUAL1` < `PROD1`.
+Older `MAIN1` and `DEVL1` names are still treated as unit-level compatibility
+aliases when present in historical files.
+
+For QUAL mode, `QUAL1` is treated as the newer source and is compared to unit
+and system lifecycle records. For PROD mode, `PROD1` is treated as the newer
+source and is compared to `QUAL1`, unit, and system lifecycle records. In both
+modes, the selected inventory row's current moving location is ignored so the
+move itself does not create a resync row. `FIXP1` is excluded.
 
 ## How To Add A Rule
 
