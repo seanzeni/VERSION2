@@ -156,8 +156,10 @@ class SqlRegionAssignmentClient:
         FROM Bundles b
         INNER JOIN Efforts e
             ON CAST(e.BundleSequence AS VARCHAR(50)) = CAST(b.Sequence AS VARCHAR(50))
+        INNER JOIN Regions r
+            ON CAST(r.TestEnvironment AS VARCHAR(50)) = CAST(b.TestEnvironment AS VARCHAR(50))
         INNER JOIN MiscEnvironmentSystem mes
-            ON CAST(mes.TestEnvironment AS VARCHAR(50)) = CAST(b.TestEnvironment AS VARCHAR(50))
+            ON LEFT(LTRIM(RTRIM(r.Id)), 3) = LEFT(LTRIM(RTRIM(mes.Region)), 3)
         WHERE b.Id LIKE '%Release%'
             AND ISNULL(b.TestEnvironment, 0) <> 0
             AND b.BundleProdImpDate >= ?

@@ -51,6 +51,53 @@ class FakeAssignmentClient:
         ]
 
 
+class FakeCursor:
+    def __init__(self) -> None:
+        self.query = ""
+        self.params = ()
+
+    def execute(
+        self,
+        query,
+        *params,
+    ) -> None:
+        self.query = query
+        self.params = params
+
+    def fetchall(self) -> list:
+        return []
+
+
+class FakeConnection:
+    def __init__(
+        self,
+        cursor: FakeCursor,
+    ) -> None:
+        self._cursor = cursor
+
+    def __enter__(self):
+        return self
+
+    def __exit__(
+        self,
+        exc_type,
+        exc,
+        traceback,
+    ) -> None:
+        return None
+
+    def cursor(self) -> FakeCursor:
+        return self._cursor
+
+
+class FakeDbService:
+    def __init__(self) -> None:
+        self.cursor = FakeCursor()
+
+    def get_connection(self) -> FakeConnection:
+        return FakeConnection(self.cursor)
+
+
 def make_settings(
     tmp_path: Path,
     inventory_path: Path,
@@ -158,6 +205,27 @@ def test_effort_matches_truncated_ndvr_ccid() -> None:
     """Verifies full effort IDs can match shortened NDVR CCIDs."""
     assert audit_module.effort_matches_ccid("ABC12345", "ABC")
     assert not audit_module.effort_matches_ccid("ABC12345", "XYZ")
+
+
+def test_sql_region_assignment_client_uses_regions_bridge() -> None:
+    """Verifies bundle test environment resolves systems through Regions."""
+    db_service = FakeDbService()
+    client = audit_module.SqlRegionAssignmentClient(db_service)
+
+    assignments = client.load_region_assignments(
+        start_date=date(2026, 6, 1),
+        end_date=date(2026, 11, 1),
+    )
+
+    assert assignments == []
+    assert "INNER JOIN Regions r" in db_service.cursor.query
+    assert "CAST(r.TestEnvironment AS VARCHAR(50))" in db_service.cursor.query
+    assert "LEFT(LTRIM(RTRIM(r.Id)), 3)" in db_service.cursor.query
+    assert "LEFT(LTRIM(RTRIM(mes.Region)), 3)" in db_service.cursor.query
+    assert db_service.cursor.params == (
+        date(2026, 6, 1),
+        date(2026, 11, 1),
+    )
 
 
 def test_region_inventory_audit_classifies_region_records(
