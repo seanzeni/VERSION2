@@ -32,6 +32,7 @@ from app.reports.report_utils import safe_release_name  # noqa: E402
 from app.services.after_action_service import AfterActionService  # noqa: E402
 from scripts.after_action_report import build_context as build_after_action_context  # noqa: E402
 from scripts.fixp_daily_compare import FixpDailyCompare  # noqa: E402
+from scripts.global_resync_report import GlobalResyncReport  # noqa: E402
 from scripts.ndvr_daily_move_audit import DailyMoveAudit  # noqa: E402
 from scripts.region_inventory_audit import RegionInventoryAudit  # noqa: E402
 from scripts.report_script_utils import resolve_path  # noqa: E402
@@ -122,6 +123,10 @@ def build_tasks() -> list[ReportTask]:
             run=run_ndvr_daily_move_audit,
         ),
         ReportTask(
+            name="Global Resync",
+            run=run_global_resync,
+        ),
+        ReportTask(
             name="Region Inventory Audit",
             run=run_region_inventory_audit,
         ),
@@ -180,6 +185,17 @@ def run_ndvr_daily_move_audit(
         target_date=context.report_date,
         formats=active_formats(context),
     )
+
+
+def run_global_resync(
+    context: RunnerContext,
+) -> list[Path]:
+    return GlobalResyncReport(
+        settings=context.settings,
+        base_dir=context.base_dir,
+        ndvr_source=context.ndvr_source,
+        output_folder=active_output_root(context),
+    ).run()
 
 
 def run_region_inventory_audit(

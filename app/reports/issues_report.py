@@ -9,11 +9,11 @@
 # Responsibilities:
 #     - Export validation issues.
 #     - Export warnings.
-#     - Export informational statuses.
 
 from pathlib import Path
 
 from app.core.models import Element
+from app.core.models import Severity
 from app.reports.report_schemas import ISSUES_COLUMNS
 from app.reports.report_schemas import ISSUES_GLOSSARY_COLUMNS
 from app.reports.report_schemas import names
@@ -41,6 +41,12 @@ class IssuesReport:
                 continue
 
             if not include_empty and not element.display_reason:
+                continue
+
+            if element.severity not in {
+                Severity.ERROR,
+                Severity.WARNING,
+            }:
                 continue
 
             rows.append(

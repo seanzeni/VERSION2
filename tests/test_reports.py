@@ -42,6 +42,22 @@ def test_issues_report_excludes_hidden(tmp_path: Path) -> None:
     make_writable(output)
     make_writable(glossary)
 
+def test_issues_report_excludes_info_severity(tmp_path: Path) -> None:
+    """Verifies issues report only includes warnings and errors."""
+    info = make_element()
+    info.reasons.append('Informational reason')
+    warning = make_element(
+        name='OPGM002',
+        archive_status=ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE,
+    )
+
+    output=IssuesReport().generate([info, warning], tmp_path, False)
+    rows=read_csv(output)
+
+    assert [row['Element'] for row in rows] == ['OPGM002']
+    assert rows[0]['Severity'] == 'WARNING'
+    make_writable(output)
+
 def test_effort_summary_report_generates_rows(tmp_path: Path) -> None:
     """Verifies effort summary report generates rows."""
     output=EffortSummaryReport(make_stats_service()).generate([make_element(project='ABC', type_='OCOB'), make_element(project='ABC', type_='OAPS')], tmp_path, 'PROD', 1)

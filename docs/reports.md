@@ -3,8 +3,8 @@
 ## Standalone Runner
 
 `scripts/run_all_reports.py` runs the standalone operational scripts together:
-after action, FIXP daily compare, NDVR daily move audit, region inventory audit,
-and TO QUAL/TO PROD movement reports.
+after action, FIXP daily compare, NDVR daily move audit, global resync, region
+inventory audit, and TO QUAL/TO PROD movement reports.
 
 Use `--date YYYY-MM-DD` for date-driven reports. If omitted, date-driven
 reports use the previous calendar day, while FIXP daily compare uses the latest
@@ -22,6 +22,13 @@ test regions. Before the 15th of the month, the bundle month window starts with
 the previous month. On and after the 15th, the previous bundle month is dropped
 to match inventory cleanup. Bundles whose production implementation date has
 already passed are excluded.
+
+## Global Resync Report
+
+`scripts/global_resync_report.py` scans the latest NDVR file across all
+non-FIXP lifecycle environments without release/project filtering. It reports
+same element/type records when an equal or higher lifecycle environment has a
+higher version than the target row. The output is XLSX only.
 
 ## Effort Summary Report
 

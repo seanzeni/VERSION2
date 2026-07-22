@@ -39,6 +39,14 @@ def test_archive_existing_xlsx_moves_files_to_history(
     assert ignored_file.exists()
 
 
+def test_build_tasks_includes_global_resync() -> None:
+    """Verifies the all-report runner includes global resync."""
+    assert "Global Resync" in {
+        task.name
+        for task in runner_module.build_tasks()
+    }
+
+
 def test_publish_xlsx_files_copies_only_xlsx_and_marks_read_only(
     tmp_path: Path,
 ) -> None:
