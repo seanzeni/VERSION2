@@ -48,6 +48,10 @@ RULE = RuleDefinition(
     description="Apply selected/selectable/visible behavior after statuses are assigned.",
 )
 
+QUAL_ARCHIVE_NOT_SELECTABLE_REASON = (
+    "Not selectable for QUAL because this row is an archive request."
+)
+
 
 def apply(
     context: ValidatorContext,
@@ -69,6 +73,10 @@ def apply(
             element.selected = False
             element.selectable = False
             element.visible = False
+            context.add_reason(
+                element=element,
+                reason=QUAL_ARCHIVE_NOT_SELECTABLE_REASON,
+            )
             continue
 
         if element.inventory_status == InventoryStatus.OVERLAP:

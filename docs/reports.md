@@ -15,6 +15,14 @@ files in that folder are moved to `History` before the new files are published.
 Without `--output`, each script uses the normal default output settings and
 formats.
 
+## Region Inventory Audit
+
+`scripts/region_inventory_audit.py` reviews upcoming non-Special bundles with
+test regions. Before the 15th of the month, the bundle month window starts with
+the previous month. On and after the 15th, the previous bundle month is dropped
+to match inventory cleanup. Bundles whose production implementation date has
+already passed are excluded.
+
 ## Effort Summary Report
 
 `Effort_Summary_Report.csv` contains one row per inventory item with every

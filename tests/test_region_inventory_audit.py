@@ -28,10 +28,12 @@ class FakeAssignmentClient:
         self,
         start_date: date,
         end_date: date,
+        active_date: date,
     ):
         self.requested_window = (
             start_date,
             end_date,
+            active_date,
         )
         return [
             audit_module.RegionAssignment(
@@ -237,9 +239,17 @@ def write_ndvr(
     return folder
 
 
-def test_report_window_uses_last_month_through_next_three_months() -> None:
-    """Verifies SQL date window covers last month through next three months."""
+def test_report_window_uses_current_month_after_inventory_cutoff() -> None:
+    """Verifies region audit drops the prior bundle month on the 15th."""
     assert audit_module.report_window(date(2026, 7, 21)) == (
+        date(2026, 7, 1),
+        date(2026, 11, 1),
+    )
+
+
+def test_report_window_keeps_prior_month_before_inventory_cutoff() -> None:
+    """Verifies prior bundle month is included before the 15th."""
+    assert audit_module.report_window(date(2026, 7, 14)) == (
         date(2026, 6, 1),
         date(2026, 11, 1),
     )
@@ -259,6 +269,7 @@ def test_sql_region_assignment_client_uses_regions_bridge() -> None:
     assignments = client.load_region_assignments(
         start_date=date(2026, 6, 1),
         end_date=date(2026, 11, 1),
+        active_date=date(2026, 7, 21),
     )
 
     assert assignments == []
@@ -266,11 +277,15 @@ def test_sql_region_assignment_client_uses_regions_bridge() -> None:
     assert "GROUP BY" in db_service.cursor.query
     assert "b.Id NOT LIKE '%Special%'" in db_service.cursor.query
     assert "b.Id LIKE '%Release%'" not in db_service.cursor.query
+    assert "LEFT(LTRIM(RTRIM(b.Id)), 7) >= ?" in db_service.cursor.query
+    assert "b.BundleProdImpDate >= ?" in db_service.cursor.query
     assert "CAST(TestEnvironment AS VARCHAR(50))" in db_service.cursor.query
     assert "LEFT(LTRIM(RTRIM(Id)), 3)" in db_service.cursor.query
     assert "LEFT(LTRIM(RTRIM(mes.Region)), 3)" in db_service.cursor.query
     assert db_service.cursor.params == (
-        date(2026, 6, 1),
+        "2026/06",
+        "2026/11",
+        date(2026, 7, 21),
         date(2026, 11, 1),
     )
 
@@ -292,8 +307,9 @@ def test_region_inventory_audit_classifies_region_records(
     statuses = {row.element: row.status for row in rows}
 
     assert assignment_client.requested_window == (
-        date(2026, 6, 1),
+        date(2026, 7, 1),
         date(2026, 11, 1),
+        date(2026, 7, 21),
     )
     assert statuses == {
         "BAD001": audit_module.STATUS_IMPROPER_ACTIVITY,

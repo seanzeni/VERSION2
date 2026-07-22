@@ -172,6 +172,7 @@ class SqlRegionAssignmentClient:
         self,
         start_date: date,
         end_date: date,
+        active_date: date,
     ) -> list[RegionAssignment]:
         query = """
         SELECT
@@ -202,6 +203,8 @@ class SqlRegionAssignmentClient:
             ON LEFT(LTRIM(RTRIM(r.Id)), 3) = LEFT(LTRIM(RTRIM(mes.Region)), 3)
         WHERE b.Id NOT LIKE '%Special%'
             AND ISNULL(b.TestEnvironment, 0) <> 0
+            AND LEFT(LTRIM(RTRIM(b.Id)), 7) >= ?
+            AND LEFT(LTRIM(RTRIM(b.Id)), 7) < ?
             AND b.BundleProdImpDate >= ?
             AND b.BundleProdImpDate < ?
             AND mes.Region LIKE 'DV%'
@@ -213,7 +216,9 @@ class SqlRegionAssignmentClient:
             cursor = conn.cursor()
             cursor.execute(
                 query,
-                start_date,
+                bundle_month_text(start_date),
+                bundle_month_text(end_date),
+                active_date,
                 end_date,
             )
             for row in cursor.fetchall():
@@ -288,10 +293,12 @@ class RegionInventoryAudit:
         self,
         today: date | None = None,
     ) -> list[Path]:
-        start_date, end_date = report_window(today or date.today())
+        active_date = today or date.today()
+        start_date, end_date = report_window(active_date)
         assignments = self.assignment_client.load_region_assignments(
             start_date=start_date,
             end_date=end_date,
+            active_date=active_date,
         )
         rows = self._build_rows(assignments)
         output_folder = self.output_folder / "Region Inventory Audit"
@@ -326,10 +333,12 @@ class RegionInventoryAudit:
         self,
         today: date | None = None,
     ) -> list[RegionAuditRow]:
-        start_date, end_date = report_window(today or date.today())
+        active_date = today or date.today()
+        start_date, end_date = report_window(active_date)
         assignments = self.assignment_client.load_region_assignments(
             start_date=start_date,
             end_date=end_date,
+            active_date=active_date,
         )
         return self._build_rows(assignments)
 
@@ -905,13 +914,14 @@ def format_assignment_text(
 def report_window(
     today: date,
 ) -> tuple[date, date]:
+    month_offset = -1 if today.day < 15 else 0
     start_month = add_months(
         date(
             today.year,
             today.month,
             1,
         ),
-        -1,
+        month_offset,
     )
     end_month = add_months(
         date(
@@ -922,6 +932,12 @@ def report_window(
         4,
     )
     return start_month, end_month
+
+
+def bundle_month_text(
+    value: date,
+) -> str:
+    return value.strftime("%Y/%m")
 
 
 def add_months(

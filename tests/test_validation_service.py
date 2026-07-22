@@ -569,6 +569,9 @@ def test_qual_archive_row_is_hidden_and_unselected() -> None:
     assert element.visible is False
     assert element.selected is False
     assert element.selectable is False
+    assert "Not selectable for QUAL because this row is an archive request." in (
+        element.display_reason
+    )
 
 
 def test_qual_archive_package_row_is_hidden_and_unselected() -> None:
@@ -578,6 +581,9 @@ def test_qual_archive_package_row_is_hidden_and_unselected() -> None:
     assert element.visible is False
     assert element.selected is False
     assert element.selectable is False
+    assert "Not selectable for QUAL because this row is an archive request." in (
+        element.display_reason
+    )
 
 
 def test_qual_archive_package_row_with_sql_issue_stays_visible() -> None:
