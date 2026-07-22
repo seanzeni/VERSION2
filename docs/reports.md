@@ -1,5 +1,20 @@
 # Reports
 
+## Standalone Runner
+
+`scripts/run_all_reports.py` runs the standalone operational scripts together:
+after action, FIXP daily compare, NDVR daily move audit, region inventory audit,
+and TO QUAL/TO PROD movement reports.
+
+Use `--date YYYY-MM-DD` for date-driven reports. If omitted, date-driven
+reports use the previous calendar day, while FIXP daily compare uses the latest
+two available FIXP file dates.
+
+Use `--output <folder>` to create a flat XLSX-only output drop. Existing `.xlsx`
+files in that folder are moved to `History` before the new files are published.
+Without `--output`, each script uses the normal default output settings and
+formats.
+
 ## Effort Summary Report
 
 `Effort_Summary_Report.csv` contains one row per inventory item with every

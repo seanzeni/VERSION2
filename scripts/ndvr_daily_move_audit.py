@@ -118,6 +118,7 @@ class DailyMoveAudit:
     def run(
         self,
         target_date: date,
+        formats: list[str] | tuple[str, ...] = ("xlsx", "pdf"),
     ) -> list[Path]:
         rows = self.build_rows(target_date)
         output_folder = (
@@ -132,26 +133,37 @@ class DailyMoveAudit:
 
         xlsx_path = output_folder / f"NDVR_Daily_Move_Audit_{target_date:%Y%m%d}.xlsx"
         pdf_path = output_folder / f"NDVR_Daily_Move_Audit_{target_date:%Y%m%d}.pdf"
+        clean_formats = {
+            str(output_format).strip().lower()
+            for output_format in formats
+        }
+        generated_files: list[Path] = []
 
-        export_xlsx(
-            output_path=xlsx_path,
-            sheets={
-                "Summary": (
-                    SUMMARY_HEADERS,
-                    self._summary_rows(rows),
-                ),
-                "Detail": (
-                    DETAIL_HEADERS,
-                    rows or self._empty_rows(target_date),
-                ),
-            },
-        )
-        self._export_pdf(
-            output_path=pdf_path,
-            target_date=target_date,
-            rows=rows,
-        )
-        return [xlsx_path, pdf_path]
+        if "xlsx" in clean_formats:
+            export_xlsx(
+                output_path=xlsx_path,
+                sheets={
+                    "Summary": (
+                        SUMMARY_HEADERS,
+                        self._summary_rows(rows),
+                    ),
+                    "Detail": (
+                        DETAIL_HEADERS,
+                        rows or self._empty_rows(target_date),
+                    ),
+                },
+            )
+            generated_files.append(xlsx_path)
+
+        if "pdf" in clean_formats:
+            self._export_pdf(
+                output_path=pdf_path,
+                target_date=target_date,
+                rows=rows,
+            )
+            generated_files.append(pdf_path)
+
+        return generated_files
 
     def build_rows(
         self,

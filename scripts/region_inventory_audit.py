@@ -52,16 +52,20 @@ ASSIGNMENT_HEADERS = [
 DETAIL_HEADERS = [
     "Status",
     "Severity",
-    "Region",
-    "System",
-    "Assigned Bundle",
+    "Found Region",
+    "Found Env",
+    "Found System",
+    "Found Subsystem",
+    "Scanned Bundle",
+    "Scanned Region",
+    "Scanned System",
+    "Inventory Assigned Bundle(s)",
+    "Inventory Assigned Region/System(s)",
     "Element",
     "Type",
     "NDVR CCID",
     "Inventory Effort Id(s)",
     "Approved Effort Id(s)",
-    "NDVR Env",
-    "NDVR Subsystem",
     "NDVR Version",
     "NDVR Date",
     "NDVR Time",
@@ -117,12 +121,15 @@ class RegionAuditRow:
     region: str
     system: str
     bundle_id: str
+    inventory_assigned_bundles: tuple[str, ...]
+    inventory_assigned_region_systems: tuple[str, ...]
     element: str
     type: str
     ndvr_ccid: str
     inventory_effort_ids: tuple[str, ...]
     approved_effort_ids: tuple[str, ...]
     ndvr_env: str
+    ndvr_system: str
     ndvr_subsystem: str
     ndvr_version: str
     ndvr_date: str
@@ -134,15 +141,19 @@ class RegionAuditRow:
             self.status,
             self.severity,
             self.region,
-            self.system,
+            self.ndvr_env,
+            self.ndvr_system,
+            self.ndvr_subsystem,
             self.bundle_id,
+            self.region,
+            self.system,
+            "; ".join(self.inventory_assigned_bundles),
+            "; ".join(self.inventory_assigned_region_systems),
             self.element,
             self.type,
             self.ndvr_ccid,
             "; ".join(self.inventory_effort_ids),
             "; ".join(self.approved_effort_ids),
-            self.ndvr_env,
-            self.ndvr_subsystem,
             self.ndvr_version,
             self.ndvr_date,
             self.ndvr_time,
@@ -328,6 +339,7 @@ class RegionInventoryAudit:
     ) -> list[RegionAuditRow]:
         groups = self._group_assignments(assignments)
         groups_by_region_system = self._groups_by_region_system(groups)
+        assignment_lookup = self._assignment_lookup_by_effort(assignments)
         inventory_lookup = self._build_inventory_lookup()
         location_service = MainframeLocationService().load_file(
             latest_ndvr_file(self.ndvr_source, self.base_dir)
@@ -346,6 +358,7 @@ class RegionInventoryAudit:
                         groups=region_system_groups,
                         record=record,
                         inventory_references=inventory_lookup.get(record.key, []),
+                        assignment_lookup=assignment_lookup,
                     )
                 )
 
@@ -366,6 +379,7 @@ class RegionInventoryAudit:
         groups: list[RegionAssignmentGroup],
         record: MainframeLocationRecord,
         inventory_references: list[InventoryReference],
+        assignment_lookup: dict[str, list[RegionAssignment]],
     ) -> list[RegionAuditRow]:
         approved_rows = [
             row
@@ -375,6 +389,7 @@ class RegionInventoryAudit:
                     group=group,
                     record=record,
                     inventory_references=inventory_references,
+                    assignment_lookup=assignment_lookup,
                     allow_unapproved=False,
                 )
             )
@@ -392,6 +407,7 @@ class RegionInventoryAudit:
                 group=group,
                 record=record,
                 inventory_references=inventory_references,
+                assignment_lookup=assignment_lookup,
                 allow_unapproved=True,
             )
             for group in unapproved_groups
@@ -455,6 +471,7 @@ class RegionInventoryAudit:
         group: RegionAssignmentGroup,
         record: MainframeLocationRecord,
         inventory_references: list[InventoryReference],
+        assignment_lookup: dict[str, list[RegionAssignment]],
         allow_unapproved: bool = True,
     ) -> RegionAuditRow | None:
         inventory_efforts = tuple(
@@ -471,6 +488,10 @@ class RegionInventoryAudit:
             group=group,
             inventory_efforts=inventory_efforts,
         )
+        assigned_bundles, assigned_region_systems = self._inventory_assignments(
+            inventory_efforts=inventory_efforts,
+            assignment_lookup=assignment_lookup,
+        )
 
         if approved_efforts and not inventory_efforts:
             return self._row(
@@ -478,6 +499,8 @@ class RegionInventoryAudit:
                 record=record,
                 inventory_efforts=inventory_efforts,
                 approved_efforts=approved_efforts,
+                inventory_assigned_bundles=assigned_bundles,
+                inventory_assigned_region_systems=assigned_region_systems,
                 status=STATUS_POTENTIAL_MISSING_INVENTORY,
                 severity="WARNING",
                 reason="Potential missing inventory but effort approved there.",
@@ -492,9 +515,16 @@ class RegionInventoryAudit:
                 record=record,
                 inventory_efforts=inventory_efforts,
                 approved_efforts=approved_efforts,
+                inventory_assigned_bundles=assigned_bundles,
+                inventory_assigned_region_systems=assigned_region_systems,
                 status=STATUS_IMPROPER_ACTIVITY,
                 severity="ERROR",
-                reason="Found items with efforts not approved for this region.",
+                reason=self._improper_activity_reason(
+                    group=group,
+                    record=record,
+                    assigned_bundles=assigned_bundles,
+                    assigned_region_systems=assigned_region_systems,
+                ),
             )
 
         return self._row(
@@ -502,9 +532,16 @@ class RegionInventoryAudit:
             record=record,
             inventory_efforts=inventory_efforts,
             approved_efforts=approved_efforts,
+            inventory_assigned_bundles=assigned_bundles,
+            inventory_assigned_region_systems=assigned_region_systems,
             status=STATUS_APPROVED,
             severity="OK",
-            reason="Element/type is tracked in inventory and approved for this region.",
+            reason=self._approved_reason(
+                group=group,
+                record=record,
+                assigned_bundles=assigned_bundles,
+                assigned_region_systems=assigned_region_systems,
+            ),
         )
 
     def _row(
@@ -513,6 +550,8 @@ class RegionInventoryAudit:
         record: MainframeLocationRecord,
         inventory_efforts: tuple[str, ...],
         approved_efforts: tuple[str, ...],
+        inventory_assigned_bundles: tuple[str, ...],
+        inventory_assigned_region_systems: tuple[str, ...],
         status: str,
         severity: str,
         reason: str,
@@ -523,12 +562,15 @@ class RegionInventoryAudit:
             region=group.region,
             system=group.system,
             bundle_id=group.bundle_id,
+            inventory_assigned_bundles=inventory_assigned_bundles,
+            inventory_assigned_region_systems=inventory_assigned_region_systems,
             element=record.element,
             type=record.type,
             ndvr_ccid=record.ccid,
             inventory_effort_ids=inventory_efforts,
             approved_effort_ids=approved_efforts,
             ndvr_env=record.env,
+            ndvr_system=record.system,
             ndvr_subsystem=record.subsystem,
             ndvr_version=record.version,
             ndvr_date=record.date_generated,
@@ -558,6 +600,82 @@ class RegionInventoryAudit:
 
         return tuple(sorted(approved_by_ccid | approved_by_inventory))
 
+    def _inventory_assignments(
+        self,
+        inventory_efforts: tuple[str, ...],
+        assignment_lookup: dict[str, list[RegionAssignment]],
+    ) -> tuple[tuple[str, ...], tuple[str, ...]]:
+        assignments = [
+            assignment
+            for effort_id in inventory_efforts
+            for assignment in assignment_lookup.get(
+                effort_id.upper(),
+                [],
+            )
+        ]
+
+        assigned_bundles = tuple(
+            sorted(
+                {
+                    assignment.bundle_id
+                    for assignment in assignments
+                    if assignment.bundle_id
+                }
+            )
+        )
+        assigned_region_systems = tuple(
+            sorted(
+                {
+                    f"{assignment.region}/{assignment.system}"
+                    for assignment in assignments
+                    if assignment.region and assignment.system
+                }
+            )
+        )
+
+        return assigned_bundles, assigned_region_systems
+
+    def _approved_reason(
+        self,
+        group: RegionAssignmentGroup,
+        record: MainframeLocationRecord,
+        assigned_bundles: tuple[str, ...],
+        assigned_region_systems: tuple[str, ...],
+    ) -> str:
+        reason = (
+            f"Found {record.element} {record.type} in "
+            f"{group.region} / {record.env} / {record.system} / {record.subsystem}; "
+            f"approved for scanned bundle {group.bundle_id}."
+        )
+        if assigned_bundles or assigned_region_systems:
+            reason += (
+                " Inventory assignment points to "
+                f"{format_assignment_text(assigned_bundles, assigned_region_systems)}."
+            )
+
+        return reason
+
+    def _improper_activity_reason(
+        self,
+        group: RegionAssignmentGroup,
+        record: MainframeLocationRecord,
+        assigned_bundles: tuple[str, ...],
+        assigned_region_systems: tuple[str, ...],
+    ) -> str:
+        reason = (
+            f"Found {record.element} {record.type} in "
+            f"{group.region} / {record.env} / {record.system} / {record.subsystem}, "
+            f"but it is not approved for scanned bundle {group.bundle_id} "
+            f"in {group.region}/{group.system}."
+        )
+        if assigned_bundles or assigned_region_systems:
+            reason += (
+                " Inventory assignment points to "
+                f"{format_assignment_text(assigned_bundles, assigned_region_systems)}."
+            )
+
+        return reason
+
     def _group_assignments(
         self,
         assignments: list[RegionAssignment],
@@ -585,6 +703,21 @@ class RegionInventoryAudit:
             )
             for (bundle_id, region, system), effort_ids in grouped.items()
         ]
+
+    def _assignment_lookup_by_effort(
+        self,
+        assignments: list[RegionAssignment],
+    ) -> dict[str, list[RegionAssignment]]:
+        grouped: dict[str, list[RegionAssignment]] = defaultdict(list)
+
+        for assignment in assignments:
+            effort_id = assignment.effort_id.strip().upper()
+            if not effort_id:
+                continue
+
+            grouped[effort_id].append(assignment)
+
+        return dict(grouped)
 
     def _groups_by_region_system(
         self,
@@ -732,6 +865,10 @@ class RegionInventoryAudit:
                 "",
                 "",
                 "",
+                "",
+                "",
+                "",
+                "",
                 "No matching region/system NDVR records found.",
             ]
         ]
@@ -754,6 +891,15 @@ def normalize_release(
     value: str,
 ) -> str:
     return " ".join(str(value).strip().upper().split())
+
+
+def format_assignment_text(
+    assigned_bundles: tuple[str, ...],
+    assigned_region_systems: tuple[str, ...],
+) -> str:
+    bundle_text = "; ".join(assigned_bundles) or "unknown bundle"
+    region_system_text = "; ".join(assigned_region_systems) or "unknown region/system"
+    return f"{bundle_text} in {region_system_text}"
 
 
 def report_window(

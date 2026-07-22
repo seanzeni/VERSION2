@@ -22,6 +22,8 @@ from typing import Any
 from urllib.parse import urlencode
 
 import requests
+from openpyxl import load_workbook
+from openpyxl.styles import Alignment
 
 requests.packages.urllib3.disable_warnings(
     requests.packages.urllib3.exceptions.InsecureRequestWarning
@@ -192,6 +194,7 @@ class FixpDailyCompare:
                 ),
             },
         )
+        self._format_overview_sheet(xlsx_path)
         return [xlsx_path]
 
     def _latest_output_path(
@@ -307,11 +310,11 @@ class FixpDailyCompare:
                 ),
             ],
             [
-                "This Date",
+                "Current Date",
                 compare_dates.target_date.isoformat(),
             ],
             [
-                "That Date",
+                "Compared Date",
                 compare_dates.previous_date.isoformat(),
             ],
             [
@@ -398,10 +401,41 @@ class FixpDailyCompare:
         if not files:
             return "No files found."
 
-        return "; ".join(
+        return "\n".join(
             file_path.name
             for file_path, _file_timestamp in files
         )
+
+    def _format_overview_sheet(
+        self,
+        output_path: Path,
+    ) -> None:
+        make_writable(output_path)
+        workbook = load_workbook(output_path)
+        worksheet = workbook["Overview"]
+
+        for row in worksheet.iter_rows():
+            for cell in row:
+                cell.alignment = Alignment(
+                    vertical="top",
+                    wrap_text=True,
+                )
+
+        for row_index in (5, 6):
+            value = str(worksheet.cell(row=row_index, column=2).value or "")
+            line_count = max(
+                value.count("\n") + 1,
+                1,
+            )
+            worksheet.row_dimensions[row_index].height = max(
+                18,
+                line_count * 15,
+            )
+
+        worksheet.column_dimensions["A"].width = 28
+        worksheet.column_dimensions["B"].width = 60
+        workbook.save(output_path)
+        make_read_only(output_path)
 
     def _available_file_dates(
         self,

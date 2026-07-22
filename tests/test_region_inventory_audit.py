@@ -197,6 +197,12 @@ def write_inventory(
                 "Element": "OLDPGM",
                 "Type": "OCOB",
             },
+            {
+                "Release": "2026/08 NPR",
+                "Project": "NPR12345",
+                "Element": "CROSS01",
+                "Type": "OCOB",
+            },
         ]
     ).to_excel(path, index=False)
     return path
@@ -220,6 +226,7 @@ def write_ndvr(
                 make_ndvr_line("MISS001", "OCOB", "SYSTEM01", "XYZ"),
                 make_ndvr_line("BAD001", "OCOB", "SYSTEM01", "BAD"),
                 make_ndvr_line("OLDPGM", "OCOB", "SYSTEM01", "DIFF"),
+                make_ndvr_line("CROSS01", "OCOB", "SYSTEM01", "DIFF"),
                 make_ndvr_line("DROP001", "OCOB", "OTHER001", "ABC"),
             ]
         ),
@@ -290,6 +297,7 @@ def test_region_inventory_audit_classifies_region_records(
     )
     assert statuses == {
         "BAD001": audit_module.STATUS_IMPROPER_ACTIVITY,
+        "CROSS01": audit_module.STATUS_IMPROPER_ACTIVITY,
         "MISS001": audit_module.STATUS_POTENTIAL_MISSING_INVENTORY,
         "OLDPGM": audit_module.STATUS_APPROVED,
         "PGM001": audit_module.STATUS_APPROVED,
@@ -309,6 +317,18 @@ def test_region_inventory_audit_classifies_region_records(
         and row.status == audit_module.STATUS_IMPROPER_ACTIVITY
         for row in rows
     )
+    cross_row = next(row for row in rows if row.element == "CROSS01")
+    assert cross_row.region == "DV01"
+    assert cross_row.system == "SYSTEM01"
+    assert cross_row.bundle_id == "2026/07 Release"
+    assert cross_row.inventory_effort_ids == ("NPR12345",)
+    assert cross_row.inventory_assigned_bundles == ("2026/08 NPR",)
+    assert cross_row.inventory_assigned_region_systems == ("DV02/SYSTEM02",)
+    assert (
+        "Found CROSS01 OCOB in DV01 / DEVL1 / SYSTEM01 / SYS1"
+        in cross_row.reason
+    )
+    assert "2026/08 NPR in DV02/SYSTEM02" in cross_row.reason
 
 
 def test_region_inventory_audit_writes_xlsx(
@@ -333,7 +353,7 @@ def test_region_inventory_audit_writes_xlsx(
     workbook.close()
     assert summary_rows[1:] == [
         ("DV01/SYSTEM01", "2026/06 NPR", 1, 0, 0),
-        ("DV01/SYSTEM01", "2026/07 Release", 1, 1, 1),
+        ("DV01/SYSTEM01", "2026/07 Release", 1, 1, 2),
         ("DV02/SYSTEM02", "2026/08 NPR", 0, 0, 0),
     ]
     assert (

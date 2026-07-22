@@ -417,21 +417,31 @@ def test_fixp_daily_compare_writes_xlsx(
     assert len(output_files) == 1
     assert output_files[0].name == "fixp1-daily-analysis.xlsx"
     assert output_files[0].parent.name == "FIXP Daily Compare"
-    workbook = load_workbook(output_files[0], read_only=True)
+    workbook = load_workbook(output_files[0])
     assert workbook.sheetnames == ["Overview", "FIXP Compare"]
     overview_rows = list(workbook["Overview"].iter_rows(values_only=True))
     assert overview_rows[1] == (
         "Comparison",
         "Comparing 2026-07-15 to 2026-07-14 differences.",
     )
+    assert overview_rows[2] == (
+        "Current Date",
+        "2026-07-15",
+    )
+    assert overview_rows[3] == (
+        "Compared Date",
+        "2026-07-14",
+    )
     assert overview_rows[4] == (
         "Files for 2026-07-15",
-        "FIXP-20260715_080000.txt; FIXP-20260715_100000.txt",
+        "FIXP-20260715_080000.txt\nFIXP-20260715_100000.txt",
     )
     assert overview_rows[5] == (
         "Files for 2026-07-14",
         "FIXP-20260714_080000.txt",
     )
+    assert workbook["Overview"]["B5"].alignment.wrap_text is True
+    assert workbook["Overview"].row_dimensions[5].height > 18
     worksheet = workbook["FIXP Compare"]
     headers = [cell.value for cell in next(worksheet.iter_rows(max_row=1))]
     assert headers[7:14] == [

@@ -113,9 +113,14 @@ class ToEnvironmentReport:
     def run(
         self,
         target_date: date,
+        formats: list[str] | tuple[str, ...] = ("xlsx", "pdf"),
     ) -> list[Path]:
         rows_by_report = self.build_rows(target_date)
         generated_files: list[Path] = []
+        clean_formats = {
+            str(output_format).strip().lower()
+            for output_format in formats
+        }
 
         for report_name, rows in rows_by_report.items():
             report_folder = self.output_folder / f"TO {report_name}"
@@ -128,22 +133,26 @@ class ToEnvironmentReport:
             xlsx_path = report_folder / f"{stem}.xlsx"
             pdf_path = report_folder / f"{stem}.pdf"
 
-            export_xlsx(
-                output_path=xlsx_path,
-                sheets={
-                    f"TO {report_name}": (
-                        DETAIL_HEADERS,
-                        rows or self._empty_rows(target_date, report_name),
-                    )
-                },
-            )
-            self._export_pdf(
-                output_path=pdf_path,
-                target_date=target_date,
-                report_name=report_name,
-                rows=rows,
-            )
-            generated_files.extend([xlsx_path, pdf_path])
+            if "xlsx" in clean_formats:
+                export_xlsx(
+                    output_path=xlsx_path,
+                    sheets={
+                        f"TO {report_name}": (
+                            DETAIL_HEADERS,
+                            rows or self._empty_rows(target_date, report_name),
+                        )
+                    },
+                )
+                generated_files.append(xlsx_path)
+
+            if "pdf" in clean_formats:
+                self._export_pdf(
+                    output_path=pdf_path,
+                    target_date=target_date,
+                    report_name=report_name,
+                    rows=rows,
+                )
+                generated_files.append(pdf_path)
 
         return generated_files
 

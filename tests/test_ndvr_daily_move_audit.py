@@ -214,6 +214,26 @@ def test_daily_move_audit_writes_xlsx_and_pdf(
     workbook.close()
 
 
+def test_daily_move_audit_can_write_xlsx_only(
+    tmp_path: Path,
+) -> None:
+    """Verifies the all-report runner can suppress PDF output."""
+    inventory_path = write_inventory(tmp_path)
+    ndvr_folder = write_ndvr_files(tmp_path)
+    audit = audit_module.DailyMoveAudit(
+        settings=make_settings(tmp_path, inventory_path, ndvr_folder),
+        base_dir=tmp_path,
+        db_service=FakeDbService(),
+    )
+
+    output_files = audit.run(
+        date(2026, 7, 14),
+        formats=["xlsx"],
+    )
+
+    assert [path.suffix for path in output_files] == [".xlsx"]
+
+
 def test_qual_move_after_qual_date_before_prod_date_is_approved(
     tmp_path: Path,
 ) -> None:

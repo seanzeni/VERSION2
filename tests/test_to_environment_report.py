@@ -183,3 +183,23 @@ def test_to_environment_report_writes_xlsx_and_pdf(
     )
     assert workbook.sheetnames == ["TO QUAL"]
     workbook.close()
+
+
+def test_to_environment_report_can_write_xlsx_only(
+    tmp_path: Path,
+) -> None:
+    """Verifies the all-report runner can suppress PDF output."""
+    inventory_path = write_inventory(tmp_path)
+    ndvr_folder = write_ndvr_files(tmp_path)
+    report = report_module.ToEnvironmentReport(
+        settings=make_settings(tmp_path, inventory_path, ndvr_folder),
+        base_dir=tmp_path,
+    )
+
+    output_files = report.run(
+        date(2026, 7, 14),
+        formats=["xlsx"],
+    )
+
+    assert len(output_files) == 2
+    assert {path.suffix for path in output_files} == {".xlsx"}
