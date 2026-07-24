@@ -119,18 +119,20 @@ def test_load_effort_testing_region_lookup_queries_each_effort() -> None:
         def __init__(
             self,
         ) -> None:
-            self.calls: list[tuple[str, str]] = []
+            self.calls: list[tuple[str, str, str]] = []
             self.current_effort = ""
 
         def execute(
             self,
             query: str,
             effort_id: str,
+            effort_prefix: str,
         ) -> None:
             self.calls.append(
                 (
                     query,
                     effort_id,
+                    effort_prefix,
                 )
             )
             self.current_effort = effort_id
@@ -174,6 +176,12 @@ def test_load_effort_testing_region_lookup_queries_each_effort() -> None:
     )
 
     assert lookup == {
+        "ABC123": [
+            (
+                "DV9",
+                "2026-07-10",
+            )
+        ],
         "ABC12345": [
             (
                 "DV9",

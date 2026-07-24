@@ -114,7 +114,7 @@ class ReportCenter(ctk.CTkToplevel):
         )
         header.grid(row=0, column=0, sticky="w", padx=18, pady=(18, 8))
 
-        body = ctk.CTkFrame(self, corner_radius=10)
+        body = ctk.CTkScrollableFrame(self, corner_radius=10)
         body.grid(row=1, column=0, sticky="nsew", padx=18, pady=8)
         body.grid_columnconfigure(0, weight=1)
 

@@ -91,7 +91,7 @@ def test_resync_qual_reports_system_copy_even_when_source_region_is_missing(
             "ABC12345": [
                 (
                     "DVF",
-                    date(2026, 7, 10),
+                    date(2026, 10, 30),
                 )
             ],
         },
@@ -128,7 +128,7 @@ def test_resync_skips_records_in_authorized_testing_region(
             "ABC12345": [
                 (
                     "DVF",
-                    date(2026, 7, 10),
+                    date(2026, 10, 30),
                 )
             ],
         },
@@ -163,7 +163,7 @@ def test_resync_includes_nonselectable_release_effort_elements(
             "ABC12345": [
                 (
                     "DVF",
-                    date(2026, 7, 10),
+                    date(2026, 10, 30),
                 )
             ],
         },
@@ -231,7 +231,7 @@ def test_resync_marks_matching_ccid_without_region_as_no_authorized_sandbox(
             "ABC12345": [
                 (
                     "DV9",
-                    date(2026, 7, 10),
+                    date(2026, 10, 30),
                 )
             ],
         },
@@ -269,7 +269,7 @@ def test_resync_reports_different_ccid_even_when_authorized_region_copy_exists(
             "ABC12345": [
                 (
                     "DVO",
-                    date(2026, 7, 10),
+                    date(2026, 10, 30),
                 )
             ],
         },
@@ -279,3 +279,75 @@ def test_resync_reports_different_ccid_even_when_authorized_region_copy_exists(
     assert [row[13] for row in rows] == [
         "plan for retrofit",
     ]
+
+
+def test_resync_skips_source_region_even_when_ccid_does_not_match(
+    tmp_path: Path,
+) -> None:
+    """The release source region is expected, even if NDVR shows another CCID."""
+    service = location_service(
+        tmp_path,
+        [
+            make_line(
+                "PGM001", "OCOB", "PRIVATE0", "SYS1", "STDV1", "01.00", "FUTURE1"
+            ),
+        ],
+    )
+
+    rows = ResyncReport().build_rows(
+        release="2026/08 release",
+        mode="QUAL",
+        elements=[make_element()],
+        location_service=service,
+        effort_dates={"ABC12345": "2026-08-14"},
+        system_region_lookup={"PRIVATE0": "DVF"},
+        effort_testing_region_lookup={
+            "ABC12345": [
+                (
+                    "DVF",
+                    date(2026, 10, 30),
+                )
+            ],
+        },
+    )
+
+    assert rows == []
+
+
+def test_resync_marks_active_other_sandbox_for_retrofit(
+    tmp_path: Path,
+) -> None:
+    """A shortened NDVR CCID can still find another active sandbox approval."""
+    service = location_service(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "OTHER01", "SYS1", "SYST1", "01.00", "FUTURE"),
+        ],
+    )
+
+    rows = ResyncReport().build_rows(
+        release="2026/08 release",
+        mode="QUAL",
+        elements=[make_element()],
+        location_service=service,
+        effort_dates={"ABC12345": "2026-08-14"},
+        system_region_lookup={"OTHER01": "DVJ"},
+        effort_testing_region_lookup={
+            "ABC12345": [
+                (
+                    "DVF",
+                    date(2026, 10, 30),
+                )
+            ],
+            "FUTURE": [
+                (
+                    "DVJ",
+                    date(2026, 10, 30),
+                )
+            ],
+        },
+    )
+
+    assert len(rows) == 1
+    assert rows[0][8] == "DVJ"
+    assert rows[0][13] == "plan for retrofit"

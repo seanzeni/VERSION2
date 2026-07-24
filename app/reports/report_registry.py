@@ -412,17 +412,19 @@ class ReportRegistry:
         include_empty: bool,
     ) -> Path:
         elements = self._resync_source_elements(state)
+        location_service = self.get_location_service()
         return ResyncReport().generate(
             release=state.release,
             mode=state.mode,
             elements=elements,
-            location_service=self.get_location_service(),
+            location_service=location_service,
             output_folder=output_folder,
             effort_dates=state.effort_dates,
             tracked_elements=state.all_release_elements,
             system_region_lookup=self.get_system_region_lookup(),
             effort_testing_region_lookup=self.get_effort_testing_region_lookup(
                 elements,
+                location_service,
             ),
             include_empty=include_empty,
         )
@@ -434,17 +436,19 @@ class ReportRegistry:
         include_empty: bool,
     ) -> Path:
         elements = self._resync_source_elements(state)
+        location_service = self.get_location_service()
         return ResyncReport().generate_pdf(
             release=state.release,
             mode=state.mode,
             elements=elements,
-            location_service=self.get_location_service(),
+            location_service=location_service,
             output_folder=output_folder,
             effort_dates=state.effort_dates,
             tracked_elements=state.all_release_elements,
             system_region_lookup=self.get_system_region_lookup(),
             effort_testing_region_lookup=self.get_effort_testing_region_lookup(
                 elements,
+                location_service,
             ),
             include_empty=include_empty,
         )
@@ -471,6 +475,7 @@ class ReportRegistry:
     def get_effort_testing_region_lookup(
         self,
         elements,
+        location_service=None,
     ) -> dict[str, list[tuple[str, object]]]:
         if self.effort_testing_region_lookup_provider is None:
             return {}
@@ -482,6 +487,10 @@ class ReportRegistry:
                     for element in elements
                     if str(element.project).strip()
                 }
+                | self._resync_ndvr_ccid_keys(
+                    elements=elements,
+                    location_service=location_service,
+                )
             )
         )
         if not effort_ids:
@@ -493,6 +502,40 @@ class ReportRegistry:
             )
 
         return self._effort_testing_region_lookup[effort_ids]
+
+    def _resync_ndvr_ccid_keys(
+        self,
+        elements,
+        location_service,
+    ) -> set[str]:
+        if location_service is None:
+            return set()
+
+        keys: set[str] = set()
+        seen_elements: set[tuple[str, str]] = set()
+        compare_envs = ResyncReport.SYSTEM_COMPARE_ENVS
+
+        for element in elements:
+            element_key = (
+                str(element.element).strip().upper(),
+                str(element.type).strip().upper(),
+            )
+            if element_key in seen_elements:
+                continue
+
+            seen_elements.add(element_key)
+            for record in location_service.find(
+                element=element.element,
+                type_=element.type,
+            ):
+                if record.env.strip().upper() not in compare_envs:
+                    continue
+
+                clean_ccid = str(record.ccid).strip().upper()
+                if clean_ccid:
+                    keys.add(clean_ccid[:6])
+
+        return keys
 
     def _resync_source_elements(
         self,

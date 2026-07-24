@@ -283,7 +283,10 @@ class DBService:
             GROUP BY CAST(TestEnvironment AS VARCHAR(50))
         ) r
             ON r.TestEnvironment = CAST(b.TestEnvironment AS VARCHAR(50))
-        WHERE LOWER(LTRIM(RTRIM(e.Id))) = LOWER(?)
+        WHERE (
+                LOWER(LTRIM(RTRIM(e.Id))) = LOWER(?)
+                OR UPPER(LEFT(LTRIM(RTRIM(e.Id)), 6)) = UPPER(?)
+            )
             AND e.BundleExitDate IS NOT NULL
         """
 
@@ -300,6 +303,7 @@ class DBService:
                 cursor.execute(
                     query,
                     clean_effort_id,
+                    clean_effort_id[:6],
                 )
 
                 for row in cursor.fetchall():
@@ -320,15 +324,23 @@ class DBService:
                     if not effort or not region:
                         continue
 
-                    lookup.setdefault(
-                        effort.upper(),
-                        [],
-                    ).append(
-                        (
-                            region,
-                            getattr(row, "BundleExitDate", None),
-                        )
+                    assignment = (
+                        region,
+                        getattr(row, "BundleExitDate", None),
                     )
+                    for key in {
+                        effort.upper(),
+                        effort.upper()[:6],
+                        clean_effort_id.upper(),
+                        clean_effort_id.upper()[:6],
+                    }:
+                        if not key:
+                            continue
+
+                        lookup.setdefault(
+                            key,
+                            [],
+                        ).append(assignment)
 
         return lookup
 

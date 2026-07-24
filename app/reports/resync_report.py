@@ -215,7 +215,7 @@ class ResyncReport:
                 continue
 
             seen_elements.add(element_key)
-            authorized_regions = self._authorized_testing_regions(
+            source_regions = self._active_testing_regions(
                 element=element,
                 effort_dates=effort_dates,
                 effort_testing_region_lookup=testing_region_lookup,
@@ -230,7 +230,8 @@ class ResyncReport:
                     lower_record=target_record,
                     system_region_lookup=region_lookup,
                 )
-                if testing_region.strip().upper() in authorized_regions:
+                clean_testing_region = testing_region.strip().upper()
+                if clean_testing_region in source_regions:
                     continue
 
                 rows.append(
@@ -251,6 +252,9 @@ class ResyncReport:
                         self._remarks(
                             element=element,
                             lower_record=target_record,
+                            testing_region=clean_testing_region,
+                            effort_dates=effort_dates,
+                            effort_testing_region_lookup=testing_region_lookup,
                         ),
                         (
                             f"Found {element.element} {element.type} in system "
@@ -344,7 +348,19 @@ class ResyncReport:
         self,
         element: Element,
         lower_record: MainframeLocationRecord,
+        testing_region: str,
+        effort_dates: dict[str, str] | None,
+        effort_testing_region_lookup: dict[str, list[tuple[str, object]]],
     ) -> str:
+        record_active_regions = self._active_testing_regions_for_effort_id(
+            effort_id=lower_record.ccid,
+            qual_date=self._qual_move_date(element, effort_dates),
+            effort_testing_region_lookup=effort_testing_region_lookup,
+        )
+
+        if testing_region and testing_region in record_active_regions:
+            return "plan for retrofit"
+
         if not self._record_ccid_matches_effort(
             lower_record=lower_record,
             effort_id=element.project,
@@ -353,29 +369,39 @@ class ResyncReport:
 
         return "plan to delete - no authorized sandbox"
 
-    def _authorized_testing_regions(
+    def _active_testing_regions(
         self,
         element: Element,
         effort_dates: dict[str, str] | None,
         effort_testing_region_lookup: dict[str, list[tuple[str, object]]],
     ) -> set[str]:
-        qual_date = coerce_date(
-            self._qual_move_date(
-                element=element,
-                effort_dates=effort_dates,
-            )
+        return self._active_testing_regions_for_effort_id(
+            effort_id=element.project,
+            qual_date=self._qual_move_date(
+                element,
+                effort_dates,
+            ),
+            effort_testing_region_lookup=effort_testing_region_lookup,
         )
 
-        if qual_date is None:
+    def _active_testing_regions_for_effort_id(
+        self,
+        effort_id: str,
+        qual_date: str,
+        effort_testing_region_lookup: dict[str, list[tuple[str, object]]],
+    ) -> set[str]:
+        move_date = coerce_date(qual_date)
+
+        if move_date is None:
             return set()
 
         regions: set[str] = set()
-        for region, exit_date_value in effort_testing_region_lookup.get(
-            element.project.strip().upper(),
-            [],
+        for region, exit_date_value in self._testing_region_assignments(
+            effort_id=effort_id,
+            effort_testing_region_lookup=effort_testing_region_lookup,
         ):
             exit_date = coerce_date(exit_date_value)
-            if exit_date is None or exit_date >= qual_date:
+            if exit_date is None or exit_date < move_date:
                 continue
 
             clean_region = str(region).strip().upper()
@@ -383,6 +409,23 @@ class ResyncReport:
                 regions.add(clean_region)
 
         return regions
+
+    def _testing_region_assignments(
+        self,
+        effort_id: str,
+        effort_testing_region_lookup: dict[str, list[tuple[str, object]]],
+    ) -> list[tuple[str, object]]:
+        clean_effort_id = str(effort_id).strip().upper()
+        if not clean_effort_id:
+            return []
+
+        assignments = list(effort_testing_region_lookup.get(clean_effort_id, []))
+        if len(clean_effort_id) > 6:
+            assignments.extend(
+                effort_testing_region_lookup.get(clean_effort_id[:6], [])
+            )
+
+        return assignments
 
     def _normalize_effort_testing_region_lookup(
         self,
