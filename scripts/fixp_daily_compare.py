@@ -179,10 +179,10 @@ class FixpDailyCompare:
         compare_dates = self._resolve_compare_dates(target_date)
         rows = self._build_rows(compare_dates)
         xlsx_path = self._latest_output_path()
+        staged_path = xlsx_path.with_name(f".{xlsx_path.stem}.tmp{xlsx_path.suffix}")
 
-        self._archive_latest_output(xlsx_path)
         export_xlsx(
-            output_path=xlsx_path,
+            output_path=staged_path,
             sheets={
                 "Overview": (
                     OVERVIEW_HEADERS,
@@ -194,7 +194,11 @@ class FixpDailyCompare:
                 ),
             },
         )
-        self._format_overview_sheet(xlsx_path)
+        self._format_overview_sheet(staged_path)
+        self._publish_latest_output(
+            staged_path=staged_path,
+            latest_output_path=xlsx_path,
+        )
         return [xlsx_path]
 
     def _latest_output_path(
@@ -220,6 +224,16 @@ class FixpDailyCompare:
         latest_output_path.rename(archive_path)
         make_read_only(archive_path)
 
+    def _publish_latest_output(
+        self,
+        staged_path: Path,
+        latest_output_path: Path,
+    ) -> None:
+        self._archive_latest_output(latest_output_path)
+        make_writable(staged_path)
+        staged_path.replace(latest_output_path)
+        make_read_only(latest_output_path)
+
     def build_rows(
         self,
         target_date: date | None,
@@ -237,8 +251,7 @@ class FixpDailyCompare:
 
         rows: list[list[object]] = []
         all_keys = sorted(
-            set(previous_snapshot)
-            | set(target_snapshot),
+            set(previous_snapshot) | set(target_snapshot),
         )
 
         for key in all_keys:
@@ -401,10 +414,7 @@ class FixpDailyCompare:
         if not files:
             return "No files found."
 
-        return "\n".join(
-            file_path.name
-            for file_path, _file_timestamp in files
-        )
+        return "\n".join(file_path.name for file_path, _file_timestamp in files)
 
     def _format_overview_sheet(
         self,
@@ -444,8 +454,7 @@ class FixpDailyCompare:
             {
                 file_timestamp.date()
                 for file_path in self._fixp_source_folder().glob("FIXP-*.txt")
-                if (file_timestamp := self._parse_file_timestamp(file_path))
-                is not None
+                if (file_timestamp := self._parse_file_timestamp(file_path)) is not None
             }
         )
 
@@ -544,9 +553,7 @@ class FixpDailyCompare:
                     element,
                     type_,
                 )
-            ].append(
-                self._build_inventory_reference(row)
-            )
+            ].append(self._build_inventory_reference(row))
 
         return dict(lookup)
 
@@ -555,7 +562,9 @@ class FixpDailyCompare:
         row,
     ) -> InventoryReference:
         team_lead = str(row.get("DSN ID", "")).strip()[:4]
-        team_lead_name = self.person_resolver.resolve(team_lead).name if team_lead else ""
+        team_lead_name = (
+            self.person_resolver.resolve(team_lead).name if team_lead else ""
+        )
 
         return InventoryReference(
             release=str(row.get("Release", "")).strip(),
@@ -641,13 +650,7 @@ class FixpDailyCompare:
         references: list[InventoryReference],
     ) -> str:
         return "; ".join(
-            sorted(
-                {
-                    reference.label
-                    for reference in references
-                    if reference.label
-                }
-            )
+            sorted({reference.label for reference in references if reference.label})
         )
 
     def _format_inventory_ccids(
@@ -655,13 +658,7 @@ class FixpDailyCompare:
         references: list[InventoryReference],
     ) -> str:
         return "; ".join(
-            sorted(
-                {
-                    reference.project
-                    for reference in references
-                    if reference.project
-                }
-            )
+            sorted({reference.project for reference in references if reference.project})
         )
 
     def _build_remarks(
@@ -758,8 +755,7 @@ class PersonApiResolver:
         )
         self._cache: dict[str, PersonDirectoryInfo] = {}
         self._debug(
-            "Person lookup URL configured: "
-            f"{'yes' if self.lookup_url else 'no'}"
+            f"Person lookup URL configured: {'yes' if self.lookup_url else 'no'}"
         )
 
     def resolve(
@@ -1029,10 +1025,7 @@ class PersonApiResolver:
         payload: dict[str, Any],
         keys: tuple[str, ...],
     ) -> str:
-        normalized = {
-            str(key).lower(): value
-            for key, value in payload.items()
-        }
+        normalized = {str(key).lower(): value for key, value in payload.items()}
 
         for key in keys:
             value = normalized.get(key.lower())
@@ -1129,7 +1122,7 @@ class ActiveDirectoryNameResolver:
             "try { "
             "$user = Get-ADUser -Identity $lookup -Properties DisplayName "
             "} catch { "
-            "$safeLookup = $lookup.Replace(\"'\", \"''\"); "
+            '$safeLookup = $lookup.Replace("\'", "\'\'"); '
             "$user = Get-ADUser "
             "-Filter \"EmployeeID -eq '$safeLookup' -or SamAccountName -eq '$safeLookup'\" "
             "-Properties DisplayName | Select-Object -First 1 "

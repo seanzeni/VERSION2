@@ -190,6 +190,7 @@ RESYNC_COLUMNS = [
     ReportColumn("Element Owner"),
     ReportColumn("Qual Move Date"),
     ReportColumn("Lower Env"),
+    ReportColumn("Lower Testing Region"),
     ReportColumn("Lower System"),
     ReportColumn("Lower Subsystem"),
     ReportColumn("Lower Version"),

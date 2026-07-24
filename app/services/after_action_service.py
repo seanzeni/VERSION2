@@ -3,6 +3,8 @@ from __future__ import annotations
 # Purpose:
 #     Build after-action report files for bundles executed on a selected date.
 
+import shutil
+import tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -35,10 +37,35 @@ class AfterActionService:
             parents=True,
             exist_ok=True,
         )
-        archive_existing_reports(output_folder)
 
         rows = self._build_rows(selected_date)
         report = AfterActionReport()
+
+        with tempfile.TemporaryDirectory(
+            prefix="after-action-",
+            dir=output_folder.parent,
+        ) as temp_dir:
+            staged_files = self._generate_report_files(
+                report=report,
+                rows=rows,
+                output_folder=Path(temp_dir),
+                formats=formats,
+                selected_date=selected_date,
+            )
+            archive_existing_reports(output_folder)
+            return self._publish_report_files(
+                staged_files=staged_files,
+                output_folder=output_folder,
+            )
+
+    def _generate_report_files(
+        self,
+        report: AfterActionReport,
+        rows: list[list[object]],
+        output_folder: Path,
+        formats: list[str],
+        selected_date: date,
+    ) -> list[Path]:
         generated_files: list[Path] = []
 
         if "csv" in formats:
@@ -67,6 +94,23 @@ class AfterActionService:
             )
 
         return generated_files
+
+    def _publish_report_files(
+        self,
+        staged_files: list[Path],
+        output_folder: Path,
+    ) -> list[Path]:
+        published_files: list[Path] = []
+
+        for staged_file in staged_files:
+            destination = output_folder / staged_file.name
+            shutil.move(
+                str(staged_file),
+                str(destination),
+            )
+            published_files.append(destination)
+
+        return published_files
 
     def _build_rows(
         self,
@@ -379,10 +423,7 @@ class AfterActionService:
         self,
         records: list[MainframeLocationRecord],
     ) -> str:
-        locations = [
-            self._format_found_location(record)
-            for record in records
-        ]
+        locations = [self._format_found_location(record) for record in records]
 
         return (
             "No move detected for this date. "
@@ -546,12 +587,16 @@ class AfterActionService:
         mode: str,
         element: Element,
     ) -> str:
-        system_value = str(
-            element.source_row.get(
-                "System",
-                "",
+        system_value = (
+            str(
+                element.source_row.get(
+                    "System",
+                    "",
+                )
             )
-        ).strip().upper()
+            .strip()
+            .upper()
+        )
 
         if mode.upper() == "PROD" and system_value:
             return system_value[:7] + "1"
@@ -562,9 +607,13 @@ class AfterActionService:
         self,
         element: Element,
     ) -> str:
-        return str(
-            element.source_row.get(
-                "Subsys",
-                "",
+        return (
+            str(
+                element.source_row.get(
+                    "Subsys",
+                    "",
+                )
             )
-        ).strip().upper()
+            .strip()
+            .upper()
+        )

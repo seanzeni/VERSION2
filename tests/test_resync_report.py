@@ -73,6 +73,7 @@ def test_resync_qual_uses_selected_move_source_and_skips_moving_record(
         [
             make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "STDV1", "02.00", "MOVE"),
             make_line("PGM001", "OCOB", "SHARED01", "SYS1", "UNIT1", "01.00", "UNIT"),
+            make_line("PGM001", "OCOB", "SHARED01", "SYS1", "SYST1", "01.00", "SYST"),
             make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "FIXP1", "99.99", "FIXP"),
         ],
     )
@@ -87,10 +88,10 @@ def test_resync_qual_uses_selected_move_source_and_skips_moving_record(
 
     assert len(rows) == 1
     assert rows[0][4:7] == ["APP1", "OWNER1", "2026-07-24"]
-    assert rows[0][7] == "UNIT1"
-    assert rows[0][12] == "STDV1"
-    assert rows[0][15] == "02.00"
-    assert rows[0][17] == "plan to delete"
+    assert rows[0][7:10] == ["SYST1", "MAIN system", "SHARED01"]
+    assert rows[0][13] == "STDV1"
+    assert rows[0][16] == "02.00"
+    assert rows[0][18] == "plan to delete"
 
 
 def test_resync_marks_lower_copy_for_retrofit_when_later_effort_tracks_it(
@@ -102,7 +103,7 @@ def test_resync_marks_lower_copy_for_retrofit_when_later_effort_tracks_it(
         [
             make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "STDV1", "02.00", "MOVE"),
             make_line(
-                "PGM001", "OCOB", "SHARED01", "SYS1", "UNIT1", "01.00", "FUTURE1"
+                "PGM001", "OCOB", "SHARED01", "SYS1", "SYST1", "01.00", "FUTURE1"
             ),
         ],
     )
@@ -125,7 +126,7 @@ def test_resync_marks_lower_copy_for_retrofit_when_later_effort_tracks_it(
     )
 
     assert len(rows) == 1
-    assert rows[0][17] == "plan for retrofit"
+    assert rows[0][18] == "plan for retrofit"
 
 
 def test_resync_prod_uses_prod_as_newer_source_and_skips_moving_qual_record(
@@ -150,6 +151,7 @@ def test_resync_prod_uses_prod_as_newer_source_and_skips_moving_qual_record(
         location_service=service,
     )
 
-    assert [row[7] for row in rows] == ["QUAL1", "UTDV1"]
-    assert all(row[12] == "PROD1" for row in rows)
-    assert all(row[15] == "03.00" for row in rows)
+    assert [row[7] for row in rows] == ["QUAL1"]
+    assert rows[0][8] == "QUAL"
+    assert all(row[13] == "PROD1" for row in rows)
+    assert all(row[16] == "03.00" for row in rows)

@@ -5,6 +5,7 @@ import os
 import stat
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "run_all_reports.py"
@@ -41,10 +42,7 @@ def test_archive_existing_xlsx_moves_files_to_history(
 
 def test_build_tasks_includes_global_resync() -> None:
     """Verifies the all-report runner includes global resync."""
-    assert "Global Resync" in {
-        task.name
-        for task in runner_module.build_tasks()
-    }
+    assert "Global Resync" in {task.name for task in runner_module.build_tasks()}
 
 
 def test_publish_xlsx_files_copies_only_xlsx_and_marks_read_only(
@@ -78,3 +76,112 @@ def test_publish_xlsx_files_copies_only_xlsx_and_marks_read_only(
     assert published_files[0].read_text(encoding="utf-8") == "xlsx"
     assert not (output_root / "report.pdf").exists()
     assert not os.stat(published_files[0]).st_mode & stat.S_IWRITE
+
+
+def test_main_output_override_archives_after_generation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Verifies flat output files remain available while reports are generated."""
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text("{}", encoding="utf-8")
+    output_root = tmp_path / "drop"
+    output_root.mkdir()
+    old_file = output_root / "old.xlsx"
+    old_file.write_text("old", encoding="utf-8")
+    events: list[tuple] = []
+    original_archive = runner_module.archive_existing_xlsx
+    original_publish = runner_module.publish_xlsx_files
+
+    def fake_create_context(
+        args,
+        staging_root=None,
+    ):
+        return SimpleNamespace(staging_root=staging_root)
+
+    def fake_run_all(
+        context,
+    ):
+        events.append(
+            (
+                "run",
+                old_file.exists(),
+            )
+        )
+        generated = context.staging_root / "new.xlsx"
+        generated.write_text("new", encoding="utf-8")
+        return [generated], []
+
+    def tracking_archive(
+        target_output_root: Path,
+    ) -> None:
+        events.append(
+            (
+                "archive",
+                old_file.exists(),
+            )
+        )
+        original_archive(target_output_root)
+
+    def tracking_publish(
+        generated_files: list[Path],
+        output_root: Path,
+    ) -> list[Path]:
+        events.append(
+            (
+                "publish",
+                old_file.exists(),
+                (output_root / "History" / "old.xlsx").exists(),
+            )
+        )
+        return original_publish(
+            generated_files,
+            output_root,
+        )
+
+    monkeypatch.setattr(
+        runner_module,
+        "create_context",
+        fake_create_context,
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "run_all",
+        fake_run_all,
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "archive_existing_xlsx",
+        tracking_archive,
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "publish_xlsx_files",
+        tracking_publish,
+    )
+
+    exit_code = runner_module.main(
+        [
+            "--settings",
+            str(settings_path),
+            "--output",
+            str(output_root),
+        ]
+    )
+
+    assert exit_code == 0
+    assert events == [
+        (
+            "run",
+            True,
+        ),
+        (
+            "archive",
+            True,
+        ),
+        (
+            "publish",
+            False,
+            True,
+        ),
+    ]

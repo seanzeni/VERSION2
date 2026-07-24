@@ -36,8 +36,13 @@ class ResyncReport:
         "PROD": "PROD1",
     }
     COMPARE_ENVS_BY_MODE = {
-        "QUAL": {"MAIN1", "DEVL1", "UNIT1", "UTDV1", "SYST1", "STDV1"},
-        "PROD": {"MAIN1", "DEVL1", "UNIT1", "UTDV1", "SYST1", "STDV1", "QUAL1"},
+        "QUAL": {"SYST1", "STDV1"},
+        "PROD": {"SYST1", "STDV1", "QUAL1"},
+    }
+    TESTING_REGION_BY_ENV = {
+        "SYST1": "MAIN system",
+        "STDV1": "DEVL system",
+        "QUAL1": "QUAL",
     }
 
     def generate(
@@ -107,6 +112,7 @@ class ResyncReport:
                     "QUAL Date",
                     "Element",
                     "Type",
+                    "Testing Region",
                     "Lower Copy",
                     "Newer Source",
                     "Remarks",
@@ -120,15 +126,17 @@ class ResyncReport:
                         row[6],
                         row[2],
                         row[3],
-                        f"{row[7]} {row[10]} {row[11]}",
-                        f"{row[12]} {row[15]} {row[16]}",
-                        row[17],
+                        row[8],
+                        f"{row[7]} {row[11]} {row[12]}",
+                        f"{row[13]} {row[16]} {row[17]}",
                         row[18],
+                        row[19],
                     ]
                     for row in rows
                 ]
                 or [
                     [
+                        "",
                         "",
                         "",
                         "",
@@ -148,6 +156,7 @@ class ResyncReport:
                     0.8 * 72,
                     0.9 * 72,
                     0.7 * 72,
+                    1.0 * 72,
                     1.5 * 72,
                     1.5 * 72,
                     1.2 * 72,
@@ -238,6 +247,7 @@ class ResyncReport:
                         self._element_owner(element),
                         self._qual_move_date(element, effort_dates),
                         target_record.env,
+                        self._testing_region(target_record.env),
                         target_record.system,
                         target_record.subsystem,
                         target_record.version,
@@ -442,6 +452,16 @@ class ResyncReport:
                 "",
             )
         ).strip()
+
+    def _testing_region(
+        self,
+        env: str,
+    ) -> str:
+        clean_env = str(env).strip().upper()
+        return self.TESTING_REGION_BY_ENV.get(
+            clean_env,
+            clean_env,
+        )
 
     def _remarks(
         self,

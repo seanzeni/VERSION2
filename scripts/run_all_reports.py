@@ -61,9 +61,7 @@ class ReportTask:
 def parse_args(
     argv: list[str] | None = None,
 ) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run all standalone report scripts."
-    )
+    parser = argparse.ArgumentParser(description="Run all standalone report scripts.")
     parser.add_argument(
         "--settings",
         default=str(REPO_ROOT / "settings.json"),
@@ -80,7 +78,7 @@ def parse_args(
         "--output",
         help=(
             "Optional folder for a flat XLSX-only output drop. Existing XLSX "
-            "files in this folder are moved to History first."
+            "files in this folder are moved to History after replacements are generated."
         ),
     )
     parser.add_argument(
@@ -351,13 +349,16 @@ def main(
             args.output,
             Path(args.settings).resolve().parent,
         )
-        archive_existing_xlsx(output_root)
         with tempfile.TemporaryDirectory(prefix="version2-report-runner-") as temp_dir:
             context = create_context(
                 args,
                 staging_root=Path(temp_dir),
             )
             generated_files, errors = run_all(context)
+            if any(
+                file_path.suffix.lower() == ".xlsx" for file_path in generated_files
+            ):
+                archive_existing_xlsx(output_root)
             published_files = publish_xlsx_files(
                 generated_files=generated_files,
                 output_root=output_root,

@@ -293,10 +293,10 @@ def write_fixp_files(
             "2026/07/14",
             "01.01",
             "USER01",
-        "CCID99",
-        source_date="2026/07/10",
-        source_time="08:30:00:00",
-    ),
+            "CCID99",
+            source_date="2026/07/10",
+            source_time="08:30:00:00",
+        ),
         encoding="cp1252",
     )
 
@@ -378,12 +378,12 @@ def test_fixp_daily_compare_builds_expected_rows(
     statuses = {row[4]: row[0] for row in rows}
 
     assert statuses == {
-            "DROP001": "deleted",
-            "KEEP001": "modified",
-            "MOD001": "modified",
-            "NEW001": "added",
-            "SAME001": "no change",
-        }
+        "DROP001": "deleted",
+        "KEEP001": "modified",
+        "MOD001": "modified",
+        "NEW001": "added",
+        "SAME001": "no change",
+    }
     assert next(row[7] for row in rows if row[4] == "MOD001") == 5
     assert next(row[8] for row in rows if row[4] == "SAME001") == "CCID99"
     assert next(row[9] for row in rows if row[4] == "MOD001") == "XYZ"
@@ -493,8 +493,9 @@ def test_fixp_daily_compare_defaults_to_latest_two_file_dates(
 
 def test_fixp_daily_compare_archives_previous_latest_file(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
-    """Verifies an existing latest workbook is renamed before replacement."""
+    """Verifies replacement is generated before the latest workbook is archived."""
     inventory_path = write_inventory(tmp_path)
     fixp_folder = write_fixp_files(tmp_path)
     output_folder = tmp_path / "output"
@@ -513,6 +514,24 @@ def test_fixp_daily_compare_archives_previous_latest_file(
         base_dir=tmp_path,
         output_folder=output_folder,
         person_resolver=FakePersonResolver(),
+    )
+    original_export_xlsx = fixp_module.export_xlsx
+
+    def tracking_export_xlsx(
+        output_path: Path,
+        sheets,
+    ) -> None:
+        assert previous_latest.exists()
+        assert output_path.name.startswith(".fixp1-daily-analysis.tmp")
+        original_export_xlsx(
+            output_path=output_path,
+            sheets=sheets,
+        )
+
+    monkeypatch.setattr(
+        fixp_module,
+        "export_xlsx",
+        tracking_export_xlsx,
     )
 
     output_files = report.run(date(2026, 7, 15))
