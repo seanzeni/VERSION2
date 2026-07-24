@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     SQL Server access layer for release/bundle/effort data.
@@ -221,6 +221,45 @@ class DBService:
 
             if release:
                 lookup[clean_effort_id] = release
+
+        return lookup
+
+    def load_system_region_lookup(
+        self,
+    ) -> dict[str, str]:
+        query = """
+        SELECT
+            System,
+            Region
+        FROM MiscEnvironmentSystem
+        WHERE [Environment] IN ('DEVL1', 'MAIN1')
+        """
+
+        lookup: dict[str, str] = {}
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
+
+            for row in cursor.fetchall():
+                system = str(
+                    getattr(
+                        row,
+                        "System",
+                        "",
+                    )
+                ).strip()
+                region = str(
+                    getattr(
+                        row,
+                        "Region",
+                        "",
+                    )
+                ).strip()
+                clean_system = system.upper()
+
+                if clean_system and region and clean_system not in lookup:
+                    lookup[clean_system] = region
 
         return lookup
 

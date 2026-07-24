@@ -84,11 +84,14 @@ def test_resync_qual_uses_selected_move_source_and_skips_moving_record(
         elements=[make_element()],
         location_service=service,
         effort_dates={"ABC": "2026-07-24"},
+        system_region_lookup={
+            "SHARED01": "DV9",
+        },
     )
 
     assert len(rows) == 1
     assert rows[0][4:7] == ["APP1", "OWNER1", "2026-07-24"]
-    assert rows[0][7:10] == ["SYST1", "MAIN system", "SHARED01"]
+    assert rows[0][7:10] == ["SYST1", "DV9", "SHARED01"]
     assert rows[0][13] == "STDV1"
     assert rows[0][16] == "02.00"
     assert rows[0][18] == "plan to delete"
@@ -123,9 +126,13 @@ def test_resync_marks_lower_copy_for_retrofit_when_later_effort_tracks_it(
             moving_element,
             future_element,
         ],
+        system_region_lookup={
+            "SHARED01": "DV8",
+        },
     )
 
     assert len(rows) == 1
+    assert rows[0][8] == "DV8"
     assert rows[0][18] == "plan for retrofit"
 
 
@@ -139,6 +146,7 @@ def test_resync_prod_uses_prod_as_newer_source_and_skips_moving_qual_record(
             make_line("PGM001", "OCOB", "PRIVATE1", "SYS1", "PROD1", "03.00", "PROD"),
             make_line("PGM001", "OCOB", "PRIVATE1", "SYS1", "QUAL1", "02.00", "MOVE"),
             make_line("PGM001", "OCOB", "SHARED01", "SYS1", "QUAL1", "01.00", "QUAL"),
+            make_line("PGM001", "OCOB", "SHARED01", "SYS1", "SYST1", "01.00", "SYST"),
             make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "UTDV1", "01.00", "UTDV"),
             make_line("PGM001", "OCOB", "PRIVATE1", "SYS1", "FIXP1", "99.99", "FIXP"),
         ],
@@ -149,9 +157,12 @@ def test_resync_prod_uses_prod_as_newer_source_and_skips_moving_qual_record(
         mode="PROD",
         elements=[make_element()],
         location_service=service,
+        system_region_lookup={
+            "SHARED01": "DV9",
+        },
     )
 
-    assert [row[7] for row in rows] == ["QUAL1"]
-    assert rows[0][8] == "QUAL"
+    assert [row[7] for row in rows] == ["SYST1"]
+    assert rows[0][8] == "DV9"
     assert all(row[13] == "PROD1" for row in rows)
     assert all(row[16] == "03.00" for row in rows)

@@ -37,13 +37,9 @@ class ResyncReport:
     }
     COMPARE_ENVS_BY_MODE = {
         "QUAL": {"SYST1", "STDV1"},
-        "PROD": {"SYST1", "STDV1", "QUAL1"},
+        "PROD": {"SYST1", "STDV1"},
     }
-    TESTING_REGION_BY_ENV = {
-        "SYST1": "MAIN system",
-        "STDV1": "DEVL system",
-        "QUAL1": "QUAL",
-    }
+    SYSTEM_COMPARE_ENVS = {"SYST1", "STDV1"}
 
     def generate(
         self,
@@ -54,6 +50,7 @@ class ResyncReport:
         output_folder: Path,
         effort_dates: dict[str, str] | None = None,
         tracked_elements: list[Element] | None = None,
+        system_region_lookup: dict[str, str] | None = None,
         include_empty: bool = False,
     ) -> Path:
         report_path = output_folder / self.FILE_NAME
@@ -65,6 +62,7 @@ class ResyncReport:
             location_service=location_service,
             effort_dates=effort_dates,
             tracked_elements=tracked_elements,
+            system_region_lookup=system_region_lookup,
         )
 
         if not rows and not include_empty:
@@ -87,6 +85,7 @@ class ResyncReport:
         output_folder: Path,
         effort_dates: dict[str, str] | None = None,
         tracked_elements: list[Element] | None = None,
+        system_region_lookup: dict[str, str] | None = None,
         include_empty: bool = False,
     ) -> Path:
         report_path = output_folder / self.PDF_FILE_NAME
@@ -97,6 +96,7 @@ class ResyncReport:
             location_service=location_service,
             effort_dates=effort_dates,
             tracked_elements=tracked_elements,
+            system_region_lookup=system_region_lookup,
         )
 
         if not rows and not include_empty:
@@ -179,6 +179,7 @@ class ResyncReport:
         location_service: MainframeLocationService | None,
         effort_dates: dict[str, str] | None = None,
         tracked_elements: list[Element] | None = None,
+        system_region_lookup: dict[str, str] | None = None,
     ) -> list[list[str]]:
         if location_service is None:
             return []
@@ -193,6 +194,11 @@ class ResyncReport:
         rows: list[list[str]] = []
         seen_elements: set[tuple[str, str, str]] = set()
         inventory_elements = tracked_elements or elements
+        region_lookup = {
+            str(system).strip().upper(): str(region).strip()
+            for system, region in (system_region_lookup or {}).items()
+            if str(system).strip() and str(region).strip()
+        }
 
         for element in sorted(
             self._moving_elements(elements),
@@ -247,7 +253,10 @@ class ResyncReport:
                         self._element_owner(element),
                         self._qual_move_date(element, effort_dates),
                         target_record.env,
-                        self._testing_region(target_record.env),
+                        self._testing_region(
+                            lower_record=target_record,
+                            system_region_lookup=region_lookup,
+                        ),
                         target_record.system,
                         target_record.subsystem,
                         target_record.version,
@@ -352,6 +361,7 @@ class ResyncReport:
                 type_=element.type,
             )
             if record.env.strip().upper() in compare_envs
+            and record.env.strip().upper() in self.SYSTEM_COMPARE_ENVS
             and self._record_location_key(record) not in moving_record_keys
         ]
 
@@ -455,12 +465,12 @@ class ResyncReport:
 
     def _testing_region(
         self,
-        env: str,
+        lower_record: MainframeLocationRecord,
+        system_region_lookup: dict[str, str],
     ) -> str:
-        clean_env = str(env).strip().upper()
-        return self.TESTING_REGION_BY_ENV.get(
-            clean_env,
-            clean_env,
+        return system_region_lookup.get(
+            lower_record.system.strip().upper(),
+            "",
         )
 
     def _remarks(

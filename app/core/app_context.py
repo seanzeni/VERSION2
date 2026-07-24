@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Build and hold application-wide services and settings.
@@ -80,13 +80,10 @@ class AppContext:
         self.input_file = Path(input_path)
         self.output_folder = Path(output_path)
 
-        self.state = AppState(
-            current_xls_path=input_path,
-            current_ndvr_path=ndvr_path
-        )
+        self.state = AppState(current_xls_path=input_path, current_ndvr_path=ndvr_path)
 
         self.location_service: MainframeLocationService | None = None
-        
+
         if self.state.current_ndvr_path is not None:
             self.load_location_file(self.state.current_ndvr_path)
 
@@ -139,6 +136,7 @@ class AppContext:
         self.report_registry = ReportRegistry(
             stats_service=self.stats_service,
             location_service_provider=lambda: self.location_service,
+            system_region_lookup_provider=self.db_service.load_system_region_lookup,
             archive_pairs=self.archive_pairs,
             reference_element_service=self.reference_element_service,
         )
@@ -199,9 +197,7 @@ class AppContext:
         ).strip()
 
         configured_path = (
-            self.resolve_path(configured_value)
-            if configured_value
-            else None
+            self.resolve_path(configured_value) if configured_value else None
         )
 
         if configured_path is not None and configured_path.exists():
@@ -260,9 +256,7 @@ class AppContext:
         ]
 
         if not candidates:
-            raise FileNotFoundError(
-                f"No matching files found in directory: {path}"
-            )
+            raise FileNotFoundError(f"No matching files found in directory: {path}")
 
         return max(
             candidates,

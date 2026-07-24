@@ -103,7 +103,7 @@ def make_location_service(
         "\n".join(
             [
                 make_location_line("PGM001", "OCOB", "PROD1", "01.03", "CCID00"),
-                make_location_line("PGM001", "OCOB", "DEVL1", "01.02", "CCID01"),
+                make_location_line("PGM001", "OCOB", "SYST1", "01.02", "CCID01"),
                 make_location_line("PGM001", "OCOB", "QUAL1", "01.01", "CCID02"),
             ]
         ),

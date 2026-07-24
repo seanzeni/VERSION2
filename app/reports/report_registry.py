@@ -49,15 +49,18 @@ class ReportRegistry:
         self,
         stats_service,
         location_service_provider=None,
+        system_region_lookup_provider=None,
         archive_pairs: list[list[str]] | None = None,
         reference_element_service=None,
     ) -> None:
         self.stats_service = stats_service
         self.location_service_provider = location_service_provider
+        self.system_region_lookup_provider = system_region_lookup_provider
         self.archive_pairs = archive_pairs or []
         self.reference_element_service = (
             reference_element_service or ReferenceElementService()
         )
+        self._system_region_lookup: dict[str, str] | None = None
 
         self._reports = self._build_reports()
 
@@ -408,6 +411,7 @@ class ReportRegistry:
             output_folder=output_folder,
             effort_dates=state.effort_dates,
             tracked_elements=state.all_release_elements,
+            system_region_lookup=self.get_system_region_lookup(),
             include_empty=include_empty,
         )
 
@@ -425,6 +429,7 @@ class ReportRegistry:
             output_folder=output_folder,
             effort_dates=state.effort_dates,
             tracked_elements=state.all_release_elements,
+            system_region_lookup=self.get_system_region_lookup(),
             include_empty=include_empty,
         )
 
@@ -435,6 +440,17 @@ class ReportRegistry:
             return None
 
         return self.location_service_provider()
+
+    def get_system_region_lookup(
+        self,
+    ) -> dict[str, str]:
+        if self.system_region_lookup_provider is None:
+            return {}
+
+        if self._system_region_lookup is None:
+            self._system_region_lookup = self.system_region_lookup_provider()
+
+        return self._system_region_lookup
 
     def _generate_xlsx_from_csv(
         self,
