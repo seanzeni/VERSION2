@@ -263,6 +263,75 @@ class DBService:
 
         return lookup
 
+    def load_effort_testing_region_lookup(
+        self,
+        effort_ids: set[str],
+    ) -> dict[str, list[tuple[str, object]]]:
+        query = """
+        SELECT
+            e.Id AS EffortId,
+            e.BundleExitDate AS BundleExitDate,
+            LEFT(LTRIM(RTRIM(r.Id)), 3) AS RegionPrefix
+        FROM Efforts e
+        INNER JOIN Bundles b
+            ON CAST(e.BundleSequence AS VARCHAR(50)) = CAST(b.Sequence AS VARCHAR(50))
+        INNER JOIN (
+            SELECT
+                CAST(TestEnvironment AS VARCHAR(50)) AS TestEnvironment,
+                MIN(Id) AS Id
+            FROM Regions
+            GROUP BY CAST(TestEnvironment AS VARCHAR(50))
+        ) r
+            ON r.TestEnvironment = CAST(b.TestEnvironment AS VARCHAR(50))
+        WHERE LOWER(LTRIM(RTRIM(e.Id))) = LOWER(?)
+            AND e.BundleExitDate IS NOT NULL
+        """
+
+        lookup: dict[str, list[tuple[str, object]]] = {}
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            for effort_id in sorted(effort_ids):
+                clean_effort_id = str(effort_id).strip()
+                if not clean_effort_id:
+                    continue
+
+                cursor.execute(
+                    query,
+                    clean_effort_id,
+                )
+
+                for row in cursor.fetchall():
+                    effort = str(
+                        getattr(
+                            row,
+                            "EffortId",
+                            "",
+                        )
+                    ).strip()
+                    region = str(
+                        getattr(
+                            row,
+                            "RegionPrefix",
+                            "",
+                        )
+                    ).strip()
+                    if not effort or not region:
+                        continue
+
+                    lookup.setdefault(
+                        effort.upper(),
+                        [],
+                    ).append(
+                        (
+                            region,
+                            getattr(row, "BundleExitDate", None),
+                        )
+                    )
+
+        return lookup
+
     def connection(self):
         return pyodbc.connect(self.conn_str)
 

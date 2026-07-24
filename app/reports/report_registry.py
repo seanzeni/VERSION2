@@ -50,17 +50,25 @@ class ReportRegistry:
         stats_service,
         location_service_provider=None,
         system_region_lookup_provider=None,
+        effort_testing_region_lookup_provider=None,
         archive_pairs: list[list[str]] | None = None,
         reference_element_service=None,
     ) -> None:
         self.stats_service = stats_service
         self.location_service_provider = location_service_provider
         self.system_region_lookup_provider = system_region_lookup_provider
+        self.effort_testing_region_lookup_provider = (
+            effort_testing_region_lookup_provider
+        )
         self.archive_pairs = archive_pairs or []
         self.reference_element_service = (
             reference_element_service or ReferenceElementService()
         )
         self._system_region_lookup: dict[str, str] | None = None
+        self._effort_testing_region_lookup: dict[
+            tuple[str, ...],
+            dict[str, list[tuple[str, object]]],
+        ] = {}
 
         self._reports = self._build_reports()
 
@@ -412,6 +420,9 @@ class ReportRegistry:
             effort_dates=state.effort_dates,
             tracked_elements=state.all_release_elements,
             system_region_lookup=self.get_system_region_lookup(),
+            effort_testing_region_lookup=self.get_effort_testing_region_lookup(
+                state.loaded_elements,
+            ),
             include_empty=include_empty,
         )
 
@@ -430,6 +441,9 @@ class ReportRegistry:
             effort_dates=state.effort_dates,
             tracked_elements=state.all_release_elements,
             system_region_lookup=self.get_system_region_lookup(),
+            effort_testing_region_lookup=self.get_effort_testing_region_lookup(
+                state.loaded_elements,
+            ),
             include_empty=include_empty,
         )
 
@@ -451,6 +465,32 @@ class ReportRegistry:
             self._system_region_lookup = self.system_region_lookup_provider()
 
         return self._system_region_lookup
+
+    def get_effort_testing_region_lookup(
+        self,
+        elements,
+    ) -> dict[str, list[tuple[str, object]]]:
+        if self.effort_testing_region_lookup_provider is None:
+            return {}
+
+        effort_ids = tuple(
+            sorted(
+                {
+                    str(element.project).strip().upper()
+                    for element in elements
+                    if str(element.project).strip()
+                }
+            )
+        )
+        if not effort_ids:
+            return {}
+
+        if effort_ids not in self._effort_testing_region_lookup:
+            self._effort_testing_region_lookup[effort_ids] = (
+                self.effort_testing_region_lookup_provider(set(effort_ids))
+            )
+
+        return self._effort_testing_region_lookup[effort_ids]
 
     def _generate_xlsx_from_csv(
         self,

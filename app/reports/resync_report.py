@@ -51,6 +51,7 @@ class ResyncReport:
         effort_dates: dict[str, str] | None = None,
         tracked_elements: list[Element] | None = None,
         system_region_lookup: dict[str, str] | None = None,
+        effort_testing_region_lookup: dict[str, list[tuple[str, object]]] | None = None,
         include_empty: bool = False,
     ) -> Path:
         report_path = output_folder / self.FILE_NAME
@@ -63,6 +64,7 @@ class ResyncReport:
             effort_dates=effort_dates,
             tracked_elements=tracked_elements,
             system_region_lookup=system_region_lookup,
+            effort_testing_region_lookup=effort_testing_region_lookup,
         )
 
         if not rows and not include_empty:
@@ -86,6 +88,7 @@ class ResyncReport:
         effort_dates: dict[str, str] | None = None,
         tracked_elements: list[Element] | None = None,
         system_region_lookup: dict[str, str] | None = None,
+        effort_testing_region_lookup: dict[str, list[tuple[str, object]]] | None = None,
         include_empty: bool = False,
     ) -> Path:
         report_path = output_folder / self.PDF_FILE_NAME
@@ -97,6 +100,7 @@ class ResyncReport:
             effort_dates=effort_dates,
             tracked_elements=tracked_elements,
             system_region_lookup=system_region_lookup,
+            effort_testing_region_lookup=effort_testing_region_lookup,
         )
 
         if not rows and not include_empty:
@@ -180,6 +184,7 @@ class ResyncReport:
         effort_dates: dict[str, str] | None = None,
         tracked_elements: list[Element] | None = None,
         system_region_lookup: dict[str, str] | None = None,
+        effort_testing_region_lookup: dict[str, list[tuple[str, object]]] | None = None,
     ) -> list[list[str]]:
         if location_service is None:
             return []
@@ -193,12 +198,14 @@ class ResyncReport:
 
         rows: list[list[str]] = []
         seen_elements: set[tuple[str, str, str]] = set()
-        inventory_elements = tracked_elements or elements
         region_lookup = {
             str(system).strip().upper(): str(region).strip()
             for system, region in (system_region_lookup or {}).items()
             if str(system).strip() and str(region).strip()
         }
+        testing_region_lookup = self._normalize_effort_testing_region_lookup(
+            effort_testing_region_lookup,
+        )
 
         for element in sorted(
             self._moving_elements(elements),
@@ -242,6 +249,10 @@ class ResyncReport:
             ):
                 if source_record.version_number <= target_record.version_number:
                     continue
+                testing_region = self._testing_region(
+                    lower_record=target_record,
+                    system_region_lookup=region_lookup,
+                )
 
                 rows.append(
                     [
@@ -253,10 +264,7 @@ class ResyncReport:
                         self._element_owner(element),
                         self._qual_move_date(element, effort_dates),
                         target_record.env,
-                        self._testing_region(
-                            lower_record=target_record,
-                            system_region_lookup=region_lookup,
-                        ),
+                        testing_region,
                         target_record.system,
                         target_record.subsystem,
                         target_record.version,
@@ -269,8 +277,9 @@ class ResyncReport:
                         self._remarks(
                             element=element,
                             lower_record=target_record,
-                            tracked_elements=inventory_elements,
                             effort_dates=effort_dates,
+                            testing_region=testing_region,
+                            effort_testing_region_lookup=testing_region_lookup,
                         ),
                         (
                             f"{source_record.env} has newer version "
@@ -477,63 +486,79 @@ class ResyncReport:
         self,
         element: Element,
         lower_record: MainframeLocationRecord,
-        tracked_elements: list[Element],
         effort_dates: dict[str, str] | None,
+        testing_region: str,
+        effort_testing_region_lookup: dict[str, list[tuple[str, object]]],
     ) -> str:
-        if self._has_later_tracked_effort(
-            element=element,
+        if not self._record_ccid_matches_effort(
             lower_record=lower_record,
-            tracked_elements=tracked_elements,
-            effort_dates=effort_dates,
+            effort_id=element.project,
         ):
             return "plan for retrofit"
 
-        return "plan to delete"
+        authorized_regions = self._authorized_testing_regions(
+            element=element,
+            effort_dates=effort_dates,
+            effort_testing_region_lookup=effort_testing_region_lookup,
+        )
 
-    def _has_later_tracked_effort(
+        if testing_region.strip().upper() in authorized_regions:
+            return "plan to delete - moving to qual"
+
+        return "plan to delete - no authorized sandbox"
+
+    def _authorized_testing_regions(
         self,
         element: Element,
-        lower_record: MainframeLocationRecord,
-        tracked_elements: list[Element],
         effort_dates: dict[str, str] | None,
-    ) -> bool:
-        current_date = coerce_date(
+        effort_testing_region_lookup: dict[str, list[tuple[str, object]]],
+    ) -> set[str]:
+        qual_date = coerce_date(
             self._qual_move_date(
                 element=element,
                 effort_dates=effort_dates,
             )
         )
 
-        for candidate in tracked_elements:
-            if candidate.project.strip().upper() == element.project.strip().upper():
+        if qual_date is None:
+            return set()
+
+        regions: set[str] = set()
+        for region, exit_date_value in effort_testing_region_lookup.get(
+            element.project.strip().upper(),
+            [],
+        ):
+            exit_date = coerce_date(exit_date_value)
+            if exit_date is None or exit_date >= qual_date:
                 continue
 
-            if candidate.element.strip().upper() != element.element.strip().upper():
+            clean_region = str(region).strip().upper()
+            if clean_region:
+                regions.add(clean_region)
+
+        return regions
+
+    def _normalize_effort_testing_region_lookup(
+        self,
+        effort_testing_region_lookup: dict[str, list[tuple[str, object]]] | None,
+    ) -> dict[str, list[tuple[str, object]]]:
+        normalized: dict[str, list[tuple[str, object]]] = {}
+
+        for effort_id, assignments in (effort_testing_region_lookup or {}).items():
+            clean_effort_id = str(effort_id).strip().upper()
+            if not clean_effort_id:
                 continue
 
-            if candidate.type.strip().upper() != element.type.strip().upper():
-                continue
-
-            candidate_date = coerce_date(
-                self._qual_move_date(
-                    element=candidate,
-                    effort_dates=effort_dates,
+            normalized[clean_effort_id] = [
+                (
+                    str(region).strip(),
+                    exit_date,
                 )
-            )
-            if current_date is not None and candidate_date is not None:
-                if candidate_date <= current_date:
-                    continue
+                for region, exit_date in assignments
+                if str(region).strip()
+            ]
 
-            if self._record_ccid_matches_effort(
-                lower_record=lower_record,
-                effort_id=candidate.project,
-            ):
-                return True
-
-            if not lower_record.ccid.strip():
-                return True
-
-        return False
+        return normalized
 
     def _record_ccid_matches_effort(
         self,

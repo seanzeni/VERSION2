@@ -100,3 +100,87 @@ def test_load_system_region_lookup_uses_first_region_per_system() -> None:
     }
     assert "MiscEnvironmentSystem" in connection.cursor_value.query
     assert "'DEVL1', 'MAIN1'" in connection.cursor_value.query
+
+
+def test_load_effort_testing_region_lookup_queries_each_effort() -> None:
+    """Verifies effort sandbox regions come from bundle test environment."""
+
+    class Row:
+        def __init__(
+            self,
+            effort_id: str,
+            region_prefix: str,
+        ) -> None:
+            self.EffortId = effort_id
+            self.RegionPrefix = region_prefix
+            self.BundleExitDate = "2026-07-10"
+
+    class Cursor:
+        def __init__(
+            self,
+        ) -> None:
+            self.calls: list[tuple[str, str]] = []
+            self.current_effort = ""
+
+        def execute(
+            self,
+            query: str,
+            effort_id: str,
+        ) -> None:
+            self.calls.append(
+                (
+                    query,
+                    effort_id,
+                )
+            )
+            self.current_effort = effort_id
+
+        def fetchall(
+            self,
+        ):
+            return [Row(self.current_effort, "DV9")]
+
+    class Connection:
+        def __init__(
+            self,
+        ) -> None:
+            self.cursor_value = Cursor()
+
+        def __enter__(
+            self,
+        ):
+            return self
+
+        def __exit__(
+            self,
+            *args,
+        ) -> None:
+            return None
+
+        def cursor(
+            self,
+        ) -> Cursor:
+            return self.cursor_value
+
+    service = DBService({})
+    connection = Connection()
+    service.get_connection = lambda: connection
+
+    lookup = service.load_effort_testing_region_lookup(
+        {
+            "ABC12345",
+            "",
+        }
+    )
+
+    assert lookup == {
+        "ABC12345": [
+            (
+                "DV9",
+                "2026-07-10",
+            )
+        ],
+    }
+    assert len(connection.cursor_value.calls) == 1
+    assert "FROM Efforts" in connection.cursor_value.calls[0][0]
+    assert "FROM Regions" in connection.cursor_value.calls[0][0]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 from app.core.models import Element
@@ -47,7 +48,7 @@ def location_service(
 
 
 def make_element(
-    project: str = "ABC",
+    project: str = "ABC12345",
 ) -> Element:
     return Element(
         release="2026/07 release",
@@ -73,7 +74,7 @@ def test_resync_qual_uses_selected_move_source_and_skips_moving_record(
         [
             make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "STDV1", "02.00", "MOVE"),
             make_line("PGM001", "OCOB", "SHARED01", "SYS1", "UNIT1", "01.00", "UNIT"),
-            make_line("PGM001", "OCOB", "SHARED01", "SYS1", "SYST1", "01.00", "SYST"),
+            make_line("PGM001", "OCOB", "SHARED01", "SYS1", "SYST1", "01.00", "ABC123"),
             make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "FIXP1", "99.99", "FIXP"),
         ],
     )
@@ -83,9 +84,17 @@ def test_resync_qual_uses_selected_move_source_and_skips_moving_record(
         mode="QUAL",
         elements=[make_element()],
         location_service=service,
-        effort_dates={"ABC": "2026-07-24"},
+        effort_dates={"ABC12345": "2026-07-24"},
         system_region_lookup={
             "SHARED01": "DV9",
+        },
+        effort_testing_region_lookup={
+            "ABC12345": [
+                (
+                    "DV9",
+                    date(2026, 7, 10),
+                )
+            ],
         },
     )
 
@@ -94,13 +103,13 @@ def test_resync_qual_uses_selected_move_source_and_skips_moving_record(
     assert rows[0][7:10] == ["SYST1", "DV9", "SHARED01"]
     assert rows[0][13] == "STDV1"
     assert rows[0][16] == "02.00"
-    assert rows[0][18] == "plan to delete"
+    assert rows[0][18] == "plan to delete - moving to qual"
 
 
-def test_resync_marks_lower_copy_for_retrofit_when_later_effort_tracks_it(
+def test_resync_marks_lower_copy_for_retrofit_when_ccid_does_not_match(
     tmp_path: Path,
 ) -> None:
-    """A later tracked inventory effort means the lower copy should be retrofitted."""
+    """A lower system copy with a different CCID is treated as another effort."""
     service = location_service(
         tmp_path,
         [
@@ -111,7 +120,6 @@ def test_resync_marks_lower_copy_for_retrofit_when_later_effort_tracks_it(
         ],
     )
     moving_element = make_element()
-    future_element = make_element(project="FUTURE123")
 
     rows = ResyncReport().build_rows(
         release="2026/07 release",
@@ -119,13 +127,8 @@ def test_resync_marks_lower_copy_for_retrofit_when_later_effort_tracks_it(
         elements=[moving_element],
         location_service=service,
         effort_dates={
-            "ABC": "2026-07-24",
-            "FUTURE123": "2026-08-07",
+            "ABC12345": "2026-07-24",
         },
-        tracked_elements=[
-            moving_element,
-            future_element,
-        ],
         system_region_lookup={
             "SHARED01": "DV8",
         },
@@ -134,6 +137,43 @@ def test_resync_marks_lower_copy_for_retrofit_when_later_effort_tracks_it(
     assert len(rows) == 1
     assert rows[0][8] == "DV8"
     assert rows[0][18] == "plan for retrofit"
+
+
+def test_resync_marks_matching_ccid_without_region_as_no_authorized_sandbox(
+    tmp_path: Path,
+) -> None:
+    """A matching CCID in an unauthorized region should be planned for deletion."""
+    service = location_service(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "STDV1", "02.00", "MOVE"),
+            make_line("PGM001", "OCOB", "SHARED01", "SYS1", "SYST1", "01.00", "ABC123"),
+        ],
+    )
+
+    rows = ResyncReport().build_rows(
+        release="2026/07 release",
+        mode="QUAL",
+        elements=[make_element()],
+        location_service=service,
+        effort_dates={
+            "ABC12345": "2026-07-24",
+        },
+        system_region_lookup={
+            "SHARED01": "DV8",
+        },
+        effort_testing_region_lookup={
+            "ABC12345": [
+                (
+                    "DV9",
+                    date(2026, 7, 10),
+                )
+            ],
+        },
+    )
+
+    assert len(rows) == 1
+    assert rows[0][18] == "plan to delete - no authorized sandbox"
 
 
 def test_resync_prod_uses_prod_as_newer_source_and_skips_moving_qual_record(

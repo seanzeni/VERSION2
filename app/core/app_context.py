@@ -137,6 +137,9 @@ class AppContext:
             stats_service=self.stats_service,
             location_service_provider=lambda: self.location_service,
             system_region_lookup_provider=self.db_service.load_system_region_lookup,
+            effort_testing_region_lookup_provider=(
+                self.db_service.load_effort_testing_region_lookup
+            ),
             archive_pairs=self.archive_pairs,
             reference_element_service=self.reference_element_service,
         )
