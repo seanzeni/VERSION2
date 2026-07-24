@@ -85,12 +85,12 @@ def test_resync_qual_reports_system_copy_even_when_source_region_is_missing(
         location_service=service,
         effort_dates={"ABC12345": "2026-07-24"},
         system_region_lookup={
-            "SHARED01": "DV9",
+            "SHARED01": "DVJ",
         },
         effort_testing_region_lookup={
             "ABC12345": [
                 (
-                    "DV9",
+                    "DVF",
                     date(2026, 7, 10),
                 )
             ],
@@ -99,9 +99,42 @@ def test_resync_qual_reports_system_copy_even_when_source_region_is_missing(
 
     assert len(rows) == 1
     assert rows[0][4:7] == ["APP1", "OWNER1", "2026-07-24"]
-    assert rows[0][7:10] == ["SYST1", "DV9", "SHARED01"]
-    assert rows[0][13] == "plan to delete - moving to qual"
-    assert "Found PGM001 OCOB in system region DV9" in rows[0][14]
+    assert rows[0][7:10] == ["SYST1", "DVJ", "SHARED01"]
+    assert rows[0][13] == "plan to delete - no authorized sandbox"
+    assert "Found PGM001 OCOB in system region DVJ" in rows[0][14]
+
+
+def test_resync_skips_records_in_authorized_testing_region(
+    tmp_path: Path,
+) -> None:
+    """System copies in the release sandbox are expected to move and stay off report."""
+    service = location_service(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "SHARED01", "SYS1", "SYST1", "01.00", "ABC123"),
+        ],
+    )
+
+    rows = ResyncReport().build_rows(
+        release="2026/07 release",
+        mode="QUAL",
+        elements=[make_element()],
+        location_service=service,
+        effort_dates={"ABC12345": "2026-07-24"},
+        system_region_lookup={
+            "SHARED01": "DVF",
+        },
+        effort_testing_region_lookup={
+            "ABC12345": [
+                (
+                    "DVF",
+                    date(2026, 7, 10),
+                )
+            ],
+        },
+    )
+
+    assert rows == []
 
 
 def test_resync_includes_nonselectable_release_effort_elements(
@@ -125,11 +158,11 @@ def test_resync_includes_nonselectable_release_effort_elements(
         elements=[element],
         location_service=service,
         effort_dates={"ABC12345": "2026-07-24"},
-        system_region_lookup={"SHARED01": "DV9"},
+        system_region_lookup={"SHARED01": "DVJ"},
         effort_testing_region_lookup={
             "ABC12345": [
                 (
-                    "DV9",
+                    "DVF",
                     date(2026, 7, 10),
                 )
             ],
@@ -140,10 +173,10 @@ def test_resync_includes_nonselectable_release_effort_elements(
     assert rows[0][2] == "PGM001"
 
 
-def test_resync_marks_lower_copy_for_retrofit_when_ccid_does_not_match(
+def test_resync_marks_system_copy_for_retrofit_when_ccid_does_not_match(
     tmp_path: Path,
 ) -> None:
-    """A lower system copy with a different CCID is treated as another effort."""
+    """A system copy with a different CCID is treated as another effort."""
     service = location_service(
         tmp_path,
         [
@@ -242,8 +275,7 @@ def test_resync_reports_different_ccid_even_when_authorized_region_copy_exists(
         },
     )
 
-    assert [row[8] for row in rows] == ["DVO", "DVX"]
+    assert [row[8] for row in rows] == ["DVX"]
     assert [row[13] for row in rows] == [
-        "plan to delete - moving to qual",
         "plan for retrofit",
     ]

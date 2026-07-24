@@ -112,7 +112,7 @@ class ResyncReport:
                     "Element",
                     "Type",
                     "Testing Region",
-                    "Lower Copy",
+                    "Location",
                     "Remarks",
                     "Reason",
                 ],
@@ -215,6 +215,11 @@ class ResyncReport:
                 continue
 
             seen_elements.add(element_key)
+            authorized_regions = self._authorized_testing_regions(
+                element=element,
+                effort_dates=effort_dates,
+                effort_testing_region_lookup=testing_region_lookup,
+            )
 
             for target_record in self._get_lower_records(
                 element=element,
@@ -225,6 +230,8 @@ class ResyncReport:
                     lower_record=target_record,
                     system_region_lookup=region_lookup,
                 )
+                if testing_region.strip().upper() in authorized_regions:
+                    continue
 
                 rows.append(
                     [
@@ -244,9 +251,6 @@ class ResyncReport:
                         self._remarks(
                             element=element,
                             lower_record=target_record,
-                            effort_dates=effort_dates,
-                            testing_region=testing_region,
-                            effort_testing_region_lookup=testing_region_lookup,
                         ),
                         (
                             f"Found {element.element} {element.type} in system "
@@ -340,24 +344,12 @@ class ResyncReport:
         self,
         element: Element,
         lower_record: MainframeLocationRecord,
-        effort_dates: dict[str, str] | None,
-        testing_region: str,
-        effort_testing_region_lookup: dict[str, list[tuple[str, object]]],
     ) -> str:
         if not self._record_ccid_matches_effort(
             lower_record=lower_record,
             effort_id=element.project,
         ):
             return "plan for retrofit"
-
-        authorized_regions = self._authorized_testing_regions(
-            element=element,
-            effort_dates=effort_dates,
-            effort_testing_region_lookup=effort_testing_region_lookup,
-        )
-
-        if testing_region.strip().upper() in authorized_regions:
-            return "plan to delete - moving to qual"
 
         return "plan to delete - no authorized sandbox"
 

@@ -49,7 +49,7 @@ def make_registry(
         effort_testing_region_lookup_provider=lambda effort_ids: {
             effort_id: [
                 (
-                    "DV9",
+                    "DV8",
                     "2026-06-01",
                 )
             ]
