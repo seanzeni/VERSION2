@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Shared report helper functions.
@@ -115,18 +115,58 @@ def get_unique_path(
         return path
 
     timestamp = datetime.now().strftime("%H%M%S")
-    candidate = path.with_name(
-        f"{path.stem}_{timestamp}{path.suffix}"
-    )
+    candidate = path.with_name(f"{path.stem}_{timestamp}{path.suffix}")
 
     counter = 1
     while candidate.exists():
-        candidate = path.with_name(
-            f"{path.stem}_{timestamp}_{counter}{path.suffix}"
-        )
+        candidate = path.with_name(f"{path.stem}_{timestamp}_{counter}{path.suffix}")
         counter += 1
 
     return candidate
+
+
+def build_report_file_prefix(
+    release: str,
+    move_date: str | object | None,
+) -> str:
+    release_name = safe_release_name(release).upper() or "UNKNOWN_RELEASE"
+    date_name = safe_release_name(_format_move_date(move_date)).upper()
+
+    return f"{release_name}_{date_name}"
+
+
+def archive_matching_reports(
+    target_folder: Path,
+    file_prefix: str,
+) -> None:
+    history_folder = target_folder / "History"
+
+    history_folder.mkdir(
+        exist_ok=True,
+    )
+
+    for file_path in target_folder.iterdir():
+        if not file_path.is_file():
+            continue
+
+        if not file_path.name.upper().startswith(f"{file_prefix.upper()}_"):
+            continue
+
+        destination = get_unique_path(
+            history_folder / file_path.name,
+        )
+
+        try:
+            make_writable(file_path)
+            shutil.move(
+                str(file_path),
+                str(destination),
+            )
+            make_read_only(destination)
+        except PermissionError as exc:
+            raise PermissionError(
+                f"Unable to archive {file_path.name}. Close the file if it is open and try again."
+            ) from exc
 
 
 def archive_existing_reports(
@@ -157,6 +197,46 @@ def archive_existing_reports(
             raise PermissionError(
                 f"Unable to archive {file_path.name}. Close the file if it is open and try again."
             ) from exc
+
+
+def prefix_report_files(
+    files: list[Path],
+    file_prefix: str,
+) -> list[Path]:
+    renamed: list[Path] = []
+
+    for path in files:
+        if not path.exists():
+            continue
+
+        if path.name.upper().startswith(f"{file_prefix.upper()}_"):
+            renamed.append(path)
+            continue
+
+        destination = get_unique_path(path.with_name(f"{file_prefix}_{path.name}"))
+
+        make_writable(path)
+        path.replace(destination)
+        make_read_only(destination)
+        renamed.append(destination)
+
+    return renamed
+
+
+def _format_move_date(
+    move_date: str | object | None,
+) -> str:
+    if move_date is None:
+        return "UNKNOWN_DATE"
+
+    if hasattr(move_date, "strftime"):
+        return move_date.strftime("%Y-%m-%d")
+
+    value = str(move_date).strip()
+    if not value:
+        return "UNKNOWN_DATE"
+
+    return value[:10]
 
 
 def sort_elements(
@@ -270,10 +350,7 @@ def _autosize_columns(
     worksheet,
 ) -> None:
     for column_cells in worksheet.columns:
-        max_length = max(
-            len(str(cell.value or ""))
-            for cell in column_cells
-        )
+        max_length = max(len(str(cell.value or "")) for cell in column_cells)
         column_letter = get_column_letter(column_cells[0].column)
         worksheet.column_dimensions[column_letter].width = min(
             max(max_length + 2, 10),

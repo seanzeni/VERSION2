@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Non-modal report generation center.
@@ -28,7 +28,10 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from app.reports.report_utils import archive_existing_reports
+from app.reports.report_utils import archive_matching_reports
+from app.reports.report_utils import build_report_file_prefix
 from app.reports.report_utils import get_date_folder_path
+from app.reports.report_utils import prefix_report_files
 from app.reports.report_utils import safe_release_name
 from app.services.after_action_service import AfterActionService
 from app.services.forecast_service import ForecastService
@@ -63,9 +66,7 @@ class ReportCenter(ctk.CTkToplevel):
         self.pdf_var = ctk.BooleanVar(value=True)
         self.include_empty_var = ctk.BooleanVar(value=False)
         reports_settings = (
-            self.context.settings.get("reports", {})
-            if self.context is not None
-            else {}
+            self.context.settings.get("reports", {}) if self.context is not None else {}
         )
         self.destination_var = ctk.StringVar(
             value=(
@@ -390,13 +391,22 @@ class ReportCenter(ctk.CTkToplevel):
 
         try:
             sharepoint_service = self._get_sharepoint_service()
+            move_date = self._selected_move_date()
+            file_prefix = build_report_file_prefix(
+                self.app_state.release,
+                move_date,
+            )
             if sharepoint_service is None:
                 output_folder = Path(self.output_folder_var.get())
                 output_folder.mkdir(parents=True, exist_ok=True)
-                archive_existing_reports(output_folder)
+                archive_matching_reports(
+                    output_folder,
+                    file_prefix,
+                )
             else:
                 output_folder = sharepoint_service.prepare_release_folder(
-                    self.app_state.release
+                    self.app_state.release,
+                    file_prefix=file_prefix,
                 )
         except (OSError, PermissionError, ValueError) as exc:
             messagebox.showerror(
@@ -450,6 +460,12 @@ class ReportCenter(ctk.CTkToplevel):
             generated_files = sharepoint_service.timestamp_files(
                 generated_files,
                 self.app_state.release,
+                move_date=move_date,
+            )
+        else:
+            generated_files = prefix_report_files(
+                generated_files,
+                file_prefix,
             )
 
         if generated_files:
@@ -525,9 +541,7 @@ class ReportCenter(ctk.CTkToplevel):
         self.current_report_var.set("Forecast Complete")
 
         generated_files = [
-            path
-            for result in results
-            for path in result.generated_files
+            path for result in results for path in result.generated_files
         ]
 
         if generated_files:
@@ -570,7 +584,9 @@ class ReportCenter(ctk.CTkToplevel):
             if sharepoint_service is not None
             else self.base_output_folder
         )
-        output_folder = output_root / "Inventory Issues Forecast" / date.today().isoformat()
+        output_folder = (
+            output_root / "Inventory Issues Forecast" / date.today().isoformat()
+        )
         output_folder.mkdir(
             parents=True,
             exist_ok=True,
@@ -665,9 +681,7 @@ class ReportCenter(ctk.CTkToplevel):
             else self.base_output_folder
         )
         output_folder = (
-            output_root
-            / "After Action"
-            / safe_release_name(selected_date.isoformat())
+            output_root / "After Action" / safe_release_name(selected_date.isoformat())
         )
 
         self.progress_bar.set(0)
@@ -727,3 +741,24 @@ class ReportCenter(ctk.CTkToplevel):
                 "Set reports.sharepoint_url in settings.json before using SharePoint."
             )
         return SharePointReportService(url)
+
+    def _selected_move_date(
+        self,
+    ) -> str:
+        selected_dates = {
+            self.app_state.effort_dates.get(effort_id, "").strip()
+            for effort_id in self.app_state.selected_effort_ids
+            if self.app_state.effort_dates.get(effort_id, "").strip()
+        }
+
+        if not selected_dates:
+            selected_dates = {
+                str(value).strip()
+                for value in self.app_state.effort_dates.values()
+                if str(value).strip()
+            }
+
+        if not selected_dates:
+            return "Unknown"
+
+        return sorted(selected_dates)[0]

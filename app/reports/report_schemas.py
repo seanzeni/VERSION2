@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Central report column schemas.
@@ -186,15 +186,19 @@ RESYNC_COLUMNS = [
     ReportColumn("Project"),
     ReportColumn("Element"),
     ReportColumn("Type"),
-    ReportColumn("Target Env"),
-    ReportColumn("Target System"),
-    ReportColumn("Target Subsystem"),
-    ReportColumn("Target Version"),
-    ReportColumn("Target CCID"),
+    ReportColumn("Application"),
+    ReportColumn("Element Owner"),
+    ReportColumn("Qual Move Date"),
+    ReportColumn("Lower Env"),
+    ReportColumn("Lower System"),
+    ReportColumn("Lower Subsystem"),
+    ReportColumn("Lower Version"),
+    ReportColumn("Lower CCID"),
     ReportColumn("Newer Source Env"),
     ReportColumn("Newer Source System"),
     ReportColumn("Newer Source Subsystem"),
     ReportColumn("Newer Source Version"),
     ReportColumn("Newer Source CCID"),
+    ReportColumn("Remarks"),
     ReportColumn("Reason"),
 ]

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Generate Resync Report CSV/PDF output.
@@ -9,13 +9,14 @@
 #
 # Responsibilities:
 #     - Compare loaded inventory elements against NDVR location records.
-#     - Report lower records when the selected target environment has a newer version.
+#     - Report lower records when the selected move source has a newer version.
 #     - Exclude FIXP1 from resync comparisons.
 
 from pathlib import Path
 
 from app.core.models import Element
 from app.core.models import MainframeLocationRecord
+from app.core.release_rules import coerce_date
 from app.reports.pdf_utils import build_table
 from app.reports.pdf_utils import heading
 from app.reports.pdf_utils import spacer
@@ -46,6 +47,8 @@ class ResyncReport:
         elements: list[Element],
         location_service: MainframeLocationService | None,
         output_folder: Path,
+        effort_dates: dict[str, str] | None = None,
+        tracked_elements: list[Element] | None = None,
         include_empty: bool = False,
     ) -> Path:
         report_path = output_folder / self.FILE_NAME
@@ -55,6 +58,8 @@ class ResyncReport:
             mode=mode,
             elements=elements,
             location_service=location_service,
+            effort_dates=effort_dates,
+            tracked_elements=tracked_elements,
         )
 
         if not rows and not include_empty:
@@ -75,6 +80,8 @@ class ResyncReport:
         elements: list[Element],
         location_service: MainframeLocationService | None,
         output_folder: Path,
+        effort_dates: dict[str, str] | None = None,
+        tracked_elements: list[Element] | None = None,
         include_empty: bool = False,
     ) -> Path:
         report_path = output_folder / self.PDF_FILE_NAME
@@ -83,6 +90,8 @@ class ResyncReport:
             mode=mode,
             elements=elements,
             location_service=location_service,
+            effort_dates=effort_dates,
+            tracked_elements=tracked_elements,
         )
 
         if not rows and not include_empty:
@@ -93,31 +102,56 @@ class ResyncReport:
             build_table(
                 headers=[
                     "Project",
+                    "Application",
+                    "Owner",
+                    "QUAL Date",
                     "Element",
                     "Type",
-                    "Target",
+                    "Lower Copy",
                     "Newer Source",
+                    "Remarks",
                     "Reason",
                 ],
                 rows=[
                     [
                         row[1],
+                        row[4],
+                        row[5],
+                        row[6],
                         row[2],
                         row[3],
-                        f"{row[4]} {row[7]} {row[8]}",
-                        f"{row[9]} {row[12]} {row[13]}",
-                        row[14],
+                        f"{row[7]} {row[10]} {row[11]}",
+                        f"{row[12]} {row[15]} {row[16]}",
+                        row[17],
+                        row[18],
                     ]
                     for row in rows
                 ]
-                or [["", "", "", "", "", "No potential resync issues found."]],
+                or [
+                    [
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "No potential resync issues found.",
+                    ]
+                ],
                 column_widths=[
                     0.9 * 72,
+                    1.0 * 72,
+                    0.8 * 72,
+                    0.8 * 72,
                     0.9 * 72,
                     0.7 * 72,
                     1.5 * 72,
                     1.5 * 72,
-                    4.3 * 72,
+                    1.2 * 72,
+                    2.2 * 72,
                 ],
             )
         )
@@ -134,6 +168,8 @@ class ResyncReport:
         mode: str,
         elements: list[Element],
         location_service: MainframeLocationService | None,
+        effort_dates: dict[str, str] | None = None,
+        tracked_elements: list[Element] | None = None,
     ) -> list[list[str]]:
         if location_service is None:
             return []
@@ -147,9 +183,10 @@ class ResyncReport:
 
         rows: list[list[str]] = []
         seen_elements: set[tuple[str, str, str]] = set()
+        inventory_elements = tracked_elements or elements
 
         for element in sorted(
-            elements,
+            self._moving_elements(elements),
             key=lambda item: (
                 item.project.upper(),
                 item.element.upper(),
@@ -170,6 +207,7 @@ class ResyncReport:
             source_record = self._get_newer_source_record(
                 element=element,
                 location_service=location_service,
+                mode=clean_mode,
                 target_env=target_env,
             )
 
@@ -196,6 +234,9 @@ class ResyncReport:
                         element.project,
                         element.element,
                         element.type,
+                        str(element.source_row.get("Application", "")),
+                        self._element_owner(element),
+                        self._qual_move_date(element, effort_dates),
                         target_record.env,
                         target_record.system,
                         target_record.subsystem,
@@ -206,6 +247,12 @@ class ResyncReport:
                         source_record.subsystem,
                         source_record.version,
                         source_record.ccid,
+                        self._remarks(
+                            element=element,
+                            lower_record=target_record,
+                            tracked_elements=inventory_elements,
+                            effort_dates=effort_dates,
+                        ),
                         (
                             f"{source_record.env} has newer version "
                             f"{source_record.version}; lower environment "
@@ -229,8 +276,15 @@ class ResyncReport:
         self,
         element: Element,
         location_service: MainframeLocationService,
+        mode: str,
         target_env: str,
     ) -> MainframeLocationRecord | None:
+        if mode == "QUAL":
+            return self._get_qual_move_source_record(
+                element=element,
+                location_service=location_service,
+            )
+
         target_records = [
             record
             for record in location_service.find(
@@ -245,6 +299,32 @@ class ResyncReport:
 
         return max(
             target_records,
+            key=lambda record: record.version_number,
+        )
+
+    def _get_qual_move_source_record(
+        self,
+        element: Element,
+        location_service: MainframeLocationService,
+    ) -> MainframeLocationRecord | None:
+        moving_record_keys = self._moving_record_keys(
+            element=element,
+            mode="QUAL",
+        )
+        source_records = [
+            record
+            for record in location_service.find(
+                element=element.element,
+                type_=element.type,
+            )
+            if self._record_location_key(record) in moving_record_keys
+        ]
+
+        if not source_records:
+            return None
+
+        return max(
+            source_records,
             key=lambda record: record.version_number,
         )
 
@@ -294,11 +374,15 @@ class ResyncReport:
                 location_rules.get_expected_system_for_move(
                     mode=mode,
                     element=element,
-                ).strip().upper(),
+                )
+                .strip()
+                .upper(),
                 location_rules.get_expected_subsystem_for_move(
                     mode=mode,
                     element=element,
-                ).strip().upper(),
+                )
+                .strip()
+                .upper(),
             )
             for env in matching_envs
         }
@@ -312,3 +396,121 @@ class ResyncReport:
             record.system.strip().upper(),
             record.subsystem.strip().upper(),
         )
+
+    def _moving_elements(
+        self,
+        elements: list[Element],
+    ) -> list[Element]:
+        return [
+            element
+            for element in elements
+            if element.visible and element.selected and element.selectable
+        ]
+
+    def _element_owner(
+        self,
+        element: Element,
+    ) -> str:
+        for field_name in (
+            "Submitter",
+            "Owner",
+            "DSN ID",
+            "TL",
+        ):
+            value = str(
+                element.source_row.get(
+                    field_name,
+                    "",
+                )
+            ).strip()
+            if value:
+                return value
+
+        return ""
+
+    def _qual_move_date(
+        self,
+        element: Element,
+        effort_dates: dict[str, str] | None,
+    ) -> str:
+        if not effort_dates:
+            return ""
+
+        return str(
+            effort_dates.get(
+                element.project,
+                "",
+            )
+        ).strip()
+
+    def _remarks(
+        self,
+        element: Element,
+        lower_record: MainframeLocationRecord,
+        tracked_elements: list[Element],
+        effort_dates: dict[str, str] | None,
+    ) -> str:
+        if self._has_later_tracked_effort(
+            element=element,
+            lower_record=lower_record,
+            tracked_elements=tracked_elements,
+            effort_dates=effort_dates,
+        ):
+            return "plan for retrofit"
+
+        return "plan to delete"
+
+    def _has_later_tracked_effort(
+        self,
+        element: Element,
+        lower_record: MainframeLocationRecord,
+        tracked_elements: list[Element],
+        effort_dates: dict[str, str] | None,
+    ) -> bool:
+        current_date = coerce_date(
+            self._qual_move_date(
+                element=element,
+                effort_dates=effort_dates,
+            )
+        )
+
+        for candidate in tracked_elements:
+            if candidate.project.strip().upper() == element.project.strip().upper():
+                continue
+
+            if candidate.element.strip().upper() != element.element.strip().upper():
+                continue
+
+            if candidate.type.strip().upper() != element.type.strip().upper():
+                continue
+
+            candidate_date = coerce_date(
+                self._qual_move_date(
+                    element=candidate,
+                    effort_dates=effort_dates,
+                )
+            )
+            if current_date is not None and candidate_date is not None:
+                if candidate_date <= current_date:
+                    continue
+
+            if self._record_ccid_matches_effort(
+                lower_record=lower_record,
+                effort_id=candidate.project,
+            ):
+                return True
+
+            if not lower_record.ccid.strip():
+                return True
+
+        return False
+
+    def _record_ccid_matches_effort(
+        self,
+        lower_record: MainframeLocationRecord,
+        effort_id: str,
+    ) -> bool:
+        clean_ccid = lower_record.ccid.strip().upper()
+        clean_effort = effort_id.strip().upper()
+
+        return bool(clean_ccid and clean_effort and clean_effort.startswith(clean_ccid))

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Central registry for available reports.
@@ -352,32 +352,44 @@ class ReportRegistry:
             include_listener_details=list_name == "hippa_listener",
         )
 
-    def _generate_hippa_csv(self, state, output_folder: Path, include_empty: bool) -> Path:
+    def _generate_hippa_csv(
+        self, state, output_folder: Path, include_empty: bool
+    ) -> Path:
         return self._reference_report(
             "HIPPA Listeners", "HIPPA_Listeners", "hippa_listener"
         ).generate(state.loaded_elements, output_folder, include_empty)
 
-    def _generate_hippa_xlsx(self, state, output_folder: Path, include_empty: bool) -> Path:
+    def _generate_hippa_xlsx(
+        self, state, output_folder: Path, include_empty: bool
+    ) -> Path:
         return self._reference_report(
             "HIPPA Listeners", "HIPPA_Listeners", "hippa_listener"
         ).generate_xlsx(state.loaded_elements, output_folder, include_empty)
 
-    def _generate_hippa_pdf(self, state, output_folder: Path, include_empty: bool) -> Path:
+    def _generate_hippa_pdf(
+        self, state, output_folder: Path, include_empty: bool
+    ) -> Path:
         return self._reference_report(
             "HIPPA Listeners", "HIPPA_Listeners", "hippa_listener"
         ).generate_pdf(state.loaded_elements, output_folder, include_empty)
 
-    def _generate_ods_csv(self, state, output_folder: Path, include_empty: bool) -> Path:
-        return self._reference_report(
-            "ODS Elements", "ODS_Elements", "ods"
-        ).generate(state.loaded_elements, output_folder, include_empty)
+    def _generate_ods_csv(
+        self, state, output_folder: Path, include_empty: bool
+    ) -> Path:
+        return self._reference_report("ODS Elements", "ODS_Elements", "ods").generate(
+            state.loaded_elements, output_folder, include_empty
+        )
 
-    def _generate_ods_xlsx(self, state, output_folder: Path, include_empty: bool) -> Path:
+    def _generate_ods_xlsx(
+        self, state, output_folder: Path, include_empty: bool
+    ) -> Path:
         return self._reference_report(
             "ODS Elements", "ODS_Elements", "ods"
         ).generate_xlsx(state.loaded_elements, output_folder, include_empty)
 
-    def _generate_ods_pdf(self, state, output_folder: Path, include_empty: bool) -> Path:
+    def _generate_ods_pdf(
+        self, state, output_folder: Path, include_empty: bool
+    ) -> Path:
         return self._reference_report(
             "ODS Elements", "ODS_Elements", "ods"
         ).generate_pdf(state.loaded_elements, output_folder, include_empty)
@@ -394,6 +406,8 @@ class ReportRegistry:
             elements=state.loaded_elements,
             location_service=self.get_location_service(),
             output_folder=output_folder,
+            effort_dates=state.effort_dates,
+            tracked_elements=state.all_release_elements,
             include_empty=include_empty,
         )
 
@@ -409,6 +423,8 @@ class ReportRegistry:
             elements=state.loaded_elements,
             location_service=self.get_location_service(),
             output_folder=output_folder,
+            effort_dates=state.effort_dates,
+            tracked_elements=state.all_release_elements,
             include_empty=include_empty,
         )
 

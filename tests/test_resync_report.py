@@ -46,29 +46,32 @@ def location_service(
     return MainframeLocationService().load_file(path)
 
 
-def make_element() -> Element:
+def make_element(
+    project: str = "ABC",
+) -> Element:
     return Element(
         release="2026/07 release",
-        project="ABC",
+        project=project,
         element="PGM001",
         type="OCOB",
         source_row={
             "Act Rgn": "DV01",
+            "Application": "APP1",
             "System": "PRIVATE0",
             "Subsys": "SYS1",
+            "Submitter": "OWNER1",
         },
     )
 
 
-def test_resync_qual_uses_qual_as_newer_source_and_skips_moving_record(
+def test_resync_qual_uses_selected_move_source_and_skips_moving_record(
     tmp_path: Path,
 ) -> None:
-    """QUAL resync compares QUAL to lower envs but skips the moving row."""
+    """QUAL resync compares selected moving source to lower/equal envs."""
     service = location_service(
         tmp_path,
         [
-            make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "QUAL1", "02.00", "QUAL"),
-            make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "STDV1", "01.00", "MOVE"),
+            make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "STDV1", "02.00", "MOVE"),
             make_line("PGM001", "OCOB", "SHARED01", "SYS1", "UNIT1", "01.00", "UNIT"),
             make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "FIXP1", "99.99", "FIXP"),
         ],
@@ -79,12 +82,50 @@ def test_resync_qual_uses_qual_as_newer_source_and_skips_moving_record(
         mode="QUAL",
         elements=[make_element()],
         location_service=service,
+        effort_dates={"ABC": "2026-07-24"},
     )
 
     assert len(rows) == 1
-    assert rows[0][4] == "UNIT1"
-    assert rows[0][9] == "QUAL1"
-    assert rows[0][12] == "02.00"
+    assert rows[0][4:7] == ["APP1", "OWNER1", "2026-07-24"]
+    assert rows[0][7] == "UNIT1"
+    assert rows[0][12] == "STDV1"
+    assert rows[0][15] == "02.00"
+    assert rows[0][17] == "plan to delete"
+
+
+def test_resync_marks_lower_copy_for_retrofit_when_later_effort_tracks_it(
+    tmp_path: Path,
+) -> None:
+    """A later tracked inventory effort means the lower copy should be retrofitted."""
+    service = location_service(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "STDV1", "02.00", "MOVE"),
+            make_line(
+                "PGM001", "OCOB", "SHARED01", "SYS1", "UNIT1", "01.00", "FUTURE1"
+            ),
+        ],
+    )
+    moving_element = make_element()
+    future_element = make_element(project="FUTURE123")
+
+    rows = ResyncReport().build_rows(
+        release="2026/07 release",
+        mode="QUAL",
+        elements=[moving_element],
+        location_service=service,
+        effort_dates={
+            "ABC": "2026-07-24",
+            "FUTURE123": "2026-08-07",
+        },
+        tracked_elements=[
+            moving_element,
+            future_element,
+        ],
+    )
+
+    assert len(rows) == 1
+    assert rows[0][17] == "plan for retrofit"
 
 
 def test_resync_prod_uses_prod_as_newer_source_and_skips_moving_qual_record(
@@ -109,6 +150,6 @@ def test_resync_prod_uses_prod_as_newer_source_and_skips_moving_qual_record(
         location_service=service,
     )
 
-    assert [row[4] for row in rows] == ["QUAL1", "UTDV1"]
-    assert all(row[9] == "PROD1" for row in rows)
-    assert all(row[12] == "03.00" for row in rows)
+    assert [row[7] for row in rows] == ["QUAL1", "UTDV1"]
+    assert all(row[12] == "PROD1" for row in rows)
+    assert all(row[15] == "03.00" for row in rows)
