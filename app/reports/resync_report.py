@@ -430,11 +430,7 @@ class ResyncReport:
         self,
         elements: list[Element],
     ) -> list[Element]:
-        return [
-            element
-            for element in elements
-            if element.visible and element.selected and element.selectable
-        ]
+        return list(elements)
 
     def _element_owner(
         self,

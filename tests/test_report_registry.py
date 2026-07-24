@@ -45,6 +45,16 @@ def make_registry(
     return ReportRegistry(
         stats_service=stats,
         location_service_provider=lambda: location_service,
+        system_region_lookup_provider=lambda: {"SYSTEM01": "DV9"},
+        effort_testing_region_lookup_provider=lambda effort_ids: {
+            effort_id: [
+                (
+                    "DV9",
+                    "2026-06-01",
+                )
+            ]
+            for effort_id in effort_ids
+        },
     )
 
 
@@ -69,6 +79,7 @@ def make_state() -> AppState:
             },
         )
     ]
+    state.all_release_elements = list(state.loaded_elements)
     return state
 
 
@@ -321,4 +332,74 @@ def test_generate_resync_report_pdf(tmp_path: Path) -> None:
     )
 
     assert output is not None and output.suffix == ".pdf" and output.exists()
+    make_writable(output)
+
+
+def test_resync_report_uses_all_release_elements_for_same_move_date(
+    tmp_path: Path,
+) -> None:
+    """Resync uses all effort rows for the move date, even blocked table rows."""
+    state = make_state()
+    state.mode = "PROD"
+    state.effort_dates = {
+        "ABC": "2026-06-22",
+        "XYZ": "2026-06-22",
+        "LATER": "2026-07-01",
+    }
+    blocked = Element(
+        release="REL1",
+        project="XYZ",
+        element="PGM002",
+        type="OCOB",
+        selected=False,
+        selectable=False,
+        visible=False,
+        source_row={
+            "Application": "APP",
+            "Submitter": "USER2",
+        },
+    )
+    later = Element(
+        release="REL1",
+        project="LATER",
+        element="PGM003",
+        type="OCOB",
+        source_row={
+            "Application": "APP",
+            "Submitter": "USER3",
+        },
+    )
+    state.all_release_elements = [
+        *state.loaded_elements,
+        blocked,
+        later,
+    ]
+    path = tmp_path / "locations.txt"
+    path.write_text(
+        "\n".join(
+            [
+                make_location_line("PGM001", "OCOB", "PROD1", "01.03", "ABC000"),
+                make_location_line("PGM001", "OCOB", "SYST1", "01.02", "ABC000"),
+                make_location_line("PGM002", "OCOB", "PROD1", "01.03", "XYZ000"),
+                make_location_line("PGM002", "OCOB", "SYST1", "01.02", "XYZ000"),
+                make_location_line("PGM003", "OCOB", "PROD1", "01.03", "LATER0"),
+                make_location_line("PGM003", "OCOB", "SYST1", "01.02", "LATER0"),
+            ]
+        ),
+        encoding="cp1252",
+    )
+    location_service = MainframeLocationService().load_file(path)
+
+    output = make_registry(location_service).generate(
+        "Resync Report",
+        "csv",
+        state,
+        tmp_path,
+        True,
+    )
+
+    report_text = output.read_text(encoding="utf-8")
+    assert "PGM001" in report_text
+    assert "PGM002" in report_text
+    assert "PGM003" not in report_text
     make_writable(output)

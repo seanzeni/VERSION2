@@ -106,6 +106,43 @@ def test_resync_qual_uses_selected_move_source_and_skips_moving_record(
     assert rows[0][18] == "plan to delete - moving to qual"
 
 
+def test_resync_includes_nonselectable_release_effort_elements(
+    tmp_path: Path,
+) -> None:
+    """Validation-blocked elements still appear in release-specific resync."""
+    service = location_service(
+        tmp_path,
+        [
+            make_line("PGM001", "OCOB", "PRIVATE0", "SYS1", "STDV1", "02.00", "MOVE"),
+            make_line("PGM001", "OCOB", "SHARED01", "SYS1", "SYST1", "01.00", "ABC123"),
+        ],
+    )
+    element = make_element()
+    element.selected = False
+    element.selectable = False
+    element.visible = False
+
+    rows = ResyncReport().build_rows(
+        release="2026/07 release",
+        mode="QUAL",
+        elements=[element],
+        location_service=service,
+        effort_dates={"ABC12345": "2026-07-24"},
+        system_region_lookup={"SHARED01": "DV9"},
+        effort_testing_region_lookup={
+            "ABC12345": [
+                (
+                    "DV9",
+                    date(2026, 7, 10),
+                )
+            ],
+        },
+    )
+
+    assert len(rows) == 1
+    assert rows[0][2] == "PGM001"
+
+
 def test_resync_marks_lower_copy_for_retrofit_when_ccid_does_not_match(
     tmp_path: Path,
 ) -> None:

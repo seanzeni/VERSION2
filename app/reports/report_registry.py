@@ -411,17 +411,18 @@ class ReportRegistry:
         output_folder: Path,
         include_empty: bool,
     ) -> Path:
+        elements = self._resync_source_elements(state)
         return ResyncReport().generate(
             release=state.release,
             mode=state.mode,
-            elements=state.loaded_elements,
+            elements=elements,
             location_service=self.get_location_service(),
             output_folder=output_folder,
             effort_dates=state.effort_dates,
             tracked_elements=state.all_release_elements,
             system_region_lookup=self.get_system_region_lookup(),
             effort_testing_region_lookup=self.get_effort_testing_region_lookup(
-                state.loaded_elements,
+                elements,
             ),
             include_empty=include_empty,
         )
@@ -432,17 +433,18 @@ class ReportRegistry:
         output_folder: Path,
         include_empty: bool,
     ) -> Path:
+        elements = self._resync_source_elements(state)
         return ResyncReport().generate_pdf(
             release=state.release,
             mode=state.mode,
-            elements=state.loaded_elements,
+            elements=elements,
             location_service=self.get_location_service(),
             output_folder=output_folder,
             effort_dates=state.effort_dates,
             tracked_elements=state.all_release_elements,
             system_region_lookup=self.get_system_region_lookup(),
             effort_testing_region_lookup=self.get_effort_testing_region_lookup(
-                state.loaded_elements,
+                elements,
             ),
             include_empty=include_empty,
         )
@@ -491,6 +493,26 @@ class ReportRegistry:
             )
 
         return self._effort_testing_region_lookup[effort_ids]
+
+    def _resync_source_elements(
+        self,
+        state,
+    ):
+        selected_dates = {
+            str(state.effort_dates.get(element.project, "")).strip()
+            for element in state.loaded_elements
+            if str(state.effort_dates.get(element.project, "")).strip()
+        }
+
+        if not selected_dates or not state.all_release_elements:
+            return state.loaded_elements
+
+        return [
+            element
+            for element in state.all_release_elements
+            if str(state.effort_dates.get(element.project, "")).strip()
+            in selected_dates
+        ]
 
     def _generate_xlsx_from_csv(
         self,
