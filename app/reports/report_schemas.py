@@ -195,11 +195,6 @@ RESYNC_COLUMNS = [
     ReportColumn("Lower Subsystem"),
     ReportColumn("Lower Version"),
     ReportColumn("Lower CCID"),
-    ReportColumn("Newer Source Env"),
-    ReportColumn("Newer Source System"),
-    ReportColumn("Newer Source Subsystem"),
-    ReportColumn("Newer Source Version"),
-    ReportColumn("Newer Source CCID"),
     ReportColumn("Remarks"),
     ReportColumn("Reason"),
 ]

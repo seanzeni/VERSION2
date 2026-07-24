@@ -303,7 +303,9 @@ def test_generate_resync_report_csv(tmp_path: Path) -> None:
     )
 
     assert output is not None and output.exists()
-    assert "PROD1 has newer version" in output.read_text(encoding="utf-8")
+    assert "Found PGM001 OCOB in system region DV9" in output.read_text(
+        encoding="utf-8"
+    )
     make_writable(output)
 
 

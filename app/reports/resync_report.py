@@ -9,8 +9,8 @@ from __future__ import annotations
 #
 # Responsibilities:
 #     - Compare loaded inventory elements against NDVR location records.
-#     - Report lower records when the selected move source has a newer version.
-#     - Exclude FIXP1 from resync comparisons.
+#     - Report system-region records for release elements moving on the same date.
+#     - Ignore UNIT/FIXP/QUAL/PROD records for this release-specific view.
 
 from pathlib import Path
 
@@ -25,16 +25,11 @@ from app.reports.report_schemas import names
 from app.reports.report_schemas import RESYNC_COLUMNS
 from app.reports.report_utils import export_csv
 from app.services.mainframe_location_service import MainframeLocationService
-from app.services.validation_rules import location_rules
 
 
 class ResyncReport:
     FILE_NAME = "Resync_Report.csv"
     PDF_FILE_NAME = "Resync_Report.pdf"
-    TARGET_ENV_BY_MODE = {
-        "QUAL": "QUAL1",
-        "PROD": "PROD1",
-    }
     COMPARE_ENVS_BY_MODE = {
         "QUAL": {"SYST1", "STDV1"},
         "PROD": {"SYST1", "STDV1"},
@@ -118,7 +113,6 @@ class ResyncReport:
                     "Type",
                     "Testing Region",
                     "Lower Copy",
-                    "Newer Source",
                     "Remarks",
                     "Reason",
                 ],
@@ -132,15 +126,13 @@ class ResyncReport:
                         row[3],
                         row[8],
                         f"{row[7]} {row[11]} {row[12]}",
-                        f"{row[13]} {row[16]} {row[17]}",
-                        row[18],
-                        row[19],
+                        row[13],
+                        row[14],
                     ]
                     for row in rows
                 ]
                 or [
                     [
-                        "",
                         "",
                         "",
                         "",
@@ -162,9 +154,8 @@ class ResyncReport:
                     0.7 * 72,
                     1.0 * 72,
                     1.5 * 72,
-                    1.5 * 72,
                     1.2 * 72,
-                    2.2 * 72,
+                    3.0 * 72,
                 ],
             )
         )
@@ -190,10 +181,9 @@ class ResyncReport:
             return []
 
         clean_mode = str(mode).strip().upper()
-        target_env = self.TARGET_ENV_BY_MODE.get(clean_mode)
         compare_envs = self.COMPARE_ENVS_BY_MODE.get(clean_mode, set())
 
-        if target_env is None:
+        if not compare_envs:
             return []
 
         rows: list[list[str]] = []
@@ -226,29 +216,11 @@ class ResyncReport:
 
             seen_elements.add(element_key)
 
-            source_record = self._get_newer_source_record(
-                element=element,
-                location_service=location_service,
-                mode=clean_mode,
-                target_env=target_env,
-            )
-
-            if source_record is None:
-                continue
-
-            moving_record_keys = self._moving_record_keys(
-                element=element,
-                mode=clean_mode,
-            )
-
             for target_record in self._get_lower_records(
                 element=element,
                 location_service=location_service,
                 compare_envs=compare_envs,
-                moving_record_keys=moving_record_keys,
             ):
-                if source_record.version_number <= target_record.version_number:
-                    continue
                 testing_region = self._testing_region(
                     lower_record=target_record,
                     system_region_lookup=region_lookup,
@@ -269,11 +241,6 @@ class ResyncReport:
                         target_record.subsystem,
                         target_record.version,
                         target_record.ccid,
-                        source_record.env,
-                        source_record.system,
-                        source_record.subsystem,
-                        source_record.version,
-                        source_record.ccid,
                         self._remarks(
                             element=element,
                             lower_record=target_record,
@@ -282,9 +249,10 @@ class ResyncReport:
                             effort_testing_region_lookup=testing_region_lookup,
                         ),
                         (
-                            f"{source_record.env} has newer version "
-                            f"{source_record.version}; lower environment "
-                            f"{target_record.env} has {target_record.version}."
+                            f"Found {element.element} {element.type} in system "
+                            f"region {testing_region or 'UNKNOWN'} at "
+                            f"{target_record.env} / {target_record.system} / "
+                            f"{target_record.subsystem} with CCID {target_record.ccid}."
                         ),
                     ]
                 )
@@ -300,68 +268,11 @@ class ResyncReport:
             ),
         )
 
-    def _get_newer_source_record(
-        self,
-        element: Element,
-        location_service: MainframeLocationService,
-        mode: str,
-        target_env: str,
-    ) -> MainframeLocationRecord | None:
-        if mode == "QUAL":
-            return self._get_qual_move_source_record(
-                element=element,
-                location_service=location_service,
-            )
-
-        target_records = [
-            record
-            for record in location_service.find(
-                element=element.element,
-                type_=element.type,
-            )
-            if record.env.strip().upper() == target_env
-        ]
-
-        if not target_records:
-            return None
-
-        return max(
-            target_records,
-            key=lambda record: record.version_number,
-        )
-
-    def _get_qual_move_source_record(
-        self,
-        element: Element,
-        location_service: MainframeLocationService,
-    ) -> MainframeLocationRecord | None:
-        moving_record_keys = self._moving_record_keys(
-            element=element,
-            mode="QUAL",
-        )
-        source_records = [
-            record
-            for record in location_service.find(
-                element=element.element,
-                type_=element.type,
-            )
-            if self._record_location_key(record) in moving_record_keys
-        ]
-
-        if not source_records:
-            return None
-
-        return max(
-            source_records,
-            key=lambda record: record.version_number,
-        )
-
     def _get_lower_records(
         self,
         element: Element,
         location_service: MainframeLocationService,
         compare_envs: set[str],
-        moving_record_keys: set[tuple[str, str, str]],
     ) -> list[MainframeLocationRecord]:
         return [
             record
@@ -371,60 +282,7 @@ class ResyncReport:
             )
             if record.env.strip().upper() in compare_envs
             and record.env.strip().upper() in self.SYSTEM_COMPARE_ENVS
-            and self._record_location_key(record) not in moving_record_keys
         ]
-
-    def _moving_record_keys(
-        self,
-        element: Element,
-        mode: str,
-    ) -> set[tuple[str, str, str]]:
-        source_env = location_rules.get_source_env_for_move(
-            mode=mode,
-            element=element,
-        )
-        source_envs = location_rules.get_source_envs_for_move(
-            mode=mode,
-            element=element,
-        )
-
-        compare_envs = self.COMPARE_ENVS_BY_MODE.get(mode, set())
-        matching_envs = {
-            env.strip().upper()
-            for env in source_envs
-            if env.strip().upper() in compare_envs
-        }
-        if source_env.upper() in compare_envs:
-            matching_envs.add(source_env.upper())
-
-        return {
-            (
-                env,
-                location_rules.get_expected_system_for_move(
-                    mode=mode,
-                    element=element,
-                )
-                .strip()
-                .upper(),
-                location_rules.get_expected_subsystem_for_move(
-                    mode=mode,
-                    element=element,
-                )
-                .strip()
-                .upper(),
-            )
-            for env in matching_envs
-        }
-
-    def _record_location_key(
-        self,
-        record: MainframeLocationRecord,
-    ) -> tuple[str, str, str]:
-        return (
-            record.env.strip().upper(),
-            record.system.strip().upper(),
-            record.subsystem.strip().upper(),
-        )
 
     def _moving_elements(
         self,
