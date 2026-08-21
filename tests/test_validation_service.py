@@ -10,6 +10,7 @@ from app.core.models import (
     PackagingStatus,
     ReleaseEffort,
     ScheduleStatus,
+    Severity,
 )
 from app.core.models import MainframeLocationRecord
 from app.services.reference_element_service import ReferenceElementService
@@ -122,6 +123,7 @@ def make_service() -> ValidationService:
             "assignment_error_selectable": True,
             "effort_release_mismatch_selectable": True,
             "hide_archive_rows_in_qual": True,
+            "highly_likely_missing_program_selectable": True,
             "potential_missing_archive_selectable": False,
             "potential_missing_program_move_selectable": True,
             "do_not_move_selectable": False,
@@ -721,10 +723,11 @@ def test_missing_program_move_reports_program_not_selectable() -> None:
         "PROD",
     )
 
-    assert archive_element.archive_status == ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
     assert (
-        "is present in inventory but not selectable"
-        in archive_element.display_reason
+        archive_element.archive_status == ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+    )
+    assert (
+        "is present in inventory but not selectable" in archive_element.display_reason
     )
     assert "See Element related issues" in archive_element.display_reason
 
@@ -741,11 +744,15 @@ def test_missing_program_move_reports_program_not_selected() -> None:
         all_release_elements=[archive_element, program_element],
     )
 
-    assert archive_element.archive_status == ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+    assert (
+        archive_element.archive_status == ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+    )
     assert "is present in inventory but not selected" in archive_element.display_reason
 
 
-def test_missing_program_move_archive_side_missing_inventory_even_when_program_not_in_qual() -> None:
+def test_missing_program_move_archive_side_missing_inventory_even_when_program_not_in_qual() -> (
+    None
+):
     """Verifies missing program move archive side missing inventory even when program not in QUAL."""
     element = make_element(type_="OAPS", package="ARCHIVE")
 
@@ -755,7 +762,28 @@ def test_missing_program_move_archive_side_missing_inventory_even_when_program_n
     assert "Expected opposite program type" in element.reasons[0]
 
 
-def test_program_type_without_archive_package_does_not_trigger_missing_program_move() -> None:
+def test_missing_program_move_lower_env_is_highly_likely_warning_selectable() -> None:
+    """Verifies lower-env opposite program uses the specific warning status."""
+    element = make_element(type_="OAPS", package="ARCHIVE")
+    service = make_service()
+
+    service.apply_archive_status(
+        [element],
+        FakeLocationService({("PGM001", "OCOB", "SYST1")}),
+        "PROD",
+    )
+    service.apply_selection_rules([element])
+
+    assert element.archive_status == ArchiveStatus.HIGHLY_LIKELY_MISSING_PROGRAM
+    assert element.severity == Severity.WARNING
+    assert element.selected is False
+    assert element.selectable is True
+    assert "Found opposite program type PGM001 OCOB in SYST1" in element.display_reason
+
+
+def test_program_type_without_archive_package_does_not_trigger_missing_program_move() -> (
+    None
+):
     """Verifies program type without archive package does not trigger missing program move."""
     element = make_element(type_="OAPS")
 

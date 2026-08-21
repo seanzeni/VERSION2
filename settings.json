@@ -64,6 +64,7 @@
     "duplicate_selectable": false,
     "effort_release_mismatch_selectable": true,
     "hide_archive_rows_in_qual": true,
+    "highly_likely_missing_program_selectable": true,
     "inventory_not_in_release_selectable": true,
     "inventory_when_sql_no_inventory_selectable": true,
     "marked_already_there_missing_selectable": true,

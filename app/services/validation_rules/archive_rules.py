@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Apply archive/program counterpart validation for PROD moves.
@@ -49,10 +49,7 @@ def apply(
     if location_service is None:
         return
 
-    selected_inventory_lookup = {
-        element.key: element
-        for element in context.elements
-    }
+    selected_inventory_lookup = {element.key: element for element in context.elements}
     full_inventory_lookup = {
         element.key: element
         for element in (context.all_release_elements or context.elements)
@@ -117,17 +114,17 @@ def apply(
         if not counterpart_status.should_warn:
             continue
 
-        found_env = (
-            "QUAL1"
-            if location_service.exists_in_env(
-                element=element_name,
-                type_=program_type,
-                env="QUAL1",
-            )
-            else ""
+        found_env = find_program_counterpart_env(
+            location_service=location_service,
+            element_name=element_name,
+            program_type=program_type,
         )
 
-        element.archive_status = ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+        element.archive_status = (
+            ArchiveStatus.HIGHLY_LIKELY_MISSING_PROGRAM
+            if is_lower_program_env(found_env)
+            else ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE
+        )
 
         context.add_reason(
             element=element,
@@ -221,10 +218,65 @@ def get_counterpart_inventory_status(
 def has_blocking_counterpart_issue(
     element: Element,
 ) -> bool:
-    return (
-        not element.selectable
-        or element.severity in {Severity.ERROR, Severity.WARNING}
-    )
+    return not element.selectable or element.severity in {
+        Severity.ERROR,
+        Severity.WARNING,
+    }
+
+
+def find_program_counterpart_env(
+    location_service,
+    element_name: str,
+    program_type: str,
+) -> str:
+    lower_records = [
+        record.env.strip().upper()
+        for record in location_service.find(
+            element=element_name,
+            type_=program_type,
+        )
+        if is_lower_program_env(record.env)
+    ]
+
+    if lower_records:
+        return "/".join(sorted(set(lower_records)))
+
+    if location_service.exists_in_env(
+        element=element_name,
+        type_=program_type,
+        env="QUAL1",
+    ):
+        return "QUAL1"
+
+    for env in (
+        "SYST1",
+        "STDV1",
+        "MAIN1",
+        "DEVL1",
+        "UNIT1",
+        "UTDV1",
+    ):
+        if location_service.exists_in_env(
+            element=element_name,
+            type_=program_type,
+            env=env,
+        ):
+            return env
+
+    return ""
+
+
+def is_lower_program_env(
+    env: str,
+) -> bool:
+    return str(env).strip().upper() in {
+        "MAIN1",
+        "DEVL1",
+        "UNIT1",
+        "UTDV1",
+        "SYST1",
+        "STDV1",
+    }
 
 
 def get_program_type_for_archive(

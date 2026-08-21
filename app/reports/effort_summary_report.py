@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Generate Effort Summary Report CSV.
@@ -339,11 +339,7 @@ class EffortSummaryReport:
         elements: list[Element],
         severity: Severity,
     ) -> int:
-        return sum(
-            1
-            for element in elements
-            if element.severity == severity
-        )
+        return sum(1 for element in elements if element.severity == severity)
 
 
 STATUS_LABELS = {
@@ -357,6 +353,7 @@ STATUS_LABELS = {
     ArchiveStatus.ARCHIVE_IN_QUAL.value: "Archive In QUAL",
     ArchiveStatus.POTENTIAL_MISSING_ARCHIVE.value: "Missing Archives",
     ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE.value: "Missing Programs",
+    ArchiveStatus.HIGHLY_LIKELY_MISSING_PROGRAM.value: "Highly Likely Missing Programs",
     FixStatus.EXISTS_IN_FIXP1.value: "Exists In FIXP1",
     MovementStatus.DO_NOT_MOVE.value: "Do Not Move",
     MovementStatus.MARKED_IN_PROD.value: "Marked In PROD",

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Shared application models and status enums.
@@ -14,6 +14,7 @@
 
 from dataclasses import dataclass
 from dataclasses import field
+
 try:
     from enum import StrEnum
 except ImportError:
@@ -21,6 +22,8 @@ except ImportError:
 
     class StrEnum(str, Enum):
         pass
+
+
 from typing import Any
 
 
@@ -141,6 +144,7 @@ class ArchiveStatus(StrEnum):
     ARCHIVE_IN_QUAL = "ARCHIVE_IN_QUAL"
     POTENTIAL_MISSING_ARCHIVE = "POTENTIAL_MISSING_ARCHIVE"
     POTENTIAL_MISSING_PROGRAM_MOVE = "POTENTIAL_MISSING_PROGRAM_MOVE"
+    HIGHLY_LIKELY_MISSING_PROGRAM = "HIGHLY_LIKELY_MISSING_PROGRAM"
 
     @property
     def severity(self) -> Severity:
@@ -149,6 +153,7 @@ class ArchiveStatus(StrEnum):
             ArchiveStatus.ARCHIVE_IN_QUAL: Severity.INFO,
             ArchiveStatus.POTENTIAL_MISSING_ARCHIVE: Severity.ERROR,
             ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE: Severity.WARNING,
+            ArchiveStatus.HIGHLY_LIKELY_MISSING_PROGRAM: Severity.WARNING,
         }.get(self, Severity.INFO)
 
     @property
@@ -158,6 +163,7 @@ class ArchiveStatus(StrEnum):
             ArchiveStatus.ARCHIVE_IN_QUAL: "hidden",
             ArchiveStatus.POTENTIAL_MISSING_ARCHIVE: "error",
             ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE: "warning",
+            ArchiveStatus.HIGHLY_LIKELY_MISSING_PROGRAM: "warning",
         }.get(self, "")
 
     @property
@@ -167,6 +173,10 @@ class ArchiveStatus(StrEnum):
             ArchiveStatus.ARCHIVE_IN_QUAL: "Archive row is intentionally hidden for normal QUAL movement.",
             ArchiveStatus.POTENTIAL_MISSING_ARCHIVE: "Program/archive counterpart appears to be missing from selected inventory.",
             ArchiveStatus.POTENTIAL_MISSING_PROGRAM_MOVE: "Archive move may be missing its corresponding program move.",
+            ArchiveStatus.HIGHLY_LIKELY_MISSING_PROGRAM: (
+                "Archive move is highly likely to be missing its program move because "
+                "the opposite program type exists in a lower environment."
+            ),
         }.get(self, "")
 
 

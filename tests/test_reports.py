@@ -38,7 +38,9 @@ def test_issues_report_excludes_hidden(tmp_path: Path) -> None:
     assert len(rows)==1 and rows[0]['Element']=='OPGM001'
     glossary=tmp_path / IssuesReport.GLOSSARY_FILE_NAME
     assert glossary.exists()
-    assert any(row['Value']=='POTENTIAL_MISSING_ARCHIVE' for row in read_csv(glossary))
+    glossary_rows = read_csv(glossary)
+    assert any(row['Value']=='POTENTIAL_MISSING_ARCHIVE' for row in glossary_rows)
+    assert any(row['Value']=='HIGHLY_LIKELY_MISSING_PROGRAM' for row in glossary_rows)
     make_writable(output)
     make_writable(glossary)
 

@@ -662,10 +662,10 @@ class ReportCenter(ctk.CTkToplevel):
             )
             return
 
-        if selected_date >= date.today():
+        if selected_date > date.today():
             messagebox.showwarning(
-                "Date Not Passed",
-                "After-action reports require a date before today.",
+                "Date Not Available",
+                "After-action reports can use today or a prior date.",
             )
             return
 

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Decide which validated elements should be visible, selected, and selectable.
@@ -141,6 +141,15 @@ def apply(
             element.selectable = bool(
                 selection_rules.get(
                     "potential_missing_program_move_selectable",
+                    True,
+                )
+            )
+
+        if element.archive_status == ArchiveStatus.HIGHLY_LIKELY_MISSING_PROGRAM:
+            element.selected = False
+            element.selectable = bool(
+                selection_rules.get(
+                    "highly_likely_missing_program_selectable",
                     True,
                 )
             )
