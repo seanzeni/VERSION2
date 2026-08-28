@@ -566,6 +566,30 @@ def test_fixp_daily_compare_treats_fixt_to_fixp_as_added_not_deleted(
                     "CCID01",
                     source_date="2026/08/20",
                 ),
+                make_fixp_line(
+                    "STALE01",
+                    "OCOB",
+                    "SYSTEM01",
+                    "SUB1",
+                    "FIXT1",
+                    "2026/08/26",
+                    "01.01",
+                    "USER01",
+                    "CCID01",
+                    source_date="2026/08/20",
+                ),
+                make_fixp_line(
+                    "STALE01",
+                    "OCOB",
+                    "SYSTEM01",
+                    "SUB1",
+                    "FIXP1",
+                    "2026/08/26",
+                    "01.01",
+                    "USER01",
+                    "CCID01",
+                    source_date="2026/08/20",
+                ),
             ]
         ),
         encoding="cp1252",
@@ -573,6 +597,21 @@ def test_fixp_daily_compare_treats_fixt_to_fixp_as_added_not_deleted(
     (fixp_folder / "FIXP-20260827_080000.txt").write_text(
         make_fixp_line(
             "MOVE001",
+            "OCOB",
+            "SYSTEM01",
+            "SUB1",
+            "FIXP1",
+            "2026/08/27",
+            "01.01",
+            "USER01",
+            "CCID01",
+            source_date="2026/08/20",
+        ),
+        encoding="cp1252",
+    )
+    (fixp_folder / "FIXP-20260827_100000.txt").write_text(
+        make_fixp_line(
+            "STALE01",
             "OCOB",
             "SYSTEM01",
             "SUB1",
@@ -597,6 +636,7 @@ def test_fixp_daily_compare_treats_fixt_to_fixp_as_added_not_deleted(
     assert statuses == {
         ("DROP001", "FIXP1"): "deleted",
         ("MOVE001", "FIXP1"): "added",
+        ("STALE01", "FIXP1"): "added",
     }
 
 

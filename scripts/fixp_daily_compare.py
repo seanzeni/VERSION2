@@ -297,6 +297,11 @@ class FixpDailyCompare:
             for snapshot_record in target_snapshot.values()
             if self._is_fix_lifecycle_record(snapshot_record.record)
         }
+        previous_fixt_lifecycle_keys = {
+            self._lifecycle_record_key(snapshot_record.record)
+            for snapshot_record in previous_snapshot.values()
+            if snapshot_record.record.env.strip().upper() == "FIXT1"
+        }
         all_keys = sorted(
             set(previous_snapshot) | set(target_snapshot),
         )
@@ -309,6 +314,11 @@ class FixpDailyCompare:
                 previous_record=previous_record,
                 target_record=target_record,
             )
+            if self._is_fixt_to_fixp_add(
+                target_record=target_record,
+                previous_fixt_lifecycle_keys=previous_fixt_lifecycle_keys,
+            ):
+                compare = "added"
             if compare == "deleted" and self._is_lifecycle_move_forward(
                 previous_record=previous_record,
                 target_lifecycle_keys=target_lifecycle_keys,
@@ -707,6 +717,20 @@ class FixpDailyCompare:
         return (
             self._is_fix_lifecycle_record(record)
             and self._lifecycle_record_key(record) in target_lifecycle_keys
+        )
+
+    def _is_fixt_to_fixp_add(
+        self,
+        target_record: FixpSnapshotRecord | None,
+        previous_fixt_lifecycle_keys: set[tuple[str, str, str, str]],
+    ) -> bool:
+        if target_record is None:
+            return False
+
+        record = target_record.record
+        return (
+            record.env.strip().upper() == "FIXP1"
+            and self._lifecycle_record_key(record) in previous_fixt_lifecycle_keys
         )
 
     def _database_record_key(
