@@ -336,7 +336,7 @@ class FixpDailyCompare:
                     display_record.subsystem,
                     display_record.element,
                     display_record.type,
-                    self._format_fixp_date(display_record.date_generated),
+                    self._format_fixp_record_date(display_record),
                     self._days_in_fixp(
                         fixp_record=display_record,
                         target_date=compare_dates.target_date,
@@ -647,8 +647,8 @@ class FixpDailyCompare:
         if previous_record is None:
             return "added"
 
-        if coerce_date(previous_record.record.date_generated) == coerce_date(
-            target_record.record.date_generated
+        if self._fixp_record_date(previous_record.record) == self._fixp_record_date(
+            target_record.record
         ):
             return "no change"
 
@@ -682,8 +682,8 @@ class FixpDailyCompare:
         candidate: FixpSnapshotRecord,
         existing: FixpSnapshotRecord,
     ) -> bool:
-        candidate_date = coerce_date(candidate.record.date_generated) or date.min
-        existing_date = coerce_date(existing.record.date_generated) or date.min
+        candidate_date = self._fixp_record_date(candidate.record) or date.min
+        existing_date = self._fixp_record_date(existing.record) or date.min
 
         return (
             candidate_date,
@@ -704,6 +704,22 @@ class FixpDailyCompare:
             return str(value).strip()
 
         return parsed_date.strftime("%d-%b-%y")
+
+    def _fixp_record_date(
+        self,
+        record: MainframeLocationRecord,
+    ) -> date | None:
+        return coerce_date(record.source_date) or coerce_date(record.date_generated)
+
+    def _format_fixp_record_date(
+        self,
+        record: MainframeLocationRecord,
+    ) -> str:
+        parsed_date = self._fixp_record_date(record)
+        if parsed_date is not None:
+            return parsed_date.strftime("%d-%b-%y")
+
+        return str(record.source_date or record.date_generated).strip()
 
     def _days_in_fixp(
         self,
@@ -743,7 +759,7 @@ class FixpDailyCompare:
         if ndvr_service is None:
             return ""
 
-        fixp_date = coerce_date(fixp_record.date_generated)
+        fixp_date = self._fixp_record_date(fixp_record)
         if fixp_date is None:
             return ""
 
