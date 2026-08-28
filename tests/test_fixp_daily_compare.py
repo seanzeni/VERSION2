@@ -400,6 +400,106 @@ def test_fixp_daily_compare_builds_expected_rows(
     assert next(row[10] for row in rows if row[4] == "DROP001") == "User One"
 
 
+def test_fixp_daily_compare_enriches_rows_from_access_database(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Verifies tblFIXP1 values are matched by element/type/system/subsystem."""
+    inventory_path = write_inventory(tmp_path)
+    fixp_folder = write_fixp_files(tmp_path)
+    database_path = tmp_path / "fixp.accdb"
+    database_path.write_text(
+        "fake access database",
+        encoding="utf-8",
+    )
+
+    class Cursor:
+        description = [
+            ("Element",),
+            ("Type",),
+            ("System",),
+            ("Subsytem",),
+            ("Issues_Fixes",),
+            ("Comments",),
+            ("Effort_ID",),
+            ("Owner",),
+            ("Manager",),
+            ("PROD_DATE",),
+        ]
+
+        def execute(
+            self,
+            query: str,
+        ) -> None:
+            assert query == "SELECT * FROM [tblFIXP1]"
+
+        def fetchall(
+            self,
+        ):
+            return [
+                (
+                    "MOD001",
+                    "OCOB",
+                    "SYSTEM01",
+                    "SUB1",
+                    "Issue text",
+                    "Comment text",
+                    "EFF123",
+                    "Owner Name",
+                    "Manager Name",
+                    "2026-08-29",
+                )
+            ]
+
+    class Connection:
+        def __enter__(
+            self,
+        ):
+            return self
+
+        def __exit__(
+            self,
+            *args,
+        ) -> None:
+            return None
+
+        def cursor(
+            self,
+        ) -> Cursor:
+            return Cursor()
+
+    def fake_connect(
+        connection_string: str,
+    ) -> Connection:
+        assert str(database_path) in connection_string
+        assert "Microsoft Access Driver" in connection_string
+        return Connection()
+
+    monkeypatch.setattr(
+        fixp_module.pyodbc,
+        "connect",
+        fake_connect,
+    )
+    report = fixp_module.FixpDailyCompare(
+        settings=make_settings(tmp_path, inventory_path, fixp_folder),
+        base_dir=tmp_path,
+        fixp_database=database_path,
+        person_resolver=FakePersonResolver(),
+    )
+
+    rows = report.build_rows(date(2026, 7, 15))
+    mod_row = next(row for row in rows if row[4] == "MOD001")
+
+    assert mod_row[14:] == [
+        "Issue text",
+        "Comment text",
+        "EFF123",
+        "Owner Name",
+        "Manager Name",
+        "2026-08-29",
+    ]
+
+
 def test_fixp_daily_compare_writes_xlsx(
     tmp_path: Path,
 ) -> None:
@@ -452,6 +552,14 @@ def test_fixp_daily_compare_writes_xlsx(
         "Manager",
         "Inventory",
         "Remarks",
+    ]
+    assert headers[14:] == [
+        "DB_Issues_Fixes",
+        "DB_Comments",
+        "DB_Effort_ID",
+        "DB_Owner",
+        "DB_Manager",
+        "DB_PROD_DATE",
     ]
     workbook.close()
 

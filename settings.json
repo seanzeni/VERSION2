@@ -9,6 +9,7 @@
     "person_lookup_url": ""
   },
   "files": {
+    "default_fixp_db": "",
     "default_fixp_folder": "",
     "default_input_file": "\\\\rset\\rset\\DB\\Consolidated-Inventory.xls",
     "default_input_folder": "\\\\rset\\rset\\DB\\",

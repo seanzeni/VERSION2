@@ -22,6 +22,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import requests
+import pyodbc
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment
 
@@ -66,6 +67,12 @@ DETAIL_HEADERS = [
     "Manager",
     "Inventory",
     "Remarks",
+    "DB_Issues_Fixes",
+    "DB_Comments",
+    "DB_Effort_ID",
+    "DB_Owner",
+    "DB_Manager",
+    "DB_PROD_DATE",
 ]
 
 OVERVIEW_HEADERS = [
@@ -108,6 +115,28 @@ class OwnerManagerInfo:
 
 
 @dataclass(frozen=True, slots=True)
+class FixpDatabaseReference:
+    issues_fixes: str = ""
+    comments: str = ""
+    effort_id: str = ""
+    owner: str = ""
+    manager: str = ""
+    prod_date: str = ""
+
+    def as_columns(
+        self,
+    ) -> list[str]:
+        return [
+            self.issues_fixes,
+            self.comments,
+            self.effort_id,
+            self.owner,
+            self.manager,
+            self.prod_date,
+        ]
+
+
+@dataclass(frozen=True, slots=True)
 class FixpSnapshotRecord:
     record: MainframeLocationRecord
     file_timestamp: datetime
@@ -128,6 +157,7 @@ class FixpDailyCompare:
         ndvr_source: Path | None = None,
         inventory_file: Path | None = None,
         output_folder: Path | None = None,
+        fixp_database: Path | None = None,
         person_resolver=None,
         verbose: bool = False,
     ) -> None:
@@ -160,6 +190,15 @@ class FixpDailyCompare:
                 "default_output_folder",
                 "Output",
             )
+        )
+        fixp_database_value = fixp_database or settings["files"].get(
+            "default_fixp_db",
+            "",
+        )
+        self.fixp_database = (
+            self._resolve_path(fixp_database_value)
+            if str(fixp_database_value).strip()
+            else None
         )
         self.person_resolver = person_resolver or PersonApiResolver(
             settings.get(
@@ -247,6 +286,7 @@ class FixpDailyCompare:
         previous_snapshot = self._build_snapshot(compare_dates.previous_date)
         target_snapshot = self._build_snapshot(compare_dates.target_date)
         inventory_lookup = self._build_inventory_lookup()
+        database_lookup = self._build_fixp_database_lookup()
         ndvr_service = self._load_latest_ndvr_service()
 
         rows: list[list[object]] = []
@@ -279,6 +319,10 @@ class FixpDailyCompare:
             )
             inventory_ccids = self._format_inventory_ccids(inventory_references)
             inventory = self._format_inventory(inventory_references)
+            database_reference = database_lookup.get(
+                self._database_record_key(display_record),
+                FixpDatabaseReference(),
+            )
             remarks = self._build_remarks(
                 fixp_record=display_record,
                 ndvr_service=ndvr_service,
@@ -302,6 +346,7 @@ class FixpDailyCompare:
                     owner_info.manager,
                     inventory,
                     remarks,
+                    *database_reference.as_columns(),
                 ]
             )
 
@@ -573,6 +618,16 @@ class FixpDailyCompare:
             team_lead_name=team_lead_name,
         )
 
+    def _build_fixp_database_lookup(
+        self,
+    ) -> dict[tuple[str, str, str, str], FixpDatabaseReference]:
+        if self.fixp_database is None:
+            return {}
+
+        return AccessFixpReferenceLoader(
+            database_path=self.fixp_database,
+        ).load()
+
     def _compare(
         self,
         previous_record: FixpSnapshotRecord | None,
@@ -601,6 +656,17 @@ class FixpDailyCompare:
             record.subsystem.strip().upper(),
             record.element.strip().upper(),
             record.type.strip().upper(),
+        )
+
+    def _database_record_key(
+        self,
+        record: MainframeLocationRecord,
+    ) -> tuple[str, str, str, str]:
+        return (
+            record.element.strip().upper(),
+            record.type.strip().upper(),
+            record.system.strip().upper(),
+            record.subsystem.strip().upper(),
         )
 
     def _is_newer(
@@ -728,6 +794,12 @@ class FixpDailyCompare:
                     f"{compare_dates.target_date.isoformat()}."
                 ),
                 "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
             ]
         ]
 
@@ -739,6 +811,116 @@ class FixpDailyCompare:
         if path.is_absolute():
             return path
         return self.base_dir / path
+
+
+class AccessFixpReferenceLoader:
+    TABLE_NAME = "tblFIXP1"
+
+    def __init__(
+        self,
+        database_path: Path,
+    ) -> None:
+        self.database_path = Path(database_path)
+
+    def load(
+        self,
+    ) -> dict[tuple[str, str, str, str], FixpDatabaseReference]:
+        if not self.database_path.exists():
+            raise FileNotFoundError(
+                f"FIXP Access database was not found: {self.database_path}"
+            )
+
+        query = f"SELECT * FROM [{self.TABLE_NAME}]"
+        lookup: dict[tuple[str, str, str, str], FixpDatabaseReference] = {}
+
+        with pyodbc.connect(self._connection_string()) as connection:
+            cursor = connection.cursor()
+            cursor.execute(query)
+            column_names = [str(column[0]) for column in cursor.description]
+
+            for row in cursor.fetchall():
+                row_data = {
+                    self._normalize_column_name(column_name): value
+                    for column_name, value in zip(column_names, row, strict=False)
+                }
+                key = self._row_key(row_data)
+                if key is None:
+                    continue
+
+                lookup[key] = FixpDatabaseReference(
+                    issues_fixes=self._clean(row_data.get("issuesfixes", "")),
+                    comments=self._clean(row_data.get("comments", "")),
+                    effort_id=self._clean(row_data.get("effortid", "")),
+                    owner=self._clean(row_data.get("owner", "")),
+                    manager=self._clean(row_data.get("manager", "")),
+                    prod_date=self._clean(row_data.get("proddate", "")),
+                )
+
+        return lookup
+
+    def _connection_string(
+        self,
+    ) -> str:
+        return (
+            "DRIVER={Microsoft Access Driver (*.mdb, *.accdb)};"
+            f"DBQ={self.database_path};"
+        )
+
+    def _row_key(
+        self,
+        row_data: dict[str, object],
+    ) -> tuple[str, str, str, str] | None:
+        element = self._clean(row_data.get("element", "")).upper()
+        type_ = self._clean(row_data.get("type", "")).upper()
+        system = self._clean(row_data.get("system", "")).upper()
+        subsystem = self._clean(
+            row_data.get(
+                "subsystem",
+                row_data.get(
+                    "subsytem",
+                    "",
+                ),
+            )
+        ).upper()
+
+        if not all(
+            (
+                element,
+                type_,
+                system,
+                subsystem,
+            )
+        ):
+            return None
+
+        return (
+            element,
+            type_,
+            system,
+            subsystem,
+        )
+
+    def _normalize_column_name(
+        self,
+        value: str,
+    ) -> str:
+        return re.sub(
+            r"[^a-z0-9]",
+            "",
+            str(value).strip().lower(),
+        )
+
+    def _clean(
+        self,
+        value: object,
+    ) -> str:
+        if value is None:
+            return ""
+
+        if isinstance(value, (date, datetime)):
+            return value.strftime("%Y-%m-%d")
+
+        return str(value).strip()
 
 
 class PersonApiResolver:
@@ -1168,6 +1350,13 @@ def parse_args(
         help="Optional output folder. Defaults to settings.",
     )
     parser.add_argument(
+        "--fixp-db",
+        help=(
+            "Optional Access database path containing tblFIXP1. "
+            "Defaults to files.default_fixp_db when configured."
+        ),
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print person API and AD lookup diagnostics to stderr.",
@@ -1201,6 +1390,7 @@ def main(
         ndvr_source=Path(args.ndvr_source) if args.ndvr_source else None,
         inventory_file=Path(args.inventory_file) if args.inventory_file else None,
         output_folder=Path(args.output_folder) if args.output_folder else None,
+        fixp_database=Path(args.fixp_db) if args.fixp_db else None,
         verbose=args.verbose,
     ).run(target_date)
 
