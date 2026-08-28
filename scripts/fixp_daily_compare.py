@@ -445,7 +445,7 @@ class FixpDailyCompare:
                 )
                 existing = snapshot.get(key)
 
-                if existing is None or self._is_newer(candidate, existing):
+                if existing is None or self._is_older_daily_value(candidate, existing):
                     snapshot[key] = candidate
 
         return snapshot
@@ -744,7 +744,7 @@ class FixpDailyCompare:
             record.subsystem.strip().upper(),
         )
 
-    def _is_newer(
+    def _is_older_daily_value(
         self,
         candidate: FixpSnapshotRecord,
         existing: FixpSnapshotRecord,
@@ -756,7 +756,7 @@ class FixpDailyCompare:
             candidate_date,
             candidate.file_timestamp,
             candidate.record.time_generated,
-        ) > (
+        ) < (
             existing_date,
             existing.file_timestamp,
             existing.record.time_generated,

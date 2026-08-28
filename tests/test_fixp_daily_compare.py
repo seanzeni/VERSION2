@@ -385,7 +385,7 @@ def test_fixp_daily_compare_builds_expected_rows(
     }
     assert next(row[6] for row in rows if row[4] == "MOD001") == "15-Jul-26"
     assert next(row[7] for row in rows if row[4] == "MOD001") == 5
-    assert next(row[8] for row in rows if row[4] == "SAME001") == "CCID99"
+    assert next(row[8] for row in rows if row[4] == "SAME001") == "CCID01"
     assert next(row[9] for row in rows if row[4] == "MOD001") == "XYZ"
     assert next(row[10] for row in rows if row[4] == "MOD001") == "User Two"
     assert next(row[11] for row in rows if row[4] == "MOD001") == "Manager Two"
@@ -400,10 +400,10 @@ def test_fixp_daily_compare_builds_expected_rows(
     assert next(row[10] for row in rows if row[4] == "DROP001") == "User One"
 
 
-def test_fixp_daily_compare_keeps_newest_fixp_date_seen_within_day(
+def test_fixp_daily_compare_keeps_oldest_fixp_date_seen_within_day(
     tmp_path: Path,
 ) -> None:
-    """Verifies stale later files do not hide a same-day FIXP date change."""
+    """Verifies same-day generated-date changes are caught the next day."""
     inventory_path = write_inventory(tmp_path)
     fixp_folder = tmp_path / "fixp"
     fixp_folder.mkdir()
@@ -428,10 +428,10 @@ def test_fixp_daily_compare_keeps_newest_fixp_date_seen_within_day(
             "SYSTEM01",
             "SUB1",
             "FIXP1",
-            "2026/08/27",
-            "01.02",
-            "USER02",
-            "CCID02",
+            "2026/08/20",
+            "01.01",
+            "USER01",
+            "CCID01",
         ),
         encoding="cp1252",
     )
@@ -442,10 +442,24 @@ def test_fixp_daily_compare_keeps_newest_fixp_date_seen_within_day(
             "SYSTEM01",
             "SUB1",
             "FIXP1",
-            "2026/08/20",
-            "01.01",
-            "USER01",
-            "CCID01",
+            "2026/08/27",
+            "01.02",
+            "USER02",
+            "CCID02",
+        ),
+        encoding="cp1252",
+    )
+    (fixp_folder / "FIXP-20260828_080000.txt").write_text(
+        make_fixp_line(
+            "MOD001",
+            "OCOB",
+            "SYSTEM01",
+            "SUB1",
+            "FIXP1",
+            "2026/08/27",
+            "01.02",
+            "USER02",
+            "CCID02",
         ),
         encoding="cp1252",
     )
@@ -455,7 +469,7 @@ def test_fixp_daily_compare_keeps_newest_fixp_date_seen_within_day(
         person_resolver=FakePersonResolver(),
     )
 
-    rows = report.build_rows(date(2026, 8, 27))
+    rows = report.build_rows(date(2026, 8, 28))
     mod_row = next(row for row in rows if row[4] == "MOD001")
 
     assert mod_row[0] == "modified"
@@ -466,7 +480,7 @@ def test_fixp_daily_compare_keeps_newest_fixp_date_seen_within_day(
 def test_fixp_daily_compare_uses_generated_date_for_modified_status(
     tmp_path: Path,
 ) -> None:
-    """Verifies a same-day FIXP generated-date change is reported as modified."""
+    """Verifies FIXP generated-date changes are reported as modified."""
     inventory_path = write_inventory(tmp_path)
     fixp_folder = tmp_path / "fixp"
     fixp_folder.mkdir()
@@ -493,7 +507,7 @@ def test_fixp_daily_compare_uses_generated_date_for_modified_status(
             "SYSTEM01",
             "SUB1",
             "FIXP1",
-            "2026/08/27",
+            "2026/08/20",
             "01.01",
             "USER01",
             "CCID01",
@@ -502,7 +516,7 @@ def test_fixp_daily_compare_uses_generated_date_for_modified_status(
         ),
         encoding="cp1252",
     )
-    (fixp_folder / "FIXP-20260827_100000.txt").write_text(
+    (fixp_folder / "FIXP-20260828_080000.txt").write_text(
         make_fixp_line(
             "MOD001",
             "OCOB",
@@ -524,7 +538,7 @@ def test_fixp_daily_compare_uses_generated_date_for_modified_status(
         person_resolver=FakePersonResolver(),
     )
 
-    rows = report.build_rows(date(2026, 8, 27))
+    rows = report.build_rows(date(2026, 8, 28))
     mod_row = next(row for row in rows if row[4] == "MOD001")
 
     assert mod_row[0] == "modified"
