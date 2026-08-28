@@ -1,0 +1,3 @@
+# 32-bit helper dependency for reading Access .mdb/.accdb files.
+# Install this into the 32-bit Python environment used by settings.files.fixp_32bit_python.
+pyodbc

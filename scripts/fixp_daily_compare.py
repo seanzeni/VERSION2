@@ -895,8 +895,7 @@ class AccessFixpReferenceLoader:
                 self.fallback_python,
                 posix=False,
             ),
-            str(Path(__file__).resolve()),
-            "--dump-fixp-db-json",
+            str(Path(__file__).with_name("fixp_access_dump.py").resolve()),
             str(self.database_path),
         ]
         result = subprocess.run(

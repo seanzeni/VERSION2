@@ -532,7 +532,7 @@ def test_fixp_database_lookup_falls_back_to_32bit_python(
             "py",
             "-3.14-32",
         ]
-        assert "--dump-fixp-db-json" in command
+        assert command[2].endswith("fixp_access_dump.py")
         assert str(database_path) in command
         return subprocess.CompletedProcess(
             args=command,
