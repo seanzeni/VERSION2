@@ -383,6 +383,7 @@ def test_fixp_daily_compare_builds_expected_rows(
         "NEW001": "added",
         "SAME001": "no change",
     }
+    assert next(row[6] for row in rows if row[4] == "MOD001") == "15-Jul-26"
     assert next(row[7] for row in rows if row[4] == "MOD001") == 5
     assert next(row[8] for row in rows if row[4] == "SAME001") == "CCID99"
     assert next(row[9] for row in rows if row[4] == "MOD001") == "XYZ"
@@ -462,10 +463,10 @@ def test_fixp_daily_compare_keeps_newest_fixp_date_seen_within_day(
     assert mod_row[8] == "CCID02"
 
 
-def test_fixp_daily_compare_uses_source_date_for_modified_status(
+def test_fixp_daily_compare_uses_generated_date_for_modified_status(
     tmp_path: Path,
 ) -> None:
-    """Verifies a same-day FIXP source-date touch is reported as modified."""
+    """Verifies a same-day FIXP generated-date change is reported as modified."""
     inventory_path = write_inventory(tmp_path)
     fixp_folder = tmp_path / "fixp"
     fixp_folder.mkdir()
@@ -512,7 +513,7 @@ def test_fixp_daily_compare_uses_source_date_for_modified_status(
             "01.02",
             "USER02",
             "CCID02",
-            source_date="2026/08/27",
+            source_date="2026/08/25",
             source_time="09:30:00:00",
         ),
         encoding="cp1252",
@@ -528,7 +529,7 @@ def test_fixp_daily_compare_uses_source_date_for_modified_status(
 
     assert mod_row[0] == "modified"
     assert mod_row[6] == "27-Aug-26"
-    assert mod_row[7] == 0
+    assert mod_row[7] == 2
     assert mod_row[8] == "CCID02"
 
 
