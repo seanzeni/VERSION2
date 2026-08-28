@@ -532,6 +532,74 @@ def test_fixp_daily_compare_uses_source_date_for_modified_status(
     assert mod_row[8] == "CCID02"
 
 
+def test_fixp_daily_compare_treats_fixt_to_fixp_as_added_not_deleted(
+    tmp_path: Path,
+) -> None:
+    """Verifies FIXT1 to FIXP1 lifecycle movement suppresses delete noise."""
+    inventory_path = write_inventory(tmp_path)
+    fixp_folder = tmp_path / "fixp"
+    fixp_folder.mkdir()
+    (fixp_folder / "FIXP-20260826_080000.txt").write_text(
+        "\n".join(
+            [
+                make_fixp_line(
+                    "MOVE001",
+                    "OCOB",
+                    "SYSTEM01",
+                    "SUB1",
+                    "FIXT1",
+                    "2026/08/26",
+                    "01.01",
+                    "USER01",
+                    "CCID01",
+                    source_date="2026/08/20",
+                ),
+                make_fixp_line(
+                    "DROP001",
+                    "OCOB",
+                    "SYSTEM01",
+                    "SUB1",
+                    "FIXP1",
+                    "2026/08/26",
+                    "01.01",
+                    "USER01",
+                    "CCID01",
+                    source_date="2026/08/20",
+                ),
+            ]
+        ),
+        encoding="cp1252",
+    )
+    (fixp_folder / "FIXP-20260827_080000.txt").write_text(
+        make_fixp_line(
+            "MOVE001",
+            "OCOB",
+            "SYSTEM01",
+            "SUB1",
+            "FIXP1",
+            "2026/08/27",
+            "01.01",
+            "USER01",
+            "CCID01",
+            source_date="2026/08/20",
+        ),
+        encoding="cp1252",
+    )
+    report = fixp_module.FixpDailyCompare(
+        settings=make_settings(tmp_path, inventory_path, fixp_folder),
+        base_dir=tmp_path,
+        person_resolver=FakePersonResolver(),
+    )
+
+    rows = report.build_rows(date(2026, 8, 27))
+    statuses = {(row[4], row[1]): row[0] for row in rows}
+
+    assert statuses == {
+        ("DROP001", "FIXP1"): "deleted",
+        ("MOVE001", "FIXP1"): "added",
+    }
+
+
 def test_fixp_daily_compare_enriches_rows_from_access_database(
     tmp_path: Path,
     monkeypatch,

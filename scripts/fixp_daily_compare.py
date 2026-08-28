@@ -51,6 +51,7 @@ FIXP_FILE_PATTERN = re.compile(
     r"^FIXP-(?P<date>\d{8})_(?P<time>\d{6})\.txt$",
     re.IGNORECASE,
 )
+FIX_LIFECYCLE_ENVS = {"FIXT1", "FIXP1"}
 LATEST_OUTPUT_FILE = "fixp1-daily-analysis.xlsx"
 
 DETAIL_HEADERS = [
@@ -291,6 +292,11 @@ class FixpDailyCompare:
         ndvr_service = self._load_latest_ndvr_service()
 
         rows: list[list[object]] = []
+        target_lifecycle_keys = {
+            self._lifecycle_record_key(snapshot_record.record)
+            for snapshot_record in target_snapshot.values()
+            if self._is_fix_lifecycle_record(snapshot_record.record)
+        }
         all_keys = sorted(
             set(previous_snapshot) | set(target_snapshot),
         )
@@ -303,6 +309,12 @@ class FixpDailyCompare:
                 previous_record=previous_record,
                 target_record=target_record,
             )
+            if compare == "deleted" and self._is_lifecycle_move_forward(
+                previous_record=previous_record,
+                target_lifecycle_keys=target_lifecycle_keys,
+            ):
+                continue
+
             display_record = (
                 target_record.record
                 if target_record is not None
@@ -664,6 +676,37 @@ class FixpDailyCompare:
             record.subsystem.strip().upper(),
             record.element.strip().upper(),
             record.type.strip().upper(),
+        )
+
+    def _lifecycle_record_key(
+        self,
+        record: MainframeLocationRecord,
+    ) -> tuple[str, str, str, str]:
+        return (
+            record.system.strip().upper(),
+            record.subsystem.strip().upper(),
+            record.element.strip().upper(),
+            record.type.strip().upper(),
+        )
+
+    def _is_fix_lifecycle_record(
+        self,
+        record: MainframeLocationRecord,
+    ) -> bool:
+        return record.env.strip().upper() in FIX_LIFECYCLE_ENVS
+
+    def _is_lifecycle_move_forward(
+        self,
+        previous_record: FixpSnapshotRecord | None,
+        target_lifecycle_keys: set[tuple[str, str, str, str]],
+    ) -> bool:
+        if previous_record is None:
+            return False
+
+        record = previous_record.record
+        return (
+            self._is_fix_lifecycle_record(record)
+            and self._lifecycle_record_key(record) in target_lifecycle_keys
         )
 
     def _database_record_key(
