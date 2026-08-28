@@ -15,6 +15,7 @@
     "default_input_folder": "\\\\rset\\rset\\DB\\",
     "default_ndvr_file": "\\\\rset\\rset\\DB\\endevor-inventory",
     "default_output_folder": "Output",
+    "fixp_32bit_python": "py -3.14-32",
     "hippa_listener_file": "",
     "ods_file": "",
     "remember_last_used_files": true

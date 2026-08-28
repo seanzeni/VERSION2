@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shlex
 import subprocess
 import sys
 from collections import defaultdict
@@ -626,6 +627,13 @@ class FixpDailyCompare:
 
         return AccessFixpReferenceLoader(
             database_path=self.fixp_database,
+            fallback_python=self.settings.get(
+                "files",
+                {},
+            ).get(
+                "fixp_32bit_python",
+                "py -3.14-32",
+            ),
         ).load()
 
     def _compare(
@@ -819,10 +827,25 @@ class AccessFixpReferenceLoader:
     def __init__(
         self,
         database_path: Path,
+        fallback_python: str = "py -3.14-32",
+        allow_fallback: bool = True,
     ) -> None:
         self.database_path = Path(database_path)
+        self.fallback_python = str(fallback_python).strip()
+        self.allow_fallback = allow_fallback
 
     def load(
+        self,
+    ) -> dict[tuple[str, str, str, str], FixpDatabaseReference]:
+        try:
+            return self._load_with_pyodbc()
+        except pyodbc.Error as exc:
+            if not self.allow_fallback or not self._is_missing_access_driver(exc):
+                raise
+
+            return self._load_with_32bit_python()
+
+    def _load_with_pyodbc(
         self,
     ) -> dict[tuple[str, str, str, str], FixpDatabaseReference]:
         if not self.database_path.exists():
@@ -857,6 +880,105 @@ class AccessFixpReferenceLoader:
                 )
 
         return lookup
+
+    def _load_with_32bit_python(
+        self,
+    ) -> dict[tuple[str, str, str, str], FixpDatabaseReference]:
+        if not self.fallback_python:
+            raise RuntimeError(
+                "The Microsoft Access ODBC driver is not available to this Python, "
+                "and files.fixp_32bit_python is not configured."
+            )
+
+        command = [
+            *shlex.split(
+                self.fallback_python,
+                posix=False,
+            ),
+            str(Path(__file__).resolve()),
+            "--dump-fixp-db-json",
+            str(self.database_path),
+        ]
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            check=False,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
+        )
+
+        if result.returncode != 0:
+            error = result.stderr.strip() or result.stdout.strip() or "no output"
+            raise RuntimeError(
+                "Unable to read FIXP Access database using the configured 32-bit "
+                f"Python command [{self.fallback_python}]: {error}"
+            )
+
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                "The 32-bit FIXP Access database helper returned invalid JSON."
+            ) from exc
+
+        return self._lookup_from_payload(payload)
+
+    def dump_json(
+        self,
+    ) -> str:
+        payload = [
+            {
+                "element": key[0],
+                "type": key[1],
+                "system": key[2],
+                "subsystem": key[3],
+                "issues_fixes": reference.issues_fixes,
+                "comments": reference.comments,
+                "effort_id": reference.effort_id,
+                "owner": reference.owner,
+                "manager": reference.manager,
+                "prod_date": reference.prod_date,
+            }
+            for key, reference in self._load_with_pyodbc().items()
+        ]
+        return json.dumps(payload)
+
+    def _lookup_from_payload(
+        self,
+        payload,
+    ) -> dict[tuple[str, str, str, str], FixpDatabaseReference]:
+        lookup: dict[tuple[str, str, str, str], FixpDatabaseReference] = {}
+        if not isinstance(payload, list):
+            raise RuntimeError(
+                "The 32-bit FIXP Access database helper returned non-list JSON."
+            )
+
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+
+            key = self._row_key(item)
+            if key is None:
+                continue
+
+            lookup[key] = FixpDatabaseReference(
+                issues_fixes=self._clean(item.get("issues_fixes", "")),
+                comments=self._clean(item.get("comments", "")),
+                effort_id=self._clean(item.get("effort_id", "")),
+                owner=self._clean(item.get("owner", "")),
+                manager=self._clean(item.get("manager", "")),
+                prod_date=self._clean(item.get("prod_date", "")),
+            )
+
+        return lookup
+
+    def _is_missing_access_driver(
+        self,
+        exc: pyodbc.Error,
+    ) -> bool:
+        message = str(exc).upper()
+        return "IM001" in message or "DATA SOURCE NAME NOT FOUND" in message
 
     def _connection_string(
         self,
@@ -1357,6 +1479,10 @@ def parse_args(
         ),
     )
     parser.add_argument(
+        "--dump-fixp-db-json",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print person API and AD lookup diagnostics to stderr.",
@@ -1378,6 +1504,15 @@ def main(
     argv: list[str] | None = None,
 ) -> int:
     args = parse_args(argv)
+    if args.dump_fixp_db_json:
+        print(
+            AccessFixpReferenceLoader(
+                database_path=Path(args.dump_fixp_db_json),
+                allow_fallback=False,
+            ).dump_json()
+        )
+        return 0
+
     settings_path = Path(args.settings).resolve()
     settings = SettingsLoader(settings_path).load()
     base_dir = settings_path.parent

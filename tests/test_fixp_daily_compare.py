@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import sys
 import subprocess
@@ -497,6 +498,173 @@ def test_fixp_daily_compare_enriches_rows_from_access_database(
         "Owner Name",
         "Manager Name",
         "2026-08-29",
+    ]
+
+
+def test_fixp_database_lookup_falls_back_to_32bit_python(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Verifies 64-bit Python can ask 32-bit Python to read Access data."""
+    database_path = tmp_path / "fixp.accdb"
+    database_path.write_text(
+        "fake access database",
+        encoding="utf-8",
+    )
+
+    def fake_connect(
+        connection_string: str,
+    ):
+        raise fixp_module.pyodbc.Error(
+            "IM001",
+            "Data source name not found and no default driver specified",
+        )
+
+    def fake_run(
+        command,
+        capture_output,
+        check,
+        encoding,
+        errors,
+        timeout,
+    ):
+        assert command[:2] == [
+            "py",
+            "-3.14-32",
+        ]
+        assert "--dump-fixp-db-json" in command
+        assert str(database_path) in command
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=(
+                '[{"element":"MOD001","type":"OCOB","system":"SYSTEM01",'
+                '"subsystem":"SUB1","issues_fixes":"Issue text",'
+                '"comments":"Comment text","effort_id":"EFF123",'
+                '"owner":"Owner Name","manager":"Manager Name",'
+                '"prod_date":"2026-08-29"}]'
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(
+        fixp_module.pyodbc,
+        "connect",
+        fake_connect,
+    )
+    monkeypatch.setattr(
+        fixp_module.subprocess,
+        "run",
+        fake_run,
+    )
+
+    lookup = fixp_module.AccessFixpReferenceLoader(
+        database_path=database_path,
+    ).load()
+
+    reference = lookup[("MOD001", "OCOB", "SYSTEM01", "SUB1")]
+    assert reference.as_columns() == [
+        "Issue text",
+        "Comment text",
+        "EFF123",
+        "Owner Name",
+        "Manager Name",
+        "2026-08-29",
+    ]
+
+
+def test_fixp_database_lookup_dump_json_uses_direct_access_driver(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Verifies the 32-bit helper can emit Access rows as JSON."""
+    database_path = tmp_path / "fixp.accdb"
+    database_path.write_text(
+        "fake access database",
+        encoding="utf-8",
+    )
+
+    class Cursor:
+        description = [
+            ("Element",),
+            ("Type",),
+            ("System",),
+            ("Subsystem",),
+            ("Issues_Fixes",),
+            ("Comments",),
+            ("Effort_ID",),
+            ("Owner",),
+            ("Manager",),
+            ("PROD_DATE",),
+        ]
+
+        def execute(
+            self,
+            query: str,
+        ) -> None:
+            assert query == "SELECT * FROM [tblFIXP1]"
+
+        def fetchall(
+            self,
+        ):
+            return [
+                (
+                    "MOD001",
+                    "OCOB",
+                    "SYSTEM01",
+                    "SUB1",
+                    "Issue text",
+                    "Comment text",
+                    "EFF123",
+                    "Owner Name",
+                    "Manager Name",
+                    "2026-08-29",
+                )
+            ]
+
+    class Connection:
+        def __enter__(
+            self,
+        ):
+            return self
+
+        def __exit__(
+            self,
+            *args,
+        ) -> None:
+            return None
+
+        def cursor(
+            self,
+        ) -> Cursor:
+            return Cursor()
+
+    monkeypatch.setattr(
+        fixp_module.pyodbc,
+        "connect",
+        lambda _connection_string: Connection(),
+    )
+
+    payload = json.loads(
+        fixp_module.AccessFixpReferenceLoader(
+            database_path=database_path,
+            allow_fallback=False,
+        ).dump_json()
+    )
+
+    assert payload == [
+        {
+            "element": "MOD001",
+            "type": "OCOB",
+            "system": "SYSTEM01",
+            "subsystem": "SUB1",
+            "issues_fixes": "Issue text",
+            "comments": "Comment text",
+            "effort_id": "EFF123",
+            "owner": "Owner Name",
+            "manager": "Manager Name",
+            "prod_date": "2026-08-29",
+        }
     ]
 
 
