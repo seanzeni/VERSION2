@@ -686,12 +686,12 @@ class FixpDailyCompare:
         existing_date = coerce_date(existing.record.date_generated) or date.min
 
         return (
-            candidate.file_timestamp,
             candidate_date,
+            candidate.file_timestamp,
             candidate.record.time_generated,
         ) > (
-            existing.file_timestamp,
             existing_date,
+            existing.file_timestamp,
             existing.record.time_generated,
         )
 

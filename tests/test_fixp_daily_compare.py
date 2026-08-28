@@ -401,6 +401,69 @@ def test_fixp_daily_compare_builds_expected_rows(
     assert next(row[10] for row in rows if row[4] == "DROP001") == "User One"
 
 
+def test_fixp_daily_compare_keeps_newest_fixp_date_seen_within_day(
+    tmp_path: Path,
+) -> None:
+    """Verifies stale later files do not hide a same-day FIXP date change."""
+    inventory_path = write_inventory(tmp_path)
+    fixp_folder = tmp_path / "fixp"
+    fixp_folder.mkdir()
+    (fixp_folder / "FIXP-20260826_080000.txt").write_text(
+        make_fixp_line(
+            "MOD001",
+            "OCOB",
+            "SYSTEM01",
+            "SUB1",
+            "FIXP1",
+            "2026/08/20",
+            "01.01",
+            "USER01",
+            "CCID01",
+        ),
+        encoding="cp1252",
+    )
+    (fixp_folder / "FIXP-20260827_080000.txt").write_text(
+        make_fixp_line(
+            "MOD001",
+            "OCOB",
+            "SYSTEM01",
+            "SUB1",
+            "FIXP1",
+            "2026/08/27",
+            "01.02",
+            "USER02",
+            "CCID02",
+        ),
+        encoding="cp1252",
+    )
+    (fixp_folder / "FIXP-20260827_100000.txt").write_text(
+        make_fixp_line(
+            "MOD001",
+            "OCOB",
+            "SYSTEM01",
+            "SUB1",
+            "FIXP1",
+            "2026/08/20",
+            "01.01",
+            "USER01",
+            "CCID01",
+        ),
+        encoding="cp1252",
+    )
+    report = fixp_module.FixpDailyCompare(
+        settings=make_settings(tmp_path, inventory_path, fixp_folder),
+        base_dir=tmp_path,
+        person_resolver=FakePersonResolver(),
+    )
+
+    rows = report.build_rows(date(2026, 8, 27))
+    mod_row = next(row for row in rows if row[4] == "MOD001")
+
+    assert mod_row[0] == "modified"
+    assert mod_row[6] == "27-Aug-26"
+    assert mod_row[8] == "CCID02"
+
+
 def test_fixp_daily_compare_enriches_rows_from_access_database(
     tmp_path: Path,
     monkeypatch,
