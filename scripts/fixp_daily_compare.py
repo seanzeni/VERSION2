@@ -13,6 +13,7 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
@@ -40,9 +41,10 @@ from app.config.settings_loader import SettingsLoader  # noqa: E402
 from app.core.models import MainframeLocationRecord  # noqa: E402
 from app.core.release_rules import coerce_date  # noqa: E402
 from app.reports.report_utils import export_xlsx  # noqa: E402
-from app.reports.report_utils import get_unique_path  # noqa: E402
 from app.reports.report_utils import make_read_only  # noqa: E402
 from app.reports.report_utils import make_writable  # noqa: E402
+from app.reports.report_utils import publish_staged_outputs  # noqa: E402
+from app.reports.report_utils import report_date_stamp  # noqa: E402
 from app.services.data_loader import DataLoader  # noqa: E402
 from app.services.mainframe_location_service import MainframeLocationService  # noqa: E402
 
@@ -52,7 +54,6 @@ FIXP_FILE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 FIX_LIFECYCLE_ENVS = {"FIXT1", "FIXP1"}
-LATEST_OUTPUT_FILE = "fixp1-daily-analysis.xlsx"
 
 DETAIL_HEADERS = [
     "Compare",
@@ -219,61 +220,36 @@ class FixpDailyCompare:
     ) -> list[Path]:
         compare_dates = self._resolve_compare_dates(target_date)
         rows = self._build_rows(compare_dates)
-        xlsx_path = self._latest_output_path()
-        staged_path = xlsx_path.with_name(f".{xlsx_path.stem}.tmp{xlsx_path.suffix}")
-
-        export_xlsx(
-            output_path=staged_path,
-            sheets={
-                "Overview": (
-                    OVERVIEW_HEADERS,
-                    self._overview_rows(compare_dates),
-                ),
-                "FIXP Compare": (
-                    DETAIL_HEADERS,
-                    rows or self._empty_rows(compare_dates),
-                ),
-            },
+        file_stem = f"FIXP_Daily_Stats_{report_date_stamp(compare_dates.target_date)}"
+        self.output_folder.parent.mkdir(
+            parents=True,
+            exist_ok=True,
         )
-        self._format_overview_sheet(staged_path)
-        self._publish_latest_output(
-            staged_path=staged_path,
-            latest_output_path=xlsx_path,
-        )
-        return [xlsx_path]
 
-    def _latest_output_path(
-        self,
-    ) -> Path:
-        return self.output_folder / "FIXP Daily Compare" / LATEST_OUTPUT_FILE
-
-    def _archive_latest_output(
-        self,
-        latest_output_path: Path,
-    ) -> None:
-        if not latest_output_path.exists():
-            return
-
-        archive_path = get_unique_path(
-            latest_output_path.with_name(
-                f"{latest_output_path.stem} - {date.today():%Y-%m-%d}"
-                f"{latest_output_path.suffix}"
+        with tempfile.TemporaryDirectory(
+            prefix="fixp-daily-",
+            dir=self.output_folder.parent,
+        ) as temp_dir:
+            staged_path = Path(temp_dir) / f"{file_stem}.xlsx"
+            export_xlsx(
+                output_path=staged_path,
+                sheets={
+                    "Overview": (
+                        OVERVIEW_HEADERS,
+                        self._overview_rows(compare_dates),
+                    ),
+                    "FIXP Compare": (
+                        DETAIL_HEADERS,
+                        rows or self._empty_rows(compare_dates),
+                    ),
+                },
             )
-        )
-
-        make_writable(latest_output_path)
-        latest_output_path.rename(archive_path)
-        make_read_only(archive_path)
-
-    def _publish_latest_output(
-        self,
-        staged_path: Path,
-        latest_output_path: Path,
-    ) -> None:
-        self._archive_latest_output(latest_output_path)
-        make_writable(staged_path)
-        staged_path.replace(latest_output_path)
-        make_read_only(latest_output_path)
+            self._format_overview_sheet(staged_path)
+            return publish_staged_outputs(
+                staged_files=[staged_path],
+                output_folder=self.output_folder,
+                file_stems=[file_stem],
+            )
 
     def build_rows(
         self,

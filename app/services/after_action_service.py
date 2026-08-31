@@ -3,7 +3,6 @@ from __future__ import annotations
 # Purpose:
 #     Build after-action report files for bundles executed on a selected date.
 
-import shutil
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -16,7 +15,8 @@ from app.core.package_rules import is_archive_package
 from app.reports.after_action_report import AfterActionReport
 from app.reports.after_action_report import build_after_action_row
 from app.reports.after_action_report import parse_report_date
-from app.reports.report_utils import archive_existing_reports
+from app.reports.report_utils import publish_staged_outputs
+from app.reports.report_utils import report_date_stamp
 from app.services.mainframe_location_service import MainframeLocationService
 
 
@@ -40,6 +40,7 @@ class AfterActionService:
 
         rows = self._build_rows(selected_date)
         report = AfterActionReport()
+        file_stem = f"Effort_Move_Status_{report_date_stamp(selected_date)}"
 
         with tempfile.TemporaryDirectory(
             prefix="after-action-",
@@ -51,11 +52,12 @@ class AfterActionService:
                 output_folder=Path(temp_dir),
                 formats=formats,
                 selected_date=selected_date,
+                file_stem=file_stem,
             )
-            archive_existing_reports(output_folder)
-            return self._publish_report_files(
+            return publish_staged_outputs(
                 staged_files=staged_files,
                 output_folder=output_folder,
+                file_stems=[file_stem],
             )
 
     def _generate_report_files(
@@ -65,6 +67,7 @@ class AfterActionService:
         output_folder: Path,
         formats: list[str],
         selected_date: date,
+        file_stem: str,
     ) -> list[Path]:
         generated_files: list[Path] = []
 
@@ -73,6 +76,7 @@ class AfterActionService:
                 report.generate(
                     rows=rows,
                     output_folder=output_folder,
+                    file_stem=file_stem,
                 )
             )
 
@@ -81,6 +85,7 @@ class AfterActionService:
                 report.generate_xlsx(
                     rows=rows,
                     output_folder=output_folder,
+                    file_stem=file_stem,
                 )
             )
 
@@ -90,27 +95,11 @@ class AfterActionService:
                     rows=rows,
                     output_folder=output_folder,
                     selected_date=selected_date,
+                    file_stem=file_stem,
                 )
             )
 
         return generated_files
-
-    def _publish_report_files(
-        self,
-        staged_files: list[Path],
-        output_folder: Path,
-    ) -> list[Path]:
-        published_files: list[Path] = []
-
-        for staged_file in staged_files:
-            destination = output_folder / staged_file.name
-            shutil.move(
-                str(staged_file),
-                str(destination),
-            )
-            published_files.append(destination)
-
-        return published_files
 
     def _build_rows(
         self,

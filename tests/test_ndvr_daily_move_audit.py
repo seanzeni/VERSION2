@@ -12,7 +12,9 @@ from openpyxl import load_workbook
 from app.core.models import ReleaseEffort
 
 
-SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "ndvr_daily_move_audit.py"
+SCRIPT_PATH = (
+    Path(__file__).resolve().parents[1] / "scripts" / "ndvr_daily_move_audit.py"
+)
 SPEC = importlib.util.spec_from_file_location("ndvr_daily_move_audit", SCRIPT_PATH)
 assert SPEC is not None and SPEC.loader is not None
 audit_module = importlib.util.module_from_spec(SPEC)
@@ -209,6 +211,10 @@ def test_daily_move_audit_writes_xlsx_and_pdf(
     output_files = audit.run(date(2026, 7, 14))
 
     assert {path.suffix for path in output_files} == {".xlsx", ".pdf"}
+    assert {path.name for path in output_files} == {
+        "NDVR_Commercial_Audit_14_JUL_2026.xlsx",
+        "NDVR_Commercial_Audit_14_JUL_2026.pdf",
+    }
     workbook = load_workbook(output_files[0], read_only=True)
     assert workbook.sheetnames == ["Summary", "Detail"]
     workbook.close()

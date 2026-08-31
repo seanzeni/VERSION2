@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
 from collections import Counter
 from collections import defaultdict
 from dataclasses import dataclass
@@ -32,7 +33,8 @@ from app.reports.pdf_utils import heading  # noqa: E402
 from app.reports.pdf_utils import spacer  # noqa: E402
 from app.reports.pdf_utils import write_pdf  # noqa: E402
 from app.reports.report_utils import export_xlsx  # noqa: E402
-from app.reports.report_utils import safe_release_name  # noqa: E402
+from app.reports.report_utils import publish_staged_outputs  # noqa: E402
+from app.reports.report_utils import report_date_stamp  # noqa: E402
 from app.services.data_loader import DataLoader  # noqa: E402
 from app.services.db_service import DBService  # noqa: E402
 from app.services.mainframe_location_service import MainframeLocationService  # noqa: E402
@@ -121,49 +123,53 @@ class DailyMoveAudit:
         formats: list[str] | tuple[str, ...] = ("xlsx", "pdf"),
     ) -> list[Path]:
         rows = self.build_rows(target_date)
-        output_folder = (
-            self.output_folder
-            / "NDVR Daily Move Audit"
-            / safe_release_name(target_date.isoformat())
-        )
-        output_folder.mkdir(
+        file_stem = f"NDVR_Commercial_Audit_{report_date_stamp(target_date)}"
+        clean_formats = {
+            str(output_format).strip().lower() for output_format in formats
+        }
+        self.output_folder.parent.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-        xlsx_path = output_folder / f"NDVR_Daily_Move_Audit_{target_date:%Y%m%d}.xlsx"
-        pdf_path = output_folder / f"NDVR_Daily_Move_Audit_{target_date:%Y%m%d}.pdf"
-        clean_formats = {
-            str(output_format).strip().lower()
-            for output_format in formats
-        }
-        generated_files: list[Path] = []
+        with tempfile.TemporaryDirectory(
+            prefix="ndvr-commercial-audit-",
+            dir=self.output_folder.parent,
+        ) as temp_dir:
+            temp_folder = Path(temp_dir)
+            staged_files: list[Path] = []
 
-        if "xlsx" in clean_formats:
-            export_xlsx(
-                output_path=xlsx_path,
-                sheets={
-                    "Summary": (
-                        SUMMARY_HEADERS,
-                        self._summary_rows(rows),
-                    ),
-                    "Detail": (
-                        DETAIL_HEADERS,
-                        rows or self._empty_rows(target_date),
-                    ),
-                },
+            if "xlsx" in clean_formats:
+                xlsx_path = temp_folder / f"{file_stem}.xlsx"
+                export_xlsx(
+                    output_path=xlsx_path,
+                    sheets={
+                        "Summary": (
+                            SUMMARY_HEADERS,
+                            self._summary_rows(rows),
+                        ),
+                        "Detail": (
+                            DETAIL_HEADERS,
+                            rows or self._empty_rows(target_date),
+                        ),
+                    },
+                )
+                staged_files.append(xlsx_path)
+
+            if "pdf" in clean_formats:
+                pdf_path = temp_folder / f"{file_stem}.pdf"
+                self._export_pdf(
+                    output_path=pdf_path,
+                    target_date=target_date,
+                    rows=rows,
+                )
+                staged_files.append(pdf_path)
+
+            return publish_staged_outputs(
+                staged_files=staged_files,
+                output_folder=self.output_folder,
+                file_stems=[file_stem],
             )
-            generated_files.append(xlsx_path)
-
-        if "pdf" in clean_formats:
-            self._export_pdf(
-                output_path=pdf_path,
-                target_date=target_date,
-                rows=rows,
-            )
-            generated_files.append(pdf_path)
-
-        return generated_files
 
     def build_rows(
         self,
@@ -390,7 +396,8 @@ class DailyMoveAudit:
             status="TRACKED_NOT_AUTHORIZED_FOR_DATE",
             release=", ".join(sorted({row.release for row in inventory_rows})),
             project=", ".join(sorted({row.project for row in inventory_rows})),
-            expected_dates="; ".join(sorted(set(expected_dates))) or "No SQL date found",
+            expected_dates="; ".join(sorted(set(expected_dates)))
+            or "No SQL date found",
             reason=(
                 "Element/type was tracked in inventory, but no matching project "
                 f"was authorized for {mode} movement on {target_date.isoformat()}."
@@ -412,9 +419,7 @@ class DailyMoveAudit:
             if expected_date is None:
                 continue
 
-            dates.append(
-                f"{release} / {project}: {mode} {expected_date.isoformat()}"
-            )
+            dates.append(f"{release} / {project}: {mode} {expected_date.isoformat()}")
 
         return dates
 

@@ -322,7 +322,9 @@ def test_region_inventory_audit_classifies_region_records(
     assert approved_row.inventory_effort_ids == ("ABC12345",)
     assert approved_row.approved_effort_ids == ("ABC12345",)
     warning_row = next(row for row in rows if row.element == "MISS001")
-    assert warning_row.reason == "Potential missing inventory but effort approved there."
+    assert (
+        warning_row.reason == "Potential missing inventory but effort approved there."
+    )
     old_row = next(row for row in rows if row.element == "OLDPGM")
     assert old_row.bundle_id == "2026/06 NPR"
     assert old_row.inventory_effort_ids == ("OLD12345",)
@@ -340,10 +342,7 @@ def test_region_inventory_audit_classifies_region_records(
     assert cross_row.inventory_effort_ids == ("NPR12345",)
     assert cross_row.inventory_assigned_bundles == ("2026/08 NPR",)
     assert cross_row.inventory_assigned_region_systems == ("DV02/SYSTEM02",)
-    assert (
-        "Found CROSS01 OCOB in DV01 / DEVL1 / SYSTEM01 / SYS1"
-        in cross_row.reason
-    )
+    assert "Found CROSS01 OCOB in DV01 / DEVL1 / SYSTEM01 / SYS1" in cross_row.reason
     assert "2026/08 NPR in DV02/SYSTEM02" in cross_row.reason
 
 
@@ -362,6 +361,7 @@ def test_region_inventory_audit_writes_xlsx(
     output_files = audit.run(today=date(2026, 7, 21))
 
     assert len(output_files) == 1
+    assert output_files[0].name == "Development_Region_Audit_21_JUL_2026.xlsx"
     workbook = load_workbook(output_files[0], read_only=True)
     assert workbook.sheetnames == ["Summary", "SQL Assignments", "Detail"]
     summary_rows = list(workbook["Summary"].iter_rows(values_only=True))

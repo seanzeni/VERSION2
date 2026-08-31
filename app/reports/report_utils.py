@@ -20,6 +20,7 @@ import csv
 import os
 import shutil
 import stat
+from datetime import date
 from datetime import datetime
 from pathlib import Path
 
@@ -133,6 +134,74 @@ def build_report_file_prefix(
     date_name = safe_release_name(_format_move_date(move_date)).upper()
 
     return f"{release_name}_{date_name}"
+
+
+def report_date_stamp(
+    report_date: date,
+) -> str:
+    return report_date.strftime("%d_%b_%Y").upper()
+
+
+def publish_staged_outputs(
+    staged_files: list[Path],
+    output_folder: Path,
+    file_stems: list[str],
+) -> list[Path]:
+    output_folder.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    archive_exact_stem_reports(
+        target_folder=output_folder,
+        file_stems=file_stems,
+    )
+
+    published_files: list[Path] = []
+    for staged_file in staged_files:
+        destination = output_folder / staged_file.name
+        make_writable(staged_file)
+        shutil.move(
+            str(staged_file),
+            str(destination),
+        )
+        make_read_only(destination)
+        published_files.append(destination)
+
+    return published_files
+
+
+def archive_exact_stem_reports(
+    target_folder: Path,
+    file_stems: list[str],
+) -> None:
+    stem_names = {stem.upper() for stem in file_stems}
+    if not stem_names:
+        return
+
+    history_folder = target_folder / "History"
+    history_folder.mkdir(
+        exist_ok=True,
+    )
+
+    for file_path in target_folder.iterdir():
+        if not file_path.is_file():
+            continue
+
+        if file_path.stem.upper() not in stem_names:
+            continue
+
+        destination = get_unique_path(history_folder / file_path.name)
+        try:
+            make_writable(file_path)
+            shutil.move(
+                str(file_path),
+                str(destination),
+            )
+            make_read_only(destination)
+        except PermissionError as exc:
+            raise PermissionError(
+                f"Unable to archive {file_path.name}. Close the file if it is open and try again."
+            ) from exc
 
 
 def archive_matching_reports(

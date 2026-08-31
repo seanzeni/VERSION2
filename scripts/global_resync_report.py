@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
@@ -21,6 +22,8 @@ if str(REPO_ROOT) not in sys.path:
 from app.config.settings_loader import SettingsLoader  # noqa: E402
 from app.core.models import MainframeLocationRecord  # noqa: E402
 from app.reports.report_utils import export_xlsx  # noqa: E402
+from app.reports.report_utils import publish_staged_outputs  # noqa: E402
+from app.reports.report_utils import report_date_stamp  # noqa: E402
 from app.services.mainframe_location_service import MainframeLocationService  # noqa: E402
 from scripts.report_script_utils import latest_ndvr_file  # noqa: E402
 from scripts.report_script_utils import resolve_path  # noqa: E402
@@ -46,8 +49,6 @@ DETAIL_HEADERS = [
 
 
 class GlobalResyncReport:
-    FILE_NAME = "Global_Resync_Report.xlsx"
-
     def __init__(
         self,
         settings: dict[str, Any],
@@ -72,6 +73,7 @@ class GlobalResyncReport:
 
     def run(
         self,
+        report_date: date | None = None,
     ) -> list[Path]:
         ndvr_file = latest_ndvr_file(
             self.ndvr_source,
@@ -79,19 +81,31 @@ class GlobalResyncReport:
         )
         location_service = MainframeLocationService().load_file(ndvr_file)
         rows = self.build_rows(location_service)
-
-        output_folder = self.output_folder / "Global Resync Report"
-        output_path = output_folder / self.FILE_NAME
-        export_xlsx(
-            output_path=output_path,
-            sheets={
-                "Global Resync": (
-                    DETAIL_HEADERS,
-                    rows or self._empty_rows(),
-                )
-            },
+        file_stem = f"Global_Resync_{report_date_stamp(report_date or date.today())}"
+        self.output_folder.parent.mkdir(
+            parents=True,
+            exist_ok=True,
         )
-        return [output_path]
+
+        with tempfile.TemporaryDirectory(
+            prefix="global-resync-",
+            dir=self.output_folder.parent,
+        ) as temp_dir:
+            output_path = Path(temp_dir) / f"{file_stem}.xlsx"
+            export_xlsx(
+                output_path=output_path,
+                sheets={
+                    "Global Resync": (
+                        DETAIL_HEADERS,
+                        rows or self._empty_rows(),
+                    )
+                },
+            )
+            return publish_staged_outputs(
+                staged_files=[output_path],
+                output_folder=self.output_folder,
+                file_stems=[file_stem],
+            )
 
     def build_rows(
         self,
@@ -141,10 +155,15 @@ class GlobalResyncReport:
         self,
         location_service: MainframeLocationService,
     ) -> dict[tuple[str, str], list[MainframeLocationRecord]]:
-        grouped: dict[tuple[str, str], list[MainframeLocationRecord]] = defaultdict(list)
+        grouped: dict[tuple[str, str], list[MainframeLocationRecord]] = defaultdict(
+            list
+        )
 
         for record in location_service.records:
-            if record.env.strip().upper() not in MainframeLocationService.VERSION_COMPARE_ENVS:
+            if (
+                record.env.strip().upper()
+                not in MainframeLocationService.VERSION_COMPARE_ENVS
+            ):
                 continue
 
             grouped[record.key].append(record)

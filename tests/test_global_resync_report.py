@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
+from datetime import date
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -10,7 +11,9 @@ from openpyxl import load_workbook
 from app.services.mainframe_location_service import MainframeLocationService
 
 
-SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "global_resync_report.py"
+SCRIPT_PATH = (
+    Path(__file__).resolve().parents[1] / "scripts" / "global_resync_report.py"
+)
 SPEC = importlib.util.spec_from_file_location("global_resync_report", SCRIPT_PATH)
 assert SPEC is not None and SPEC.loader is not None
 resync_module = importlib.util.module_from_spec(SPEC)
@@ -71,11 +74,21 @@ def write_ndvr(
     latest.write_text(
         "\n".join(
             [
-                make_line("PGM001", "OCOB", "PRIVATE1", "SUB1", "PROD1", "03.00", "PROD"),
-                make_line("PGM001", "OCOB", "PRIVATE1", "SUB1", "QUAL1", "02.00", "QUAL"),
-                make_line("PGM001", "OCOB", "SYSTEM01", "SUB1", "SYST1", "01.00", "SYST"),
-                make_line("PGM001", "OCOB", "SYSTEM02", "SUB1", "UNIT1", "01.50", "UNIT"),
-                make_line("PGM001", "OCOB", "SYSTEM03", "SUB1", "FIXP1", "99.99", "FIXP"),
+                make_line(
+                    "PGM001", "OCOB", "PRIVATE1", "SUB1", "PROD1", "03.00", "PROD"
+                ),
+                make_line(
+                    "PGM001", "OCOB", "PRIVATE1", "SUB1", "QUAL1", "02.00", "QUAL"
+                ),
+                make_line(
+                    "PGM001", "OCOB", "SYSTEM01", "SUB1", "SYST1", "01.00", "SYST"
+                ),
+                make_line(
+                    "PGM001", "OCOB", "SYSTEM02", "SUB1", "UNIT1", "01.50", "UNIT"
+                ),
+                make_line(
+                    "PGM001", "OCOB", "SYSTEM03", "SUB1", "FIXP1", "99.99", "FIXP"
+                ),
                 make_line("EQ001", "OCOB", "SYSTEM01", "SUB1", "QUAL1", "01.01", "Q1"),
                 make_line("EQ001", "OCOB", "SYSTEM02", "SUB1", "QUAL1", "01.02", "Q2"),
                 make_line("OK001", "OCOB", "SYSTEM01", "SUB1", "SYST1", "02.00", "OK"),
@@ -130,10 +143,10 @@ def test_global_resync_report_writes_xlsx(
         base_dir=tmp_path,
     )
 
-    output_files = report.run()
+    output_files = report.run(report_date=date(2026, 7, 14))
 
     assert len(output_files) == 1
-    assert output_files[0].name == "Global_Resync_Report.xlsx"
+    assert output_files[0].name == "Global_Resync_14_JUL_2026.xlsx"
     workbook = load_workbook(output_files[0], read_only=True)
     assert workbook.sheetnames == ["Global Resync"]
     rows = list(workbook["Global Resync"].iter_rows(values_only=True))

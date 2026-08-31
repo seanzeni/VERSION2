@@ -126,6 +126,7 @@ def test_after_action_report_uses_ndvr_package_for_executed_date(
     )
 
     output_text = output_files[0].read_text(encoding="utf-8")
+    assert output_files[0].name == "Effort_Move_Status_14_JUL_2026.csv"
     assert "PKG001" in output_text
     assert "Yes" in output_text
 

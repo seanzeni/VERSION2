@@ -20,7 +20,6 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from app.config.settings_loader import SettingsLoader  # noqa: E402
-from app.reports.report_utils import safe_release_name  # noqa: E402
 from app.services.after_action_service import AfterActionService  # noqa: E402
 from app.services.data_loader import DataLoader  # noqa: E402
 from app.services.db_service import DBService  # noqa: E402
@@ -136,7 +135,7 @@ def main(
     )
     generated_files = AfterActionService(context).generate(
         selected_date=target_date,
-        output_folder=output_root / "After Action" / safe_release_name(target_date.isoformat()),
+        output_folder=output_root,
         formats=args.formats,
     )
 

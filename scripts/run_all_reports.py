@@ -28,7 +28,6 @@ from app.config.settings_loader import SettingsLoader  # noqa: E402
 from app.reports.report_utils import get_unique_path  # noqa: E402
 from app.reports.report_utils import make_read_only  # noqa: E402
 from app.reports.report_utils import make_writable  # noqa: E402
-from app.reports.report_utils import safe_release_name  # noqa: E402
 from app.services.after_action_service import AfterActionService  # noqa: E402
 from scripts.after_action_report import build_context as build_after_action_context  # noqa: E402
 from scripts.fixp_daily_compare import FixpDailyCompare  # noqa: E402
@@ -148,11 +147,7 @@ def run_after_action(
 
     return AfterActionService(after_action_context).generate(
         selected_date=context.report_date,
-        output_folder=(
-            output_root
-            / "After Action"
-            / safe_release_name(context.report_date.isoformat())
-        ),
+        output_folder=output_root,
         formats=active_formats(context),
     )
 
@@ -193,7 +188,7 @@ def run_global_resync(
         base_dir=context.base_dir,
         ndvr_source=context.ndvr_source,
         output_folder=active_output_root(context),
-    ).run()
+    ).run(report_date=context.report_date)
 
 
 def run_region_inventory_audit(

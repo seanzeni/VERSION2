@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
@@ -22,6 +23,8 @@ if str(REPO_ROOT) not in sys.path:
 from app.config.settings_loader import SettingsLoader  # noqa: E402
 from app.core.models import MainframeLocationRecord  # noqa: E402
 from app.reports.report_utils import export_xlsx  # noqa: E402
+from app.reports.report_utils import publish_staged_outputs  # noqa: E402
+from app.reports.report_utils import report_date_stamp  # noqa: E402
 from app.services.data_loader import DataLoader  # noqa: E402
 from app.services.db_service import DBService  # noqa: E402
 from app.services.mainframe_location_service import MainframeLocationService  # noqa: E402
@@ -301,33 +304,42 @@ class RegionInventoryAudit:
             active_date=active_date,
         )
         rows = self._build_rows(assignments)
-        output_folder = self.output_folder / "Region Inventory Audit"
-        output_folder.mkdir(
+        file_stem = f"Development_Region_Audit_{report_date_stamp(active_date)}"
+        self.output_folder.parent.mkdir(
             parents=True,
             exist_ok=True,
         )
-        output_path = output_folder / "Region_Inventory_Audit.xlsx"
-        export_xlsx(
-            output_path=output_path,
-            sheets={
-                "Summary": (
-                    SUMMARY_HEADERS,
-                    self._summary_rows(
-                        rows=rows,
-                        assignments=assignments,
+
+        with tempfile.TemporaryDirectory(
+            prefix="development-region-audit-",
+            dir=self.output_folder.parent,
+        ) as temp_dir:
+            output_path = Path(temp_dir) / f"{file_stem}.xlsx"
+            export_xlsx(
+                output_path=output_path,
+                sheets={
+                    "Summary": (
+                        SUMMARY_HEADERS,
+                        self._summary_rows(
+                            rows=rows,
+                            assignments=assignments,
+                        ),
                     ),
-                ),
-                "SQL Assignments": (
-                    ASSIGNMENT_HEADERS,
-                    self._assignment_rows(assignments),
-                ),
-                "Detail": (
-                    DETAIL_HEADERS,
-                    [row.as_list() for row in rows] or self._empty_detail_rows(),
-                ),
-            },
-        )
-        return [output_path]
+                    "SQL Assignments": (
+                        ASSIGNMENT_HEADERS,
+                        self._assignment_rows(assignments),
+                    ),
+                    "Detail": (
+                        DETAIL_HEADERS,
+                        [row.as_list() for row in rows] or self._empty_detail_rows(),
+                    ),
+                },
+            )
+            return publish_staged_outputs(
+                staged_files=[output_path],
+                output_folder=self.output_folder,
+                file_stems=[file_stem],
+            )
 
     def build_rows(
         self,
@@ -692,7 +704,11 @@ class RegionInventoryAudit:
         grouped: dict[tuple[str, str, str], set[str]] = defaultdict(set)
 
         for assignment in assignments:
-            if not assignment.bundle_id or not assignment.region or not assignment.system:
+            if (
+                not assignment.bundle_id
+                or not assignment.region
+                or not assignment.system
+            ):
                 continue
 
             grouped[
@@ -708,7 +724,9 @@ class RegionInventoryAudit:
                 bundle_id=bundle_id,
                 region=region,
                 system=system,
-                effort_ids=tuple(sorted(effort_id for effort_id in effort_ids if effort_id)),
+                effort_ids=tuple(
+                    sorted(effort_id for effort_id in effort_ids if effort_id)
+                ),
             )
             for (bundle_id, region, system), effort_ids in grouped.items()
         ]

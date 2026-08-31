@@ -925,7 +925,7 @@ def test_fixp_database_lookup_dump_json_uses_direct_access_driver(
 def test_fixp_daily_compare_writes_xlsx(
     tmp_path: Path,
 ) -> None:
-    """Verifies the standalone FIXP report writes one stable latest workbook."""
+    """Verifies the standalone FIXP report writes a flat dated workbook."""
     inventory_path = write_inventory(tmp_path)
     fixp_folder = write_fixp_files(tmp_path)
     report = fixp_module.FixpDailyCompare(
@@ -937,8 +937,8 @@ def test_fixp_daily_compare_writes_xlsx(
     output_files = report.run(date(2026, 7, 15))
 
     assert len(output_files) == 1
-    assert output_files[0].name == "fixp1-daily-analysis.xlsx"
-    assert output_files[0].parent.name == "FIXP Daily Compare"
+    assert output_files[0].name == "FIXP_Daily_Stats_15_JUL_2026.xlsx"
+    assert output_files[0].parent == tmp_path / "output"
     workbook = load_workbook(output_files[0])
     assert workbook.sheetnames == ["Overview", "FIXP Compare"]
     overview_rows = list(workbook["Overview"].iter_rows(values_only=True))
@@ -1014,7 +1014,7 @@ def test_fixp_daily_compare_defaults_to_latest_two_file_dates(
 
     output_files = report.run(None)
 
-    assert output_files[0].name == "fixp1-daily-analysis.xlsx"
+    assert output_files[0].name == "FIXP_Daily_Stats_20_JUL_2026.xlsx"
     rows = report.build_rows(None)
     statuses = {row[4]: row[0] for row in rows}
     assert statuses["KEEP001"] == "modified"
@@ -1025,15 +1025,14 @@ def test_fixp_daily_compare_archives_previous_latest_file(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    """Verifies replacement is generated before the latest workbook is archived."""
+    """Verifies replacement is generated before same-stem workbook archiving."""
     inventory_path = write_inventory(tmp_path)
     fixp_folder = write_fixp_files(tmp_path)
     output_folder = tmp_path / "output"
-    latest_folder = output_folder / "FIXP Daily Compare"
-    latest_folder.mkdir(
+    output_folder.mkdir(
         parents=True,
     )
-    previous_latest = latest_folder / "fixp1-daily-analysis.xlsx"
+    previous_latest = output_folder / "FIXP_Daily_Stats_15_JUL_2026.xlsx"
     previous_latest.write_text(
         "old workbook",
         encoding="utf-8",
@@ -1052,7 +1051,7 @@ def test_fixp_daily_compare_archives_previous_latest_file(
         sheets,
     ) -> None:
         assert previous_latest.exists()
-        assert output_path.name.startswith(".fixp1-daily-analysis.tmp")
+        assert output_path.name == "FIXP_Daily_Stats_15_JUL_2026.xlsx"
         original_export_xlsx(
             output_path=output_path,
             sheets=sheets,
@@ -1066,7 +1065,9 @@ def test_fixp_daily_compare_archives_previous_latest_file(
 
     output_files = report.run(date(2026, 7, 15))
 
-    archived_files = sorted(latest_folder.glob("fixp1-daily-analysis - *.xlsx"))
+    archived_files = sorted(
+        (output_folder / "History").glob("FIXP_Daily_Stats_15_JUL_2026*.xlsx")
+    )
     assert output_files == [previous_latest]
     assert len(archived_files) == 1
     assert archived_files[0].read_text(encoding="utf-8") == "old workbook"

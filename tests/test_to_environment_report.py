@@ -178,7 +178,7 @@ def test_to_environment_report_writes_xlsx_and_pdf(
     assert {path.suffix for path in output_files} == {".xlsx", ".pdf"}
     assert len(output_files) == 4
     workbook = load_workbook(
-        tmp_path / "output" / "TO QUAL" / "TO_QUAL_20260714.xlsx",
+        tmp_path / "output" / "IN_QUAL_14_JUL_2026.xlsx",
         read_only=True,
     )
     assert workbook.sheetnames == ["TO QUAL"]

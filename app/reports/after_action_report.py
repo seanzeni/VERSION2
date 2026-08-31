@@ -29,8 +29,9 @@ class AfterActionReport:
         self,
         rows: list[list[object]],
         output_folder: Path,
+        file_stem: str | None = None,
     ) -> Path:
-        output_path = output_folder / f"{self.FILE_STEM}.csv"
+        output_path = output_folder / f"{file_stem or self.FILE_STEM}.csv"
         export_csv(
             output_path=output_path,
             headers=names(AFTER_ACTION_COLUMNS),
@@ -42,8 +43,9 @@ class AfterActionReport:
         self,
         rows: list[list[object]],
         output_folder: Path,
+        file_stem: str | None = None,
     ) -> Path:
-        output_path = output_folder / f"{self.FILE_STEM}.xlsx"
+        output_path = output_folder / f"{file_stem or self.FILE_STEM}.xlsx"
         sheets: dict[str, tuple[list[str], list[list[object]]]] = {
             "After Action": (
                 names(AFTER_ACTION_COLUMNS),
@@ -68,8 +70,9 @@ class AfterActionReport:
         rows: list[list[object]],
         output_folder: Path,
         selected_date: date,
+        file_stem: str | None = None,
     ) -> Path:
-        output_path = output_folder / f"{self.FILE_STEM}.pdf"
+        output_path = output_folder / f"{file_stem or self.FILE_STEM}.pdf"
         story = [
             heading("After Action Report"),
             subheading(f"Move Date {selected_date.isoformat()}"),
@@ -81,7 +84,25 @@ class AfterActionReport:
             story.append(
                 build_table(
                     headers=names(AFTER_ACTION_COLUMNS),
-                    rows=[["", "", selected_date.isoformat(), "", "", "", "", "", "", "No", "", "", "", "", "No matching executed bundles found."]],
+                    rows=[
+                        [
+                            "",
+                            "",
+                            selected_date.isoformat(),
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "No",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "No matching executed bundles found.",
+                        ]
+                    ],
                 )
             )
             return write_pdf(output_path, story, use_landscape=True)
@@ -142,7 +163,9 @@ def build_after_action_row(
         expected_subsystem,
         moved_on_date if moved_on_date is not None else ("Yes" if moved else "No"),
         record.ndvr_package if record is not None else "",
-        f"{record.ndvr_rc:05d}" if record is not None and record.ndvr_rc is not None else "",
+        f"{record.ndvr_rc:05d}"
+        if record is not None and record.ndvr_rc is not None
+        else "",
         _format_ndvr_date(record),
         record.time_generated if record is not None else "",
         reason

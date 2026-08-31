@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
@@ -29,6 +30,8 @@ from app.reports.pdf_utils import heading  # noqa: E402
 from app.reports.pdf_utils import spacer  # noqa: E402
 from app.reports.pdf_utils import write_pdf  # noqa: E402
 from app.reports.report_utils import export_xlsx  # noqa: E402
+from app.reports.report_utils import publish_staged_outputs  # noqa: E402
+from app.reports.report_utils import report_date_stamp  # noqa: E402
 from app.services.data_loader import DataLoader  # noqa: E402
 from app.services.mainframe_location_service import MainframeLocationService  # noqa: E402
 from scripts.report_script_utils import iter_ndvr_files  # noqa: E402
@@ -118,41 +121,53 @@ class ToEnvironmentReport:
         rows_by_report = self.build_rows(target_date)
         generated_files: list[Path] = []
         clean_formats = {
-            str(output_format).strip().lower()
-            for output_format in formats
+            str(output_format).strip().lower() for output_format in formats
         }
+        self.output_folder.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
         for report_name, rows in rows_by_report.items():
-            report_folder = self.output_folder / f"TO {report_name}"
-            report_folder.mkdir(
-                parents=True,
-                exist_ok=True,
-            )
-            date_text = target_date.strftime("%Y%m%d")
-            stem = f"TO_{report_name}_{date_text}"
-            xlsx_path = report_folder / f"{stem}.xlsx"
-            pdf_path = report_folder / f"{stem}.pdf"
+            file_stem = f"IN_{report_name.upper()}_{report_date_stamp(target_date)}"
 
-            if "xlsx" in clean_formats:
-                export_xlsx(
-                    output_path=xlsx_path,
-                    sheets={
-                        f"TO {report_name}": (
-                            DETAIL_HEADERS,
-                            rows or self._empty_rows(target_date, report_name),
-                        )
-                    },
-                )
-                generated_files.append(xlsx_path)
+            with tempfile.TemporaryDirectory(
+                prefix=f"in-{report_name.lower()}-",
+                dir=self.output_folder.parent,
+            ) as temp_dir:
+                temp_folder = Path(temp_dir)
+                staged_files: list[Path] = []
 
-            if "pdf" in clean_formats:
-                self._export_pdf(
-                    output_path=pdf_path,
-                    target_date=target_date,
-                    report_name=report_name,
-                    rows=rows,
+                if "xlsx" in clean_formats:
+                    xlsx_path = temp_folder / f"{file_stem}.xlsx"
+                    export_xlsx(
+                        output_path=xlsx_path,
+                        sheets={
+                            f"TO {report_name}": (
+                                DETAIL_HEADERS,
+                                rows or self._empty_rows(target_date, report_name),
+                            )
+                        },
+                    )
+                    staged_files.append(xlsx_path)
+
+                if "pdf" in clean_formats:
+                    pdf_path = temp_folder / f"{file_stem}.pdf"
+                    self._export_pdf(
+                        output_path=pdf_path,
+                        target_date=target_date,
+                        report_name=report_name,
+                        rows=rows,
+                    )
+                    staged_files.append(pdf_path)
+
+                generated_files.extend(
+                    publish_staged_outputs(
+                        staged_files=staged_files,
+                        output_folder=self.output_folder,
+                        file_stems=[file_stem],
+                    )
                 )
-                generated_files.append(pdf_path)
 
         return generated_files
 
@@ -162,8 +177,7 @@ class ToEnvironmentReport:
     ) -> dict[str, list[list[object]]]:
         inventory_lookup = self._build_inventory_lookup()
         rows_by_report: dict[str, list[list[object]]] = {
-            report_name: []
-            for report_name in REPORTS
+            report_name: [] for report_name in REPORTS
         }
 
         for movement in self._load_movements(target_date):
@@ -296,8 +310,10 @@ class ToEnvironmentReport:
 
         for inventory_row in inventory_rows:
             project = inventory_row.project.strip().upper()
-            if project and package and (
-                project.startswith(package) or package.startswith(project)
+            if (
+                project
+                and package
+                and (project.startswith(package) or package.startswith(project))
             ):
                 return Association(
                     release=inventory_row.release,
@@ -307,15 +323,23 @@ class ToEnvironmentReport:
 
         for inventory_row in inventory_rows:
             project = inventory_row.project.strip().upper()
-            if project and ccid and (project.startswith(ccid) or ccid.startswith(project)):
+            if (
+                project
+                and ccid
+                and (project.startswith(ccid) or ccid.startswith(project))
+            ):
                 return Association(
                     release=inventory_row.release,
                     project=inventory_row.project,
                     detail="Assumption: linked based off CCID.",
                 )
 
-        releases = ", ".join(sorted({row.release for row in inventory_rows if row.release}))
-        projects = ", ".join(sorted({row.project for row in inventory_rows if row.project}))
+        releases = ", ".join(
+            sorted({row.release for row in inventory_rows if row.release})
+        )
+        projects = ", ".join(
+            sorted({row.project for row in inventory_rows if row.project})
+        )
         return Association(
             release=releases,
             project=projects,
