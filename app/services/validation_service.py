@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Apply validation statuses and selection rules to inventory elements.
@@ -196,11 +196,13 @@ class ValidationService:
         elements: list[Element],
         location_service: MainframeLocationService | None,
         mode: str,
+        release_efforts: list[ReleaseEffort] | None = None,
         skip_location_validation_effort_ids: set[str] | None = None,
     ) -> None:
         location_rule_module.apply(
             self._build_context(
                 elements=elements,
+                release_efforts=release_efforts,
                 location_service=location_service,
                 mode=mode,
                 skip_location_validation_effort_ids=(
@@ -281,9 +283,7 @@ class ValidationService:
         self,
         element: Element,
     ) -> bool:
-        return bool(
-            selection_rule_module.is_confirmed_already_in_target(element)
-        )
+        return bool(selection_rule_module.is_confirmed_already_in_target(element))
 
     def get_target_env(
         self,
@@ -315,12 +315,10 @@ class ValidationService:
         mode: str,
         element: Element,
     ) -> bool:
-        return (
-            selection_rule_module.is_archive_type_for_qual_move(
-                mode=mode,
-                element=element,
-                selection_rules=self.selection_rules,
-            )
+        return selection_rule_module.is_archive_type_for_qual_move(
+            mode=mode,
+            element=element,
+            selection_rules=self.selection_rules,
         )
 
     def is_archive_move(
@@ -366,4 +364,3 @@ class ValidationService:
             archive_type=archive_type,
             archive_pairs=self.archive_pairs,
         )
-

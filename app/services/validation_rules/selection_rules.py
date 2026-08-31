@@ -189,6 +189,15 @@ def apply(
                 )
             )
 
+        if element.location_status == LocationStatus.NOT_EXPECTED_YET:
+            element.selected = False
+            element.selectable = bool(
+                selection_rules.get(
+                    "not_expected_ndvr_yet_selectable",
+                    False,
+                )
+            )
+
         if element.packaging_status == PackagingStatus.NDVR_RC_TOO_HIGH:
             element.selected = False
             element.selectable = bool(

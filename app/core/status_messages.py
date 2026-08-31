@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Centralized validation and status reason messages.
@@ -16,6 +16,9 @@ class StatusMessages:
     OVERLAP = "Element/type overlaps with another project."
     DUPLICATE = "Element/type is duplicated within inventory."
     MISSING_NDVR = "Element/type was not found in the expected NDVR location."
+    NOT_EXPECTED_IN_NDVR_YET = (
+        "Element/type is not expected in the source NDVR location yet."
+    )
 
     INVENTORY_NOT_IN_RELEASE = "Project is not connected to this release bundle."
     INVENTORY_WHEN_SQL_NO_INVENTORY = (
@@ -100,6 +103,28 @@ class ReasonBuilder:
         return message
 
     @staticmethod
+    def not_expected_in_ndvr_yet(
+        element: str,
+        type_: str,
+        expected_env: str,
+        available_date,
+        expected_system: str = "",
+        expected_subsystem: str = "",
+    ) -> str:
+        message = (
+            f"{StatusMessages.NOT_EXPECTED_IN_NDVR_YET} "
+            f"Expected {element} {type_} to exist in {expected_env}"
+        )
+
+        if expected_system or expected_subsystem:
+            message += f" / {expected_system} / {expected_subsystem}"
+
+        return (
+            f"{message} after the upstream QUAL move date "
+            f"{available_date.isoformat()}. Not packageable until then."
+        )
+
+    @staticmethod
     def inventory_not_in_release(
         project: str,
         release: str,
@@ -173,14 +198,13 @@ class ReasonBuilder:
         )
 
         if env:
-            message += f"Found opposite program type {element} {program_type} in {env}, "
+            message += (
+                f"Found opposite program type {element} {program_type} in {env}, "
+            )
         else:
             message += f"Expected opposite program type {element} {program_type}, "
 
-        return (
-            message
-            + f"but {element} {program_type} {inventory_detail}"
-        )
+        return message + f"but {element} {program_type} {inventory_detail}"
 
     @staticmethod
     def exists_in_fixp1(

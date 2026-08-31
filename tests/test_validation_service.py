@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+from datetime import date
+
 from app.core.models import (
     ArchiveStatus,
     AwarenessStatus,
@@ -15,6 +18,7 @@ from app.core.models import (
 from app.core.models import MainframeLocationRecord
 from app.services.reference_element_service import ReferenceElementService
 from app.services.status_marker_service import StatusMarkerService
+from app.services.validation_rules import location_rules as location_rule_module
 from app.services.validation_service import ValidationService
 
 
@@ -453,6 +457,64 @@ def test_missing_location_status() -> None:
     element = make_element()
     make_service().apply_location_status([element], FakeLocationService(set()), "PROD")
     assert element.location_status == LocationStatus.NOT_FOUND
+
+
+def test_prod_missing_qual_location_before_qual_date_is_warning(monkeypatch) -> None:
+    """Verifies future QUAL movement creates a not-expected-yet warning."""
+
+    class FixedDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return date(2026, 8, 31)
+
+    monkeypatch.setattr(location_rule_module, "date", FixedDate)
+    element = make_element()
+
+    make_service().apply_location_status(
+        [element],
+        FakeLocationService(set()),
+        "PROD",
+        release_efforts=[ReleaseEffort(effort_id="ABC", qual_date="2026-09-03")],
+    )
+
+    assert element.location_status == LocationStatus.NOT_EXPECTED_YET
+    assert element.location_status.severity == Severity.WARNING
+    assert "upstream QUAL move date 2026-09-03" in element.display_reason
+    assert "Not packageable until then" in element.display_reason
+
+
+def test_prod_missing_qual_location_on_or_after_qual_date_is_error(monkeypatch) -> None:
+    """Verifies missing QUAL location becomes an error once expected."""
+
+    class FixedDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return date(2026, 9, 3)
+
+    monkeypatch.setattr(location_rule_module, "date", FixedDate)
+    element = make_element()
+
+    make_service().apply_location_status(
+        [element],
+        FakeLocationService(set()),
+        "PROD",
+        release_efforts=[ReleaseEffort(effort_id="ABC", qual_date="2026-09-03")],
+    )
+
+    assert element.location_status == LocationStatus.NOT_FOUND
+    assert element.location_status.severity == Severity.ERROR
+    assert "expected NDVR location" in element.display_reason
+
+
+def test_not_expected_yet_location_status_blocks_selection_by_default() -> None:
+    """Verifies future missing-source warnings are not packageable by default."""
+    element = make_element()
+    element.location_status = LocationStatus.NOT_EXPECTED_YET
+
+    make_service().apply_selection_rules([element])
+
+    assert element.selected is False
+    assert element.selectable is False
 
 
 def test_validate_elements_can_skip_location_validation_for_forecast() -> None:

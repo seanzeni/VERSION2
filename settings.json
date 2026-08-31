@@ -71,6 +71,7 @@
     "inventory_when_sql_no_inventory_selectable": true,
     "marked_already_there_missing_selectable": true,
     "missing_ndvr_selectable": false,
+    "not_expected_ndvr_yet_selectable": false,
     "ndvr_rc_max_allowed": 8,
     "ndvr_rc_too_high_selectable": false,
     "overlap_selectable": false,

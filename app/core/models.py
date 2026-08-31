@@ -82,6 +82,7 @@ class ScheduleStatus(StrEnum):
 class LocationStatus(StrEnum):
     OK = "OK"
     FOUND = "FOUND"
+    NOT_EXPECTED_YET = "NOT_EXPECTED_YET"
     NOT_FOUND = "NOT_FOUND"
 
     @property
@@ -89,6 +90,7 @@ class LocationStatus(StrEnum):
         return {
             LocationStatus.OK: Severity.INFO,
             LocationStatus.FOUND: Severity.INFO,
+            LocationStatus.NOT_EXPECTED_YET: Severity.WARNING,
             LocationStatus.NOT_FOUND: Severity.ERROR,
         }.get(self, Severity.INFO)
 
@@ -97,6 +99,7 @@ class LocationStatus(StrEnum):
         return {
             LocationStatus.OK: "",
             LocationStatus.FOUND: "",
+            LocationStatus.NOT_EXPECTED_YET: "warning",
             LocationStatus.NOT_FOUND: "error",
         }.get(self, "")
 
@@ -105,6 +108,7 @@ class LocationStatus(StrEnum):
         return {
             LocationStatus.OK: "Location validation did not find a problem or was not required.",
             LocationStatus.FOUND: "Element/type was found in the expected NDVR location.",
+            LocationStatus.NOT_EXPECTED_YET: "Element/type is not expected in the source location yet.",
             LocationStatus.NOT_FOUND: "Element/type was not found in the expected NDVR location.",
         }.get(self, "")
 

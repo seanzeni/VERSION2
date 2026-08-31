@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 # Purpose:
 #     Validate that each movable element exists in its expected NDVR location.
@@ -20,10 +20,13 @@
 #     PROD moves normally validate from QUAL1, except archive moves which validate
 #     from PROD1.
 
+from datetime import date
+
 from app.core.models import Element
 from app.core.models import LocationStatus
 from app.core.models import MovementStatus
 from app.core.models import ScheduleStatus
+from app.core.release_rules import coerce_date
 from app.core.status_messages import ReasonBuilder
 from app.services.mainframe_location_service import MainframeLocationService
 from app.services.validation_rules import selection_rules
@@ -110,6 +113,26 @@ def apply(
             f"{record.env} / {record.system} / {record.subsystem}"
             for record in found_records
         ]
+
+        if pending_date := get_pending_source_available_date(
+            context=context,
+            element=element,
+        ):
+            element.location_status = LocationStatus.NOT_EXPECTED_YET
+            context.add_reason(
+                element=element,
+                reason=ReasonBuilder.not_expected_in_ndvr_yet(
+                    element=element.element,
+                    type_=element.type,
+                    expected_env=get_source_env_display(
+                        expected_env,
+                    ),
+                    expected_system=expected_system,
+                    expected_subsystem=expected_subsystem,
+                    available_date=pending_date,
+                ),
+            )
+            continue
 
         element.location_status = LocationStatus.NOT_FOUND
 
@@ -216,16 +239,62 @@ def get_source_env_display(
     return clean_env
 
 
+def get_pending_source_available_date(
+    context: ValidatorContext,
+    element: Element,
+) -> date | None:
+    if context.mode.strip().upper() != "PROD":
+        return None
+
+    if selection_rules.is_archive_move(element):
+        return None
+
+    effort = find_release_effort(
+        context=context,
+        effort_id=element.project,
+    )
+    if effort is None:
+        return None
+
+    qual_date = coerce_date(effort.qual_date)
+    if qual_date is None or qual_date <= date.today():
+        return None
+
+    return qual_date
+
+
+def find_release_effort(
+    context: ValidatorContext,
+    effort_id: str,
+):
+    clean_effort_id = str(effort_id).strip().upper()
+    if not clean_effort_id:
+        return None
+
+    return next(
+        (
+            effort
+            for effort in context.release_efforts
+            if effort.effort_id.strip().upper() == clean_effort_id
+        ),
+        None,
+    )
+
+
 def get_expected_system_for_move(
     mode: str,
     element: Element,
 ) -> str:
-    system_value = str(
-        element.source_row.get(
-            "System",
-            "",
+    system_value = (
+        str(
+            element.source_row.get(
+                "System",
+                "",
+            )
         )
-    ).strip().upper()
+        .strip()
+        .upper()
+    )
 
     if mode.upper() == "PROD" and system_value:
         return system_value[:7] + "1"
@@ -237,9 +306,13 @@ def get_expected_subsystem_for_move(
     mode: str,
     element: Element,
 ) -> str:
-    return str(
-        element.source_row.get(
-            "Subsys",
-            "",
+    return (
+        str(
+            element.source_row.get(
+                "Subsys",
+                "",
+            )
         )
-    ).strip().upper()
+        .strip()
+        .upper()
+    )
