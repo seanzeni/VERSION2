@@ -3,19 +3,33 @@
 ## Standalone Runner
 
 `scripts/run_all_reports.py` runs the standalone operational scripts together:
-after action, FIXP daily compare, NDVR daily move audit, global resync, region
-inventory audit, and TO QUAL/TO PROD movement reports.
+effort move status, FIXP daily stats, NDVR commercial audit, global resync,
+development region audit, and IN QUAL/IN PROD movement reports.
 
 Use `--date YYYY-MM-DD` for date-driven reports. If omitted, date-driven
 reports use the previous calendar day, while FIXP daily compare uses the latest
 two available FIXP file dates.
 
-Use `--output <folder>` to create a flat XLSX-only output drop. Existing `.xlsx`
-files in that folder are moved to `History` before the new files are published.
-Without `--output`, each script uses the normal default output settings and
-formats.
+Use `--output <folder>` to create a flat XLSX-only output drop. Generated files
+are staged first, then existing `.xlsx` files in that folder are moved to
+`History`, then the new files are published. This keeps the previous copy
+available until the replacement is ready.
 
-## Region Inventory Audit
+When scripts are run individually, `--output-folder <folder>` writes directly to
+that folder. Existing files with the same report/date stem are moved to
+`History`.
+
+Standalone operational report names use `DD_MMM_YYYY` date stamps:
+
+- `Effort_Move_Status_DD_MMM_YYYY`
+- `FIXP_Daily_Stats_DD_MMM_YYYY`
+- `Global_Resync_DD_MMM_YYYY`
+- `NDVR_Commercial_Audit_DD_MMM_YYYY`
+- `Development_Region_Audit_DD_MMM_YYYY`
+- `IN_PROD_DD_MMM_YYYY`
+- `IN_QUAL_DD_MMM_YYYY`
+
+## Development Region Audit
 
 `scripts/region_inventory_audit.py` reviews upcoming non-Special bundles with
 test regions. Before the 15th of the month, the bundle month window starts with
@@ -23,12 +37,18 @@ the previous month. On and after the 15th, the previous bundle month is dropped
 to match inventory cleanup. Bundles whose production implementation date has
 already passed are excluded.
 
+The standalone script writes:
+
+`Development_Region_Audit_DD_MMM_YYYY.xlsx`
+
 ## Global Resync Report
 
 `scripts/global_resync_report.py` scans the latest NDVR file across all
 non-FIXP lifecycle environments without release/project filtering. It reports
 same element/type records when an equal or higher lifecycle environment has a
-higher version than the target row. The output is XLSX only.
+higher version than the target row. The output is XLSX only:
+
+`Global_Resync_DD_MMM_YYYY.xlsx`
 
 ## Effort Summary Report
 
@@ -52,7 +72,8 @@ keep the PDF focused on effort-level risk.
 ## Issues Report
 
 `Issues_Report.csv` and `Issues_Report.xlsx` list rows with validation reasons.
-They include one status column per validation area:
+Only warning and error severities are included; informational statuses are
+excluded. They include one status column per validation area:
 
 - `Inventory Status`
 - `Schedule Status`
@@ -157,20 +178,33 @@ Output is written under:
 
 ## Resync Report
 
-`Resync_Report.csv`, `.xlsx`, and `.pdf` identify possible resync candidates
-from NDVR data using the selected move mode.
+`Resync_Report.csv`, `.xlsx`, and `.pdf` identify release-specific system
+sandbox cleanup candidates from NDVR data using the selected release and move
+mode.
 
-Lifecycle ordering is `UNIT1`/`UTDV1` < `SYST1`/`STDV1` < `QUAL1` < `PROD1`.
-Older `MAIN1` and `DEVL1` values are still treated as unit-level compatibility
-aliases when they appear in historical files.
+For the release-specific report, the rows being reviewed are all elements tied
+to efforts moving on the selected release date, including rows that are
+currently not selectable because of other validation issues. The report does
+not use the visible Element Table selection as its only source.
 
-For QUAL moves, `QUAL1` is the newer source. The report compares that version
-against unit and system lifecycle records, skipping the inventory row's current
-moving location so the row being promoted does not report itself.
+Only system lifecycle environments are compared: `SYST1` and `STDV1`. Unit
+environments (`UNIT1` and `UTDV1`), `QUAL1`, `PROD1`, and `FIXP1` are ignored
+for this release-specific view.
 
-For PROD moves, `PROD1` is the newer source. The report compares that version
-against `QUAL1`, unit, and system lifecycle records, again skipping the
-inventory row's current moving location. `FIXP1` is always ignored for resync.
+Testing Region comes from the loaded system-to-region lookup built from
+`MiscEnvironmentSystem` for `DEVL1` and `MAIN1`. If the found system record is
+in the release's active authorized testing region, it is skipped because that is
+the expected sandbox feeding the move.
+
+Remarks:
+
+- `plan for retrofit`: the system copy is tied to another active effort or the
+  NDVR CCID does not match the moving inventory effort.
+- `plan to delete - no authorized sandbox`: the system copy matches the moving
+  effort but is not in an active authorized sandbox.
+
+Use the standalone Global Resync Report for broad version-based lifecycle
+analysis across environments.
 
 ## OSG/COPS Report
 
@@ -195,12 +229,13 @@ the report and informational Effort Summary reason.
 ODS Elements is informational and appears in the ODS Elements report when a
 selected movement row matches the configured `Element` + `Type`.
 
-## After Action Report
+## Effort Move Status
 
-The `After Action` button in Report Center uses the entered `YYYY-MM-DD` date
+The after-action date control in Report Center uses the entered `YYYY-MM-DD` date
 independently from the currently selected release. It finds SQL bundles whose
-QUAL or PROD date equals that already-passed date, loads the connected inventory
-for each matching effort, and compares those elements to the loaded NDVR file.
+QUAL or PROD date equals that date, loads the connected inventory for each
+matching effort, and compares those elements to the loaded NDVR file. The date
+can be today or an earlier date.
 
 QUAL after-action checks for matching element/type records in `QUAL1` on the
 selected date. PROD after-action checks `PROD1` and also requires the expected
@@ -210,7 +245,11 @@ time when a matching record is found.
 The report supports CSV, XLSX, and PDF using the Report Center format
 checkboxes.
 
-## Standalone NDVR Daily Move Audit
+The standalone script writes directly to the selected/default output folder:
+
+`Effort_Move_Status_DD_MMM_YYYY.csv/.xlsx/.pdf`
+
+## Standalone NDVR Commercial Audit
 
 `scripts/ndvr_daily_move_audit.py` is intentionally separate from the desktop
 program. It scans all `.txt`, `.dat`, and `.csv` files in the configured NDVR
@@ -229,9 +268,10 @@ To audit a specific date:
 py -3.14 scripts/ndvr_daily_move_audit.py --date 2026-07-14
 ```
 
-The script uses `settings.json` by default and writes XLSX and PDF only under:
+The script uses `settings.json` by default and writes XLSX and PDF only directly
+to the selected/default output folder:
 
-`<default output folder>/NDVR Daily Move Audit/<yyyy-mm-dd>/`
+`NDVR_Commercial_Audit_DD_MMM_YYYY.xlsx/.pdf`
 
 Statuses:
 
@@ -243,6 +283,51 @@ Statuses:
   matching project had that move date. Expected SQL dates are listed.
 - `NOT_TRACKED_IN_INVENTORY`: the element/type moved in NDVR but was not found
   in the inventory file.
+
+## Standalone FIXP Daily Stats
+
+`scripts/fixp_daily_compare.py` compares FIXP lifecycle snapshots between two
+available FIXP file dates. It reads all `FIXP-YYYYMMDD_HHMMSS.txt` files for
+the compared dates.
+
+The workbook contains:
+
+- `Overview`: current date, compared date, and the exact FIXP files used for
+  each date. File lists are newline-separated and wrapped.
+- `Details`: one row per changed or unchanged FIXT1/FIXP1 location record.
+
+The daily snapshot keeps the earliest `date_generated` value seen for each
+environment/system/subsystem/element/type during a day. This lets the next-day
+run detect a same-day regeneration as `modified`.
+
+`FIXP Date` is the NDVR/FIXP `date_generated` value. `SourceDate` is used only
+to calculate `Days in FIXP` when present. If an item moves from `FIXT1` to
+`FIXP1`, the `FIXP1` row is reported as `added`; it is not treated as a
+deletion from `FIXT1` unless the item is gone from both lifecycle environments
+on the next snapshot.
+
+Inventory matches add the tracked release/project/TL and matching inventory
+CCID values. Owner and Manager are resolved from the FIXP user when directory
+lookup is configured; inventory TL values are also translated to display names
+when possible. The optional Access database enrichment joins `tblFIXP1` by
+Element, Type, System, and Subsystem and adds `DB_Issues_Fixes`, `DB_Comments`,
+`DB_Effort_ID`, `DB_Owner`, `DB_Manager`, and `DB_PROD_DATE`.
+
+If the workstation only has 32-bit Access drivers, configure
+`files.fixp_32bit_python`; the 64-bit script will run the small 32-bit helper
+only for the Access lookup.
+
+The standalone script writes:
+
+`FIXP_Daily_Stats_DD_MMM_YYYY.xlsx`
+
+## Standalone To Environment Reports
+
+`scripts/to_environment_report.py` writes separate actual-move awareness reports
+for QUAL and PROD:
+
+- `IN_QUAL_DD_MMM_YYYY.xlsx/.pdf`
+- `IN_PROD_DD_MMM_YYYY.xlsx/.pdf`
 
 ## Forecast Reports
 
@@ -277,6 +362,9 @@ Set any format or report to `false` to exclude it from forecast generation.
 Forecast output is written under:
 
 `<default output folder>/3 Month Forecast/<yyyy-mm>/<QUAL or PROD>/<release name>/`
+
+Despite the folder name, the current forecast window is the current month plus
+the following three months for non-Special `YYYY/MM...` releases.
 
 The Report Center progress area is scrollable so long forecast summaries remain
 visible without resizing the window.
