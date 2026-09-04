@@ -237,11 +237,10 @@ QUAL or PROD date equals that date, loads the connected inventory for each
 matching effort, and compares those elements to the loaded NDVR file. The date
 can be today or an earlier date.
 
-All after-action NDVR evidence is treated as an as-of-date view. Records dated
-after the selected report date are ignored so future QUAL/PROD movement does not
-change the outcome of an earlier report. When `files.default_ndvr_file` points
-to a directory, after-action loads dated NDVR snapshots through the selected
-report date instead of relying only on the latest UI-loaded snapshot.
+After-action uses dated NDVR snapshots instead of relying only on the latest
+UI-loaded snapshot when `files.default_ndvr_file` points to a directory. It
+loads files from the selected report date only. If no files exist for that date,
+such as a weekend with no export, it uses the next available file date.
 
 QUAL after-action checks for matching element/type records in `QUAL1` on the
 selected date. PROD after-action checks `PROD1` and also requires the expected

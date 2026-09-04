@@ -63,6 +63,23 @@ class FakeDbService:
         return []
 
 
+class StaticDbService:
+    def __init__(
+        self,
+        efforts: list[ReleaseEffort],
+    ) -> None:
+        self.efforts = efforts
+
+    def get_efforts_for_release(
+        self,
+        release: str,
+    ) -> list[ReleaseEffort]:
+        if release == "2026/07 release":
+            return self.efforts
+
+        return []
+
+
 def make_location_line(
     ndvr_package: str,
     element: str = "PGM001",
@@ -149,6 +166,25 @@ def make_context(
             }
         ),
     )
+
+
+def make_context_for_date(
+    dataframe: pd.DataFrame,
+    location_path: Path,
+    qual_date: date,
+    prod_date: date,
+) -> SimpleNamespace:
+    context = make_context(dataframe, location_path)
+    context.db_service = StaticDbService(
+        [
+            ReleaseEffort(
+                effort_id="ABC",
+                qual_date=qual_date,
+                prod_date=prod_date,
+            )
+        ]
+    )
+    return context
 
 
 def test_after_action_archive_missing_from_prod_is_confirmed(
@@ -563,10 +599,10 @@ def test_after_action_ignores_future_higher_location_for_selected_date(
     )
 
 
-def test_after_action_uses_historical_ndvr_directory_for_as_of_date(
+def test_after_action_uses_selected_date_ndvr_files_from_directory(
     tmp_path: Path,
 ) -> None:
-    """Historical snapshots are loaded so later PROD files do not hide prior QUAL."""
+    """Selected-date snapshots are loaded without sweeping older files."""
     dataframe = pd.DataFrame(
         [
             {
@@ -582,8 +618,17 @@ def test_after_action_uses_historical_ndvr_directory_for_as_of_date(
     )
     ndvr_folder = tmp_path / "ndvr"
     ndvr_folder.mkdir()
+    old_file = ndvr_folder / "NDVR-20260712.txt"
     qual_file = ndvr_folder / "NDVR-20260713.txt"
     prod_file = ndvr_folder / "NDVR-20260715.txt"
+    old_file.write_text(
+        make_location_line(
+            "OLDPKG",
+            env="QUAL1",
+            generated_date="2026/07/12",
+        ),
+        encoding="cp1252",
+    )
     qual_file.write_text(
         make_location_line(
             "QUALPKG",
@@ -601,7 +646,12 @@ def test_after_action_uses_historical_ndvr_directory_for_as_of_date(
         ),
         encoding="cp1252",
     )
-    context = make_context(dataframe, prod_file)
+    context = make_context_for_date(
+        dataframe=dataframe,
+        location_path=prod_file,
+        qual_date=date(2026, 7, 13),
+        prod_date=date(2026, 7, 15),
+    )
     context.base_dir = tmp_path
     context.settings = {
         "files": {
@@ -610,15 +660,71 @@ def test_after_action_uses_historical_ndvr_directory_for_as_of_date(
     }
 
     rows = AfterActionService(context)._build_rows(
-        selected_date=date(2026, 7, 14),
+        selected_date=date(2026, 7, 13),
     )
 
     assert rows[0][10] == "QUALPKG"
     assert rows[0][12] == "2026-07-13"
-    assert rows[0][14] == (
-        "Moved early. Expected move date was 2026-07-14, but the expected "
-        "location was found on 2026-07-13 using package QUALPKG."
+    assert rows[0][14] == "OK"
+
+
+def test_after_action_uses_next_ndvr_file_date_when_selected_date_missing(
+    tmp_path: Path,
+) -> None:
+    """Weekend gaps fall forward to the next available NDVR snapshot date."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC",
+                "Element": "PGM001",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "",
+            }
+        ]
     )
+    ndvr_folder = tmp_path / "ndvr"
+    ndvr_folder.mkdir()
+    friday_file = ndvr_folder / "NDVR-20260710.txt"
+    monday_file = ndvr_folder / "NDVR-20260713.txt"
+    friday_file.write_text(
+        make_location_line(
+            "FRIPKG",
+            env="QUAL1",
+            generated_date="2026/07/10",
+        ),
+        encoding="cp1252",
+    )
+    monday_file.write_text(
+        make_location_line(
+            "MONPKG",
+            env="QUAL1",
+            generated_date="2026/07/12",
+        ),
+        encoding="cp1252",
+    )
+    context = make_context_for_date(
+        dataframe=dataframe,
+        location_path=friday_file,
+        qual_date=date(2026, 7, 12),
+        prod_date=date(2026, 7, 15),
+    )
+    context.base_dir = tmp_path
+    context.settings = {
+        "files": {
+            "default_ndvr_file": str(ndvr_folder),
+        }
+    }
+
+    rows = AfterActionService(context)._build_rows(
+        selected_date=date(2026, 7, 12),
+    )
+
+    assert rows[0][10] == "MONPKG"
+    assert rows[0][12] == "2026-07-12"
+    assert rows[0][14] == "OK"
 
 
 def test_after_action_only_includes_inventory_scheduled_for_selected_date(

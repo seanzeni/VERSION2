@@ -115,7 +115,9 @@ class AfterActionService:
     ) -> list[list[object]]:
         rows: list[list[object]] = []
         original_location_service = self.context.location_service
-        as_of_location_service = self._build_as_of_location_service(selected_date)
+        as_of_location_service = self._build_report_date_location_service(
+            selected_date
+        )
 
         if as_of_location_service is not None:
             self.context.location_service = as_of_location_service
@@ -170,17 +172,17 @@ class AfterActionService:
 
         return rows
 
-    def _build_as_of_location_service(
+    def _build_report_date_location_service(
         self,
         selected_date: date,
     ) -> MainframeLocationService | None:
-        files = self._as_of_ndvr_files(selected_date)
+        files = self._report_date_ndvr_files(selected_date)
         if not files:
             return None
 
         return MainframeLocationService().load_files(files)
 
-    def _as_of_ndvr_files(
+    def _report_date_ndvr_files(
         self,
         selected_date: date,
     ) -> list[Path]:
@@ -194,22 +196,31 @@ class AfterActionService:
         if not source.is_dir():
             return []
 
-        candidates = {
+        files_by_date: dict[date, list[Path]] = {}
+        for candidate in {
             candidate
             for pattern in self.NDVR_FILE_PATTERNS
             for candidate in source.glob(pattern)
             if candidate.is_file()
-        }
+        }:
+            file_date = self._file_date(candidate)
+            if file_date is None or file_date < selected_date:
+                continue
+
+            files_by_date.setdefault(file_date, []).append(candidate)
+
+        if not files_by_date:
+            return []
+
+        chosen_date = (
+            selected_date
+            if selected_date in files_by_date
+            else min(files_by_date)
+        )
 
         return sorted(
-            [
-                candidate
-                for candidate in candidates
-                if self._file_date(candidate) is not None
-                and self._file_date(candidate) <= selected_date
-            ],
+            files_by_date[chosen_date],
             key=lambda candidate: (
-                self._file_date(candidate) or date.min,
                 candidate.stat().st_mtime,
                 candidate.name,
             ),
