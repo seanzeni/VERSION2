@@ -237,6 +237,10 @@ QUAL or PROD date equals that date, loads the connected inventory for each
 matching effort, and compares those elements to the loaded NDVR file. The date
 can be today or an earlier date.
 
+All after-action NDVR evidence is treated as an as-of-date view. Records dated
+after the selected report date are ignored so future QUAL/PROD movement does not
+change the outcome of an earlier report.
+
 QUAL after-action checks for matching element/type records in `QUAL1` on the
 selected date. PROD after-action checks `PROD1` and also requires the expected
 system and subsystem. The report includes the NDVR package, return code, and

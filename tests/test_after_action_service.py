@@ -473,6 +473,55 @@ def test_after_action_expected_env_prior_move_wins_over_higher_location(
     )
 
 
+def test_after_action_ignores_future_higher_location_for_selected_date(
+    tmp_path: Path,
+) -> None:
+    """Future PROD evidence does not affect an earlier QUAL after-action date."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC",
+                "Element": "PGM001",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "",
+            }
+        ]
+    )
+    location_path = tmp_path / "locations.txt"
+    location_path.write_text(
+        "\n".join(
+            [
+                make_location_line(
+                    "QUALPKG",
+                    env="QUAL1",
+                    generated_date="2026/07/13",
+                ),
+                make_location_line(
+                    "PRODPKG",
+                    env="PROD1",
+                    system="PRIVATE1",
+                    generated_date="2026/07/15",
+                ),
+            ]
+        ),
+        encoding="cp1252",
+    )
+
+    rows = AfterActionService(make_context(dataframe, location_path))._build_rows(
+        selected_date=date(2026, 7, 14),
+    )
+
+    assert rows[0][10] == "QUALPKG"
+    assert rows[0][12] == "2026-07-13"
+    assert rows[0][14] == (
+        "Moved early. Expected move date was 2026-07-14, but the expected "
+        "location was found on 2026-07-13 using package QUALPKG."
+    )
+
+
 def test_after_action_only_includes_inventory_scheduled_for_selected_date(
     tmp_path: Path,
 ) -> None:

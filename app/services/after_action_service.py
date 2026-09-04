@@ -186,6 +186,7 @@ class AfterActionService:
 
         marker_record = self._find_marked_environment_record(
             element=element,
+            as_of_date=move_date,
             expected_system=expected_system,
             expected_subsystem=expected_subsystem,
         )
@@ -214,6 +215,7 @@ class AfterActionService:
             and not self._exists_in_env(
                 element=element,
                 env="PROD1",
+                as_of_date=move_date,
             )
         ):
             return build_after_action_row(
@@ -244,6 +246,7 @@ class AfterActionService:
             last_move_record = self._find_last_move_record(
                 element=element,
                 mode=mode,
+                as_of_date=move_date,
                 expected_env=expected_env,
                 expected_system=expected_system,
                 expected_subsystem=expected_subsystem,
@@ -259,6 +262,7 @@ class AfterActionService:
             else:
                 equal_or_higher_records = self._find_equal_or_higher_records(
                     element=element,
+                    as_of_date=move_date,
                     expected_env=expected_env,
                     expected_system=expected_system,
                     expected_subsystem=expected_subsystem,
@@ -334,6 +338,7 @@ class AfterActionService:
         self,
         element: Element,
         mode: str,
+        as_of_date: date,
         expected_env: str,
         expected_system: str,
         expected_subsystem: str,
@@ -351,6 +356,7 @@ class AfterActionService:
             )
             if record.env.strip().upper() == expected_env
             and parse_report_date(record.date_generated) is not None
+            and self._record_date_on_or_before(record, as_of_date)
         ]
 
         if mode.upper() == "PROD":
@@ -376,6 +382,7 @@ class AfterActionService:
     def _find_equal_or_higher_records(
         self,
         element: Element,
+        as_of_date: date,
         expected_env: str,
         expected_system: str,
         expected_subsystem: str,
@@ -393,6 +400,7 @@ class AfterActionService:
                 element.type,
             )
             if self._env_level(record.env) > expected_level
+            and self._record_date_on_or_before(record, as_of_date)
         ]
 
         if expected_env.strip().upper() == "PROD1":
@@ -513,6 +521,7 @@ class AfterActionService:
     def _find_marked_environment_record(
         self,
         element: Element,
+        as_of_date: date,
         expected_system: str,
         expected_subsystem: str,
     ) -> MainframeLocationRecord | None:
@@ -535,6 +544,7 @@ class AfterActionService:
                     element.type,
                 )
                 if record.env.strip().upper() == env
+                and self._record_date_on_or_before(record, as_of_date)
             ]
             if env == "PROD1":
                 env_records = [
@@ -561,17 +571,29 @@ class AfterActionService:
         self,
         element: Element,
         env: str,
+        as_of_date: date,
     ) -> bool:
         location_service = self.context.location_service
 
         if location_service is None:
             return False
 
-        return location_service.exists_in_env(
-            element=element.element,
-            type_=element.type,
-            env=env,
+        return any(
+            record.env.strip().upper() == env.strip().upper()
+            and self._record_date_on_or_before(record, as_of_date)
+            for record in location_service.find(
+                element.element,
+                element.type,
+            )
         )
+
+    def _record_date_on_or_before(
+        self,
+        record: MainframeLocationRecord,
+        as_of_date: date,
+    ) -> bool:
+        record_date = parse_report_date(record.date_generated)
+        return record_date is not None and record_date <= as_of_date
 
     def _effort_move_date(
         self,
