@@ -242,6 +242,10 @@ selected date. PROD after-action checks `PROD1` and also requires the expected
 system and subsystem. The report includes the NDVR package, return code, and
 time when a matching record is found.
 
+If the element/type is found in the expected environment before the scheduled
+move date, the report uses that expected-environment record and marks the reason
+as `Moved early` instead of falling through to higher-environment evidence.
+
 The report supports CSV, XLSX, and PDF using the Report Center format
 checkboxes.
 

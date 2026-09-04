@@ -241,32 +241,40 @@ class AfterActionService:
         evidence_record = record
         moved_on_date = None
         if record is None:
-            equal_or_higher_records = self._find_equal_or_higher_records(
+            last_move_record = self._find_last_move_record(
                 element=element,
+                mode=mode,
                 expected_env=expected_env,
                 expected_system=expected_system,
                 expected_subsystem=expected_subsystem,
             )
-            if equal_or_higher_records:
-                evidence_record = equal_or_higher_records[0]
-                moved_on_date = "No"
-                reason = self._equal_or_higher_location_reason(
-                    records=equal_or_higher_records,
-                )
-            else:
-                last_move_record = self._find_last_move_record(
-                    element=element,
-                    mode=mode,
-                    expected_env=expected_env,
-                    expected_system=expected_system,
-                    expected_subsystem=expected_subsystem,
-                )
+            if last_move_record is not None:
                 evidence_record = last_move_record
                 moved_on_date = "No"
                 reason = self._missing_move_reason(
                     element=element,
+                    move_date=move_date,
                     last_move_record=last_move_record,
                 )
+            else:
+                equal_or_higher_records = self._find_equal_or_higher_records(
+                    element=element,
+                    expected_env=expected_env,
+                    expected_system=expected_system,
+                    expected_subsystem=expected_subsystem,
+                )
+                if equal_or_higher_records:
+                    evidence_record = equal_or_higher_records[0]
+                    moved_on_date = "No"
+                    reason = self._equal_or_higher_location_reason(
+                        records=equal_or_higher_records,
+                    )
+                else:
+                    reason = self._missing_move_reason(
+                        element=element,
+                        move_date=move_date,
+                        last_move_record=None,
+                    )
 
         return build_after_action_row(
             release=release,
@@ -439,6 +447,7 @@ class AfterActionService:
     def _missing_move_reason(
         self,
         element: Element,
+        move_date: date,
         last_move_record: MainframeLocationRecord | None,
     ) -> str:
         if last_move_record is None:
@@ -453,6 +462,15 @@ class AfterActionService:
             if last_move_date is not None
             else str(last_move_record.date_generated).strip()
         )
+
+        if last_move_date is not None and last_move_date < move_date:
+            return (
+                "Moved early. "
+                f"Expected move date was {move_date.isoformat()}, but the "
+                f"expected location was found on {last_move_text} using package "
+                f"{last_move_record.ndvr_package or 'Unknown'}."
+            )
+
         associated_text = (
             "Yes"
             if self._is_associated_with_inventory_project(

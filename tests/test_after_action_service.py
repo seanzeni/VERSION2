@@ -217,10 +217,10 @@ def test_after_action_regular_rows_are_ok(
     assert rows[0][14] == "OK"
 
 
-def test_after_action_missing_move_reports_last_move_and_project_association(
+def test_after_action_move_before_selected_date_reports_moved_early(
     tmp_path: Path,
 ) -> None:
-    """Missing moves show the last move date and inventory project association."""
+    """Expected-location moves before the selected date report as moved early."""
     dataframe = pd.DataFrame(
         [
             {
@@ -267,16 +267,15 @@ def test_after_action_missing_move_reports_last_move_and_project_association(
     assert rows[0][12] == "2026-07-12"
     assert rows[0][13] == "10:00:00:00"
     assert rows[0][14] == (
-        "No move detected for this date. Last move was 2026-07-12 using package "
-        "ABC. Last package associated with Project ABC12345: Yes; currently "
-        "associated with ABC12345."
+        "Moved early. Expected move date was 2026-07-15, but the expected "
+        "location was found on 2026-07-12 using package ABC."
     )
 
 
-def test_after_action_missing_move_reports_unassociated_last_move(
+def test_after_action_unassociated_move_before_selected_date_reports_moved_early(
     tmp_path: Path,
 ) -> None:
-    """Missing moves identify when the last move package does not match project."""
+    """Moved early reason takes precedence over package association detail."""
     dataframe = pd.DataFrame(
         [
             {
@@ -306,9 +305,8 @@ def test_after_action_missing_move_reports_unassociated_last_move(
     )
 
     assert rows[0][14] == (
-        "No move detected for this date. Last move was 2026-07-12 using package "
-        "XYZ. Last package associated with Project ABC12345: No; currently "
-        "associated with ABC12345."
+        "Moved early. Expected move date was 2026-07-15, but the expected "
+        "location was found on 2026-07-12 using package XYZ."
     )
 
 
@@ -420,6 +418,58 @@ def test_after_action_missing_qual_move_reports_higher_location(
     assert rows[0][14] == (
         "No move detected for this date. Found equal or higher NDVR location(s): "
         "PROD1 / PRIVATE1 / SYS1 on 2026-07-13 using package PKG888."
+    )
+
+
+def test_after_action_expected_env_prior_move_wins_over_higher_location(
+    tmp_path: Path,
+) -> None:
+    """A prior QUAL1 move is reported as moved early before checking PROD1."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC",
+                "Element": "PGM001",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "",
+            }
+        ]
+    )
+    location_path = tmp_path / "locations.txt"
+    location_path.write_text(
+        "\n".join(
+            [
+                make_location_line(
+                    "QUALPKG",
+                    env="QUAL1",
+                    generated_date="2026/07/13",
+                    time_generated="08:00:00:00",
+                ),
+                make_location_line(
+                    "PRODPKG",
+                    env="PROD1",
+                    system="PRIVATE1",
+                    generated_date="2026/07/13",
+                    time_generated="09:00:00:00",
+                ),
+            ]
+        ),
+        encoding="cp1252",
+    )
+
+    rows = AfterActionService(make_context(dataframe, location_path))._build_rows(
+        selected_date=date(2026, 7, 14),
+    )
+
+    assert rows[0][9] == "No"
+    assert rows[0][10] == "QUALPKG"
+    assert rows[0][12] == "2026-07-13"
+    assert rows[0][14] == (
+        "Moved early. Expected move date was 2026-07-14, but the expected "
+        "location was found on 2026-07-13 using package QUALPKG."
     )
 
 
