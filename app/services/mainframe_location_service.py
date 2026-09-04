@@ -105,13 +105,26 @@ class MainframeLocationService:
         self,
         file_path: str | Path,
     ) -> MainframeLocationService:
-        path = Path(file_path)
+        return self.load_files([file_path])
 
+    def load_files(
+        self,
+        file_paths: list[str | Path],
+    ) -> MainframeLocationService:
         self.records.clear()
         self.by_element_type.clear()
         self.by_element.clear()
         self.by_env.clear()
 
+        for file_path in file_paths:
+            self._load_records(Path(file_path))
+
+        return self
+
+    def _load_records(
+        self,
+        path: Path,
+    ) -> None:
         with path.open(
             "r",
             encoding="cp1252",
@@ -133,8 +146,6 @@ class MainframeLocationService:
                 self.by_element_type[record.key].append(record)
                 self.by_element[record.element_key].append(record)
                 self.by_env[record.env.upper()].append(record)
-
-        return self
 
     def _parse_line(
         self,

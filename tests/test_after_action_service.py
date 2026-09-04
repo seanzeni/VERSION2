@@ -563,6 +563,64 @@ def test_after_action_ignores_future_higher_location_for_selected_date(
     )
 
 
+def test_after_action_uses_historical_ndvr_directory_for_as_of_date(
+    tmp_path: Path,
+) -> None:
+    """Historical snapshots are loaded so later PROD files do not hide prior QUAL."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC",
+                "Element": "PGM001",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "",
+            }
+        ]
+    )
+    ndvr_folder = tmp_path / "ndvr"
+    ndvr_folder.mkdir()
+    qual_file = ndvr_folder / "NDVR-20260713.txt"
+    prod_file = ndvr_folder / "NDVR-20260715.txt"
+    qual_file.write_text(
+        make_location_line(
+            "QUALPKG",
+            env="QUAL1",
+            generated_date="2026/07/13",
+        ),
+        encoding="cp1252",
+    )
+    prod_file.write_text(
+        make_location_line(
+            "PRODPKG",
+            env="PROD1",
+            system="PRIVATE1",
+            generated_date="2026/07/15",
+        ),
+        encoding="cp1252",
+    )
+    context = make_context(dataframe, prod_file)
+    context.base_dir = tmp_path
+    context.settings = {
+        "files": {
+            "default_ndvr_file": str(ndvr_folder),
+        }
+    }
+
+    rows = AfterActionService(context)._build_rows(
+        selected_date=date(2026, 7, 14),
+    )
+
+    assert rows[0][10] == "QUALPKG"
+    assert rows[0][12] == "2026-07-13"
+    assert rows[0][14] == (
+        "Moved early. Expected move date was 2026-07-14, but the expected "
+        "location was found on 2026-07-13 using package QUALPKG."
+    )
+
+
 def test_after_action_only_includes_inventory_scheduled_for_selected_date(
     tmp_path: Path,
 ) -> None:

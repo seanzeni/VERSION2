@@ -4,7 +4,9 @@ from __future__ import annotations
 #     Build after-action report files for bundles executed on a selected date.
 
 import tempfile
+import re
 from datetime import date
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +24,10 @@ from app.services.mainframe_location_service import MainframeLocationService
 
 class AfterActionService:
     EARLY_MOVE_WINDOW_DAYS = 30
+    NDVR_FILE_PATTERNS = ("*.txt", "*.dat", "*.csv")
+    NDVR_FILE_DATE_PATTERN = re.compile(
+        r"(?P<date>\d{8}|\d{4}[-_/]\d{2}[-_/]\d{2})"
+    )
 
     def __init__(
         self,
@@ -108,53 +114,158 @@ class AfterActionService:
         selected_date: date,
     ) -> list[list[object]]:
         rows: list[list[object]] = []
+        original_location_service = self.context.location_service
+        as_of_location_service = self._build_as_of_location_service(selected_date)
 
-        for release in self.context.data_loader.get_releases():
-            efforts = self.context.db_service.get_efforts_for_release(release)
-            for mode in ("QUAL", "PROD"):
-                matching_efforts = [
-                    effort
-                    for effort in efforts
-                    if self._effort_move_date(effort, mode) == selected_date
-                ]
-                if not matching_efforts:
-                    continue
+        if as_of_location_service is not None:
+            self.context.location_service = as_of_location_service
 
-                projects = {
-                    effort.effort_id.strip()
-                    for effort in matching_efforts
-                    if effort.effort_id.strip()
-                }
-                release_df = self.context.data_loader.filter_release_projects(
-                    release=release,
-                    projects=projects,
-                )
-                elements = self.context.element_service.build_elements(release_df)
+        try:
+            for release in self.context.data_loader.get_releases():
+                efforts = self.context.db_service.get_efforts_for_release(release)
+                for mode in ("QUAL", "PROD"):
+                    matching_efforts = [
+                        effort
+                        for effort in efforts
+                        if self._effort_move_date(effort, mode) == selected_date
+                    ]
+                    if not matching_efforts:
+                        continue
 
-                for element in sorted(
-                    elements,
-                    key=lambda item: (
-                        item.project.upper(),
-                        item.element.upper(),
-                        item.type.upper(),
-                    ),
-                ):
-                    expected_env = self._target_env(mode)
-                    expected_system = self._expected_system(mode, element)
-                    expected_subsystem = self._expected_subsystem(element)
-                    rows.append(
-                        self._build_element_row(
-                            release=release,
-                            mode=mode,
-                            move_date=selected_date,
-                            element=element,
-                            expected_env=expected_env,
-                            expected_system=expected_system,
-                            expected_subsystem=expected_subsystem,
-                        )
+                    projects = {
+                        effort.effort_id.strip()
+                        for effort in matching_efforts
+                        if effort.effort_id.strip()
+                    }
+                    release_df = self.context.data_loader.filter_release_projects(
+                        release=release,
+                        projects=projects,
                     )
+                    elements = self.context.element_service.build_elements(release_df)
+
+                    for element in sorted(
+                        elements,
+                        key=lambda item: (
+                            item.project.upper(),
+                            item.element.upper(),
+                            item.type.upper(),
+                        )
+                    ):
+                        expected_env = self._target_env(mode)
+                        expected_system = self._expected_system(mode, element)
+                        expected_subsystem = self._expected_subsystem(element)
+                        rows.append(
+                            self._build_element_row(
+                                release=release,
+                                mode=mode,
+                                move_date=selected_date,
+                                element=element,
+                                expected_env=expected_env,
+                                expected_system=expected_system,
+                                expected_subsystem=expected_subsystem,
+                            )
+                        )
+        finally:
+            self.context.location_service = original_location_service
 
         return rows
+
+    def _build_as_of_location_service(
+        self,
+        selected_date: date,
+    ) -> MainframeLocationService | None:
+        files = self._as_of_ndvr_files(selected_date)
+        if not files:
+            return None
+
+        return MainframeLocationService().load_files(files)
+
+    def _as_of_ndvr_files(
+        self,
+        selected_date: date,
+    ) -> list[Path]:
+        source = self._ndvr_source()
+        if source is None:
+            return []
+
+        if source.is_file():
+            return [source]
+
+        if not source.is_dir():
+            return []
+
+        candidates = {
+            candidate
+            for pattern in self.NDVR_FILE_PATTERNS
+            for candidate in source.glob(pattern)
+            if candidate.is_file()
+        }
+
+        return sorted(
+            [
+                candidate
+                for candidate in candidates
+                if self._file_date(candidate) is not None
+                and self._file_date(candidate) <= selected_date
+            ],
+            key=lambda candidate: (
+                self._file_date(candidate) or date.min,
+                candidate.stat().st_mtime,
+                candidate.name,
+            ),
+        )
+
+    def _ndvr_source(
+        self,
+    ) -> Path | None:
+        source = getattr(
+            self.context,
+            "ndvr_source",
+            None,
+        )
+        if source is None:
+            settings = getattr(
+                self.context,
+                "settings",
+                {},
+            )
+            source = settings.get(
+                "files",
+                {},
+            ).get(
+                "default_ndvr_file",
+                "",
+            )
+
+        if not str(source).strip():
+            return None
+
+        path = Path(source)
+        if path.is_absolute():
+            return path
+
+        base_dir = Path(
+            getattr(
+                self.context,
+                "base_dir",
+                Path.cwd(),
+            )
+        )
+        return base_dir / path
+
+    def _file_date(
+        self,
+        file_path: Path,
+    ) -> date | None:
+        match = self.NDVR_FILE_DATE_PATTERN.search(file_path.name)
+        if match is None:
+            return None
+
+        value = match.group("date").replace("-", "").replace("_", "").replace("/", "")
+        try:
+            return datetime.strptime(value, "%Y%m%d").date()
+        except ValueError:
+            return None
 
     def _build_element_row(
         self,

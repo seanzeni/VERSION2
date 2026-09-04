@@ -102,10 +102,13 @@ def build_context(
     data_loader.load()
 
     return SimpleNamespace(
+        base_dir=base_dir,
         data_loader=data_loader,
         db_service=DBService(settings["database"]),
         element_service=ElementService(),
         location_service=MainframeLocationService().load_file(ndvr_path),
+        ndvr_source=ndvr_source or settings["files"]["default_ndvr_file"],
+        settings=settings,
         status_marker_service=StatusMarkerService(settings["status_markers"]),
     )
 
