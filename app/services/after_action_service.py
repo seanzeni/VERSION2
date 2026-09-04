@@ -21,6 +21,8 @@ from app.services.mainframe_location_service import MainframeLocationService
 
 
 class AfterActionService:
+    EARLY_MOVE_WINDOW_DAYS = 30
+
     def __init__(
         self,
         context: Any,
@@ -471,7 +473,10 @@ class AfterActionService:
             else str(last_move_record.date_generated).strip()
         )
 
-        if last_move_date is not None and last_move_date < move_date:
+        if (
+            last_move_date is not None
+            and 0 < (move_date - last_move_date).days <= self.EARLY_MOVE_WINDOW_DAYS
+        ):
             return (
                 "Moved early. "
                 f"Expected move date was {move_date.isoformat()}, but the "

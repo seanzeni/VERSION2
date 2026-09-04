@@ -310,6 +310,47 @@ def test_after_action_unassociated_move_before_selected_date_reports_moved_early
     )
 
 
+def test_after_action_old_expected_env_move_reports_no_move_detected(
+    tmp_path: Path,
+) -> None:
+    """Moves older than the early window use the normal last-move reason."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC12345",
+                "Element": "PGM001",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "",
+            }
+        ]
+    )
+    location_path = tmp_path / "locations.txt"
+    location_path.write_text(
+        make_location_line(
+            "ABC",
+            env="PROD1",
+            system="PRIVATE1",
+            generated_date="2026/06/01",
+        ),
+        encoding="cp1252",
+    )
+
+    rows = AfterActionService(make_context(dataframe, location_path))._build_rows(
+        selected_date=date(2026, 7, 15),
+    )
+
+    assert rows[0][10] == "ABC"
+    assert rows[0][12] == "2026-06-01"
+    assert rows[0][14] == (
+        "No move detected for this date. Last move was 2026-06-01 using package "
+        "ABC. Last package associated with Project ABC12345: Yes; currently "
+        "associated with ABC12345."
+    )
+
+
 def test_after_action_do_not_move_uses_marker_reason(
     tmp_path: Path,
 ) -> None:
