@@ -260,6 +260,15 @@ The standalone script writes directly to the selected/default output folder:
 
 `Effort_Move_Status_DD_MMM_YYYY.csv/.xlsx/.pdf`
 
+Standalone usage can be limited to specific efforts:
+
+```powershell
+py -3.14 scripts/after_action_report.py --date 2026-09-03 --efforts RD861J,BC1234
+```
+
+When `--efforts` is omitted, the script includes every effort scheduled for the
+selected day.
+
 ## Standalone NDVR Commercial Audit
 
 `scripts/ndvr_daily_move_audit.py` is intentionally separate from the desktop

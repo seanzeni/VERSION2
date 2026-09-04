@@ -49,6 +49,13 @@ def parse_args(
         help="Move date in YYYY-MM-DD format. Defaults to previous calendar day.",
     )
     parser.add_argument(
+        "--efforts",
+        help=(
+            "Optional comma-separated effort IDs to include, such as "
+            "RD861J,BC1234. Defaults to all efforts scheduled on the date."
+        ),
+    )
+    parser.add_argument(
         "--formats",
         nargs="+",
         choices=DEFAULT_FORMATS,
@@ -78,6 +85,19 @@ def parse_target_date(
         return (today or date.today()) - timedelta(days=1)
 
     return datetime.strptime(value, "%Y-%m-%d").date()
+
+
+def parse_efforts(
+    value: str | None,
+) -> set[str]:
+    if not value:
+        return set()
+
+    return {
+        effort.strip().upper()
+        for effort in value.split(",")
+        if effort.strip()
+    }
 
 
 def build_context(
@@ -140,6 +160,7 @@ def main(
         selected_date=target_date,
         output_folder=output_root,
         formats=args.formats,
+        effort_ids=parse_efforts(args.efforts),
     )
 
     print("Generated:")

@@ -764,3 +764,49 @@ def test_after_action_only_includes_inventory_scheduled_for_selected_date(
     )
 
     assert [row[4] for row in rows] == ["TODAY01"]
+
+
+def test_after_action_filters_to_requested_efforts(
+    tmp_path: Path,
+) -> None:
+    """Optional effort filters limit rows to matching scheduled efforts."""
+    dataframe = pd.DataFrame(
+        [
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC",
+                "Element": "KEEP001",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "",
+            },
+            {
+                "Release": "2026/07 release",
+                "Project": "ABC12345",
+                "Element": "SKIP001",
+                "Type": "OCOB",
+                "System": "PRIVATE0",
+                "Subsys": "SYS1",
+                "Package": "",
+            },
+        ]
+    )
+    location_path = tmp_path / "locations.txt"
+    location_path.write_text(
+        "\n".join(
+            [
+                make_location_line("PKG001", element="KEEP001"),
+                make_location_line("PKG002", element="SKIP001"),
+            ]
+        ),
+        encoding="cp1252",
+    )
+
+    rows = AfterActionService(make_context(dataframe, location_path))._build_rows(
+        selected_date=date(2026, 7, 14),
+        effort_ids={"abc"},
+    )
+
+    assert [row[3] for row in rows] == ["ABC"]
+    assert [row[4] for row in rows] == ["KEEP001"]

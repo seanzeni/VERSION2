@@ -40,13 +40,17 @@ class AfterActionService:
         selected_date: date,
         output_folder: Path,
         formats: list[str],
+        effort_ids: set[str] | None = None,
     ) -> list[Path]:
         output_folder.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-        rows = self._build_rows(selected_date)
+        rows = self._build_rows(
+            selected_date=selected_date,
+            effort_ids=effort_ids,
+        )
         report = AfterActionReport()
         file_stem = f"Effort_Move_Status_{report_date_stamp(selected_date)}"
 
@@ -112,8 +116,10 @@ class AfterActionService:
     def _build_rows(
         self,
         selected_date: date,
+        effort_ids: set[str] | None = None,
     ) -> list[list[object]]:
         rows: list[list[object]] = []
+        clean_effort_ids = self._clean_effort_ids(effort_ids)
         original_location_service = self.context.location_service
         as_of_location_service = self._build_report_date_location_service(
             selected_date
@@ -130,6 +136,7 @@ class AfterActionService:
                         effort
                         for effort in efforts
                         if self._effort_move_date(effort, mode) == selected_date
+                        and self._effort_is_requested(effort, clean_effort_ids)
                     ]
                     if not matching_efforts:
                         continue
@@ -171,6 +178,26 @@ class AfterActionService:
             self.context.location_service = original_location_service
 
         return rows
+
+    def _clean_effort_ids(
+        self,
+        effort_ids: set[str] | None,
+    ) -> set[str]:
+        return {
+            str(effort_id).strip().upper()
+            for effort_id in (effort_ids or set())
+            if str(effort_id).strip()
+        }
+
+    def _effort_is_requested(
+        self,
+        effort: ReleaseEffort,
+        effort_ids: set[str],
+    ) -> bool:
+        if not effort_ids:
+            return True
+
+        return effort.effort_id.strip().upper() in effort_ids
 
     def _build_report_date_location_service(
         self,
