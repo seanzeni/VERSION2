@@ -1,0 +1,266 @@
+{
+  "title": "Mainframe SDLC Modernization Roadmap",
+  "subtitle": "Contract, implementation, recovery readiness, and customer migration",
+  "start_year": 2026,
+  "end_year": 2031,
+  "lanes": [
+    { "id": "contracts", "label": "Contracts" },
+    { "id": "itso", "label": "ITSO" },
+    { "id": "ibm", "label": "IBM Solution", "sub_lane": true },
+    { "id": "rocket", "label": "Rocket ChangeMan", "sub_lane": true },
+    { "id": "commercial", "label": "Commercial" },
+    { "id": "pgba", "label": "PGBA" }
+  ],
+  "scenario_groups": [
+    {
+      "id": "contract",
+      "label": "Contract path",
+      "default": "early",
+      "options": [
+        { "value": "early", "label": "Early renewal: 2027–2029" },
+        { "value": "standard", "label": "Current term, then 2028–2030" }
+      ]
+    },
+    {
+      "id": "solution",
+      "label": "Selected SDLC solution",
+      "default": "ibm",
+      "options": [
+        { "value": "ibm", "label": "IBM DBB Suite" },
+        { "value": "rocket", "label": "Rocket ChangeMan" }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "lane": "contracts",
+      "start": 2026,
+      "end": 2028,
+      "label": "Current IBM OIO",
+      "category": "contract",
+      "detail": "Current IBM OIO term ends 01/01/2028.",
+      "row": 0
+    },
+    {
+      "lane": "contracts",
+      "start": 2027,
+      "end": 2030,
+      "label": "Early renewal",
+      "category": "contract",
+      "when": { "contract": "early" },
+      "detail": "Incentivized renewal runs 01/01/2027–12/31/2029.",
+      "row": 1
+    },
+    {
+      "lane": "contracts",
+      "start": 2028,
+      "end": 2031,
+      "label": "Standard renewal",
+      "category": "contract",
+      "when": { "contract": "standard" },
+      "detail": "If early incentives are not compelling, renew for 2028–2030.",
+      "row": 0
+    },
+    {
+      "lane": "contracts",
+      "start": 2030,
+      "end": 2034,
+      "label": "Next Contract",
+      "category": "contract",
+      "when": { "contract": "early" },
+      "row": 2,
+      "detail": "The early-renewal path requires another contract covering 2030–2033."
+    },
+
+    {
+      "lane": "itso",
+      "start": 2026,
+      "end": 2027,
+      "label": "Tool Discovery",
+      "category": "program",
+      "detail": "Tool discovery and IBM and Rocket proofs of concept conclude in 2026."
+    },
+    {
+      "lane": "itso",
+      "point": 2027,
+      "label": "Solution Decision",
+      "category": "decision",
+      "detail": "Determine whether the IBM suite is viable; otherwise proceed with Rocket ChangeMan."
+    },
+
+    {
+      "lane": "ibm",
+      "start": 2027,
+      "end": 2028,
+      "label": "IDzEE Design",
+      "category": "program",
+      "when": { "solution": "ibm" },
+      "detail": "Pull down IDzEE, then configure, design, document, and plan the new SDLC in 2027."
+    },
+    {
+      "lane": "ibm",
+      "start": 2027,
+      "end": 2028,
+      "label": "DR Planning",
+      "category": "recovery",
+      "when": { "solution": "ibm" },
+      "row": 1,
+      "detail": "Design disaster recovery for GitHub, Artifactory, and DevOps Deploy."
+    },
+    {
+      "lane": "ibm",
+      "start": 2027,
+      "end": 2028,
+      "label": "Test IBM Debugger",
+      "category": "program",
+      "when": { "solution": "ibm" },
+      "row": 2,
+      "detail": "Evaluate IBM Debugger as the InterTest replacement."
+    },
+    {
+      "lane": "ibm",
+      "start": 2028,
+      "end": 2029.5,
+      "label": "DR Deployment",
+      "category": "recovery",
+      "when": { "solution": "ibm" },
+      "detail": "Deploy distributed-tool disaster recovery and validate it during biannual exercises through mid-2029."
+    },
+    {
+      "lane": "ibm",
+      "start": 2028,
+      "end": 2029,
+      "label": "DBB Recovery",
+      "category": "recovery",
+      "when": { "solution": "ibm" },
+      "row": 1,
+      "detail": "Test mainframe DBB recovery and deploy the new SDLC lifecycle environments."
+    },
+    {
+      "lane": "ibm",
+      "point": 2028.75,
+      "label": "Solution Viability",
+      "row": 0,
+      "category": "decision",
+      "when": { "solution": "ibm" },
+      "detail": "Do we believe in the new DR plan and tested, or do we need to pivot."
+    },
+    {
+      "lane": "ibm",
+      "start": 2029,
+      "end": 2032,
+      "label": "IBM Migration",
+      "category": "migration",
+      "when": { "solution": "ibm" },
+      "row": 2,
+      "detail": "Customers begin moving production-ready code into the IBM solution in 2029."
+    },
+    {
+      "lane": "ibm",
+      "start": 2030,
+      "end": 2032,
+      "label": "ADFz Drawdown",
+      "category": "program",
+      "when": { "solution": "ibm", "contract": "early" },
+      "row": 1,
+      "detail": "Draw down ADFz in 2030 for File Manager, Fault Analyzer, and Application Performance Analyzer."
+    },
+    {
+      "lane": "ibm",
+      "start": 2029,
+      "end": 2031,
+      "label": "ADFz Drawdown",
+      "category": "program",
+      "when": { "solution": "ibm", "contract": "standard" },
+      "row": 1,
+      "detail": "Without early renewal, draw down ADFz during the 2028–2030 contract term for File Manager, Fault Analyzer, and Application Performance Analyzer."
+    },
+
+    {
+      "lane": "rocket",
+      "start": 2029,
+      "end": 2030,
+      "label": "ChangeMan Setup",
+      "category": "program",
+      "when": { "solution": "rocket" },
+      "detail": "Begin ChangeMan development and setup in 2029."
+    },
+    {
+      "lane": "rocket",
+      "start": 2029.45,
+      "end": 2030,
+      "label": "Recovery testing",
+      "category": "recovery",
+      "when": { "solution": "rocket" },
+      "row": 1,
+      "detail": "Conduct ChangeMan recovery tests in 2029."
+    },
+    {
+      "lane": "rocket",
+      "start": 2030,
+      "end": 2032,
+      "label": "Rocket Migration",
+      "category": "migration",
+      "when": { "solution": "rocket" },
+      "detail": "Customers begin moving code to ChangeMan in 2030."
+    },
+
+    {
+      "lane": "commercial",
+      "start": 2026,
+      "end": 2030,
+      "label": "APS conversion",
+      "category": "customer",
+      "detail": "Commercial APS conversion completes by the end of 2029."
+    },
+    {
+      "lane": "commercial",
+      "start": 2029,
+      "end": 2032,
+      "label": "IBM Migration",
+      "category": "migration",
+      "when": { "solution": "ibm" },
+      "row": 1,
+      "detail": "Commercial begins moving production-ready code to the IBM solution in 2029."
+    },
+    {
+      "lane": "commercial",
+      "start": 2030,
+      "end": 2032,
+      "label": "Rocket Migration",
+      "category": "migration",
+      "when": { "solution": "rocket" },
+      "row": 1,
+      "detail": "Commercial begins moving production-ready code to Rocket ChangeMan in 2030."
+    },
+
+    {
+      "lane": "pgba",
+      "start": 2026,
+      "end": 2030,
+      "label": "APS conversion",
+      "category": "customer",
+      "detail": "PGBA APS conversion completes by the end of 2029."
+    },
+    {
+      "lane": "pgba",
+      "start": 2029,
+      "end": 2032,
+      "label": "IBM Migration",
+      "category": "migration",
+      "when": { "solution": "ibm" },
+      "row": 1,
+      "detail": "PGBA begins moving production-ready code to the IBM solution in 2029."
+    },
+    {
+      "lane": "pgba",
+      "start": 2030,
+      "end": 2032,
+      "label": "Rocket Migration",
+      "category": "migration",
+      "when": { "solution": "rocket" },
+      "row": 1,
+      "detail": "PGBA begins moving production-ready code to Rocket ChangeMan in 2030."
+    }
+  ]
+}
