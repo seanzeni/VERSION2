@@ -71,11 +71,16 @@
       text.addEventListener("click", show);
       svg.append(text);
     }
-    const hit = node("rect", { x: px - 10, y: y - 8, width: Math.max(44, entry.label.length * 7 + 32), height: 36, class: "decision-hit", role: "button", tabindex: 0, "aria-label": `${entry.label}. ${entry.detail || ""}` });
-    hit.addEventListener("click", show);
-    hit.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); show(); }
-    });
+    const hitAttributes = { x: px - 10, y: y - 8, width: Math.max(44, entry.label.length * 7 + 32), height: 36, class: `decision-hit${active ? "" : " is-inactive"}` };
+    if (active) Object.assign(hitAttributes, { role: "button", tabindex: 0, "aria-label": `${entry.label}. ${entry.detail || ""}` });
+    else hitAttributes["aria-hidden"] = "true";
+    const hit = node("rect", hitAttributes);
+    if (active) {
+      hit.addEventListener("click", show);
+      hit.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); show(); }
+      });
+    }
     svg.append(hit);
   }
 
@@ -89,8 +94,11 @@
     const clip = node("clipPath", { id: clipId });
     clip.append(node("rect", { x: start + 3, y, width: Math.max(1, width - 6), height }));
     defs.append(clip);
-    const bar = node("rect", { x: start, y, width, height, rx: 3, class: `bar ${entry.category || "program"}`, opacity: active ? 1 : 0.13, "aria-label": `${entry.label}. ${entry.detail || ""}` });
-    bar.addEventListener("click", () => { detail.textContent = `${entry.label} — ${entry.detail || ""}`; });
+    const barAttributes = { x: start, y, width, height, rx: 3, class: `bar ${entry.category || "program"}${active ? "" : " is-inactive"}`, opacity: active ? 1 : 0.13 };
+    if (active) barAttributes["aria-label"] = `${entry.label}. ${entry.detail || ""}`;
+    else barAttributes["aria-hidden"] = "true";
+    const bar = node("rect", barAttributes);
+    if (active) bar.addEventListener("click", () => { detail.textContent = `${entry.label} — ${entry.detail || ""}`; });
     svg.append(bar);
     if (active && width > 34) {
       const text = node("text", { x: start + 6, y: y + 9, class: "bar-text", "clip-path": `url(#${clipId})` });
