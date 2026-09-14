@@ -89,6 +89,37 @@ def get_date_folder_path(
     )
 
 
+def get_release_mode_date_folder_path(
+    release: str,
+    mode: str,
+    move_date: str | object | None,
+    base_path: str | Path,
+) -> Path:
+    mode_name = safe_release_name(str(mode).strip().lower()) or "unknown_mode"
+    date_name = safe_release_name(_format_move_date(move_date))
+
+    return Path(base_path) / safe_release_name(release) / f"{mode_name}_{date_name}"
+
+
+def get_release_mode_date_folder(
+    release: str,
+    mode: str,
+    move_date: str | object | None,
+    base_path: str | Path,
+) -> Path:
+    output_folder = get_release_mode_date_folder_path(
+        release=release,
+        mode=mode,
+        move_date=move_date,
+        base_path=base_path,
+    )
+    output_folder.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    return output_folder
+
+
 def make_writable(
     file_path: Path,
 ) -> None:
@@ -146,10 +177,15 @@ def publish_staged_outputs(
     staged_files: list[Path],
     output_folder: Path,
     file_stems: list[str],
+    archive_prefixes: list[str] | None = None,
 ) -> list[Path]:
     output_folder.mkdir(
         parents=True,
         exist_ok=True,
+    )
+    archive_prefixed_reports(
+        target_folder=output_folder,
+        prefixes=archive_prefixes or [],
     )
     archive_exact_stem_reports(
         target_folder=output_folder,
@@ -168,6 +204,40 @@ def publish_staged_outputs(
         published_files.append(destination)
 
     return published_files
+
+
+def archive_prefixed_reports(
+    target_folder: Path,
+    prefixes: list[str],
+) -> None:
+    prefix_names = tuple(prefix.upper() for prefix in prefixes if prefix.strip())
+    if not prefix_names:
+        return
+
+    history_folder = target_folder / "History"
+    history_folder.mkdir(
+        exist_ok=True,
+    )
+
+    for file_path in target_folder.iterdir():
+        if not file_path.is_file():
+            continue
+
+        if not file_path.stem.upper().startswith(prefix_names):
+            continue
+
+        destination = get_unique_path(history_folder / file_path.name)
+        try:
+            make_writable(file_path)
+            shutil.move(
+                str(file_path),
+                str(destination),
+            )
+            make_read_only(destination)
+        except PermissionError as exc:
+            raise PermissionError(
+                f"Unable to archive {file_path.name}. Close the file if it is open and try again."
+            ) from exc
 
 
 def archive_exact_stem_reports(

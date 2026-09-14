@@ -70,6 +70,7 @@ class AfterActionService:
                 staged_files=staged_files,
                 output_folder=output_folder,
                 file_stems=[file_stem],
+                archive_prefixes=["Effort_Move_Status_"],
             )
 
     def _generate_report_files(

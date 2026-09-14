@@ -339,6 +339,7 @@ class RegionInventoryAudit:
                 staged_files=[output_path],
                 output_folder=self.output_folder,
                 file_stems=[file_stem],
+                archive_prefixes=["Development_Region_Audit_"],
             )
 
     def build_rows(

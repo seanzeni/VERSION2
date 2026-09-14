@@ -28,9 +28,9 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from app.reports.report_utils import archive_existing_reports
-from app.reports.report_utils import archive_matching_reports
 from app.reports.report_utils import build_report_file_prefix
 from app.reports.report_utils import get_date_folder_path
+from app.reports.report_utils import get_release_mode_date_folder
 from app.reports.report_utils import prefix_report_files
 from app.reports.report_utils import safe_release_name
 from app.services.after_action_service import AfterActionService
@@ -397,16 +397,18 @@ class ReportCenter(ctk.CTkToplevel):
                 move_date,
             )
             if sharepoint_service is None:
-                output_folder = Path(self.output_folder_var.get())
-                output_folder.mkdir(parents=True, exist_ok=True)
-                archive_matching_reports(
-                    output_folder,
-                    file_prefix,
+                output_folder = get_release_mode_date_folder(
+                    release=self.app_state.release,
+                    mode=self.app_state.mode,
+                    move_date=move_date,
+                    base_path=Path(self.output_folder_var.get()),
                 )
+                archive_existing_reports(output_folder)
             else:
-                output_folder = sharepoint_service.prepare_release_folder(
+                output_folder = sharepoint_service.prepare_release_mode_date_folder(
                     self.app_state.release,
-                    file_prefix=file_prefix,
+                    self.app_state.mode,
+                    move_date,
                 )
         except (OSError, PermissionError, ValueError) as exc:
             messagebox.showerror(

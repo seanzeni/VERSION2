@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 from app.reports.report_utils import archive_matching_reports
 from app.reports.report_utils import archive_existing_reports
 from app.reports.report_utils import build_report_file_prefix
+from app.reports.report_utils import get_release_mode_date_folder
 from app.reports.report_utils import make_read_only
 from app.reports.report_utils import safe_release_name
 
@@ -43,6 +44,21 @@ class SharePointReportService:
             )
         else:
             archive_existing_reports(folder)
+        return folder
+
+    def prepare_release_mode_date_folder(
+        self,
+        release: str,
+        mode: str,
+        move_date: str | object | None,
+    ) -> Path:
+        folder = get_release_mode_date_folder(
+            release=release,
+            mode=mode,
+            move_date=move_date,
+            base_path=self.root,
+        )
+        archive_existing_reports(folder)
         return folder
 
     @staticmethod

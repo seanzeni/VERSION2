@@ -249,6 +249,7 @@ class FixpDailyCompare:
                 staged_files=[staged_path],
                 output_folder=self.output_folder,
                 file_stems=[file_stem],
+                archive_prefixes=["FIXP_Daily_Stats_"],
             )
 
     def build_rows(

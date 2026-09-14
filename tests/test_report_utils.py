@@ -9,8 +9,11 @@ from app.reports.report_utils import archive_existing_reports
 from app.reports.report_utils import build_report_file_prefix
 from app.reports.report_utils import get_date_folder
 from app.reports.report_utils import get_date_folder_path
+from app.reports.report_utils import get_release_mode_date_folder
+from app.reports.report_utils import get_release_mode_date_folder_path
 from app.reports.report_utils import make_writable
 from app.reports.report_utils import prefix_report_files
+from app.reports.report_utils import publish_staged_outputs
 from app.reports.report_utils import safe_release_name
 from app.reports.report_utils import sort_elements
 
@@ -32,6 +35,34 @@ def test_get_date_folder_path_does_not_create_folder(tmp_path: Path) -> None:
     folder = get_date_folder_path("REL1", tmp_path)
     assert not folder.exists()
     assert folder.parent.name == "REL1"
+
+
+def test_get_release_mode_date_folder_path_does_not_create_folder(
+    tmp_path: Path,
+) -> None:
+    """Verifies selected reports use release/mode/move-date folder naming."""
+    folder = get_release_mode_date_folder_path(
+        release="2026/09 Release",
+        mode="QUAL",
+        move_date="2026-09-03",
+        base_path=tmp_path,
+    )
+
+    assert folder == tmp_path / "2026_09_Release" / "qual_2026-09-03"
+    assert not folder.exists()
+
+
+def test_get_release_mode_date_folder_creates_folder(tmp_path: Path) -> None:
+    """Verifies selected report output folders are created when used."""
+    folder = get_release_mode_date_folder(
+        release="2026/09 Release",
+        mode="PROD",
+        move_date="2026-09-04",
+        base_path=tmp_path,
+    )
+
+    assert folder.exists()
+    assert folder == tmp_path / "2026_09_Release" / "prod_2026-09-04"
 
 
 def test_archive_existing_reports_moves_files(tmp_path: Path) -> None:
@@ -60,6 +91,32 @@ def test_archive_existing_reports_keeps_existing_history_file(tmp_path: Path) ->
     assert existing.read_text(encoding="utf-8") == "old"
     for archived_file in archived_files:
         make_writable(archived_file)
+
+
+def test_publish_staged_outputs_archives_prior_dated_family(
+    tmp_path: Path,
+) -> None:
+    """Verifies dated report families move older dates to History before publishing."""
+    old_report = tmp_path / "Global_Resync_13_SEP_2026.xlsx"
+    old_report.write_text("old", encoding="utf-8")
+    staging = tmp_path / "staging"
+    staging.mkdir()
+    staged_report = staging / "Global_Resync_14_SEP_2026.xlsx"
+    staged_report.write_text("new", encoding="utf-8")
+
+    published = publish_staged_outputs(
+        staged_files=[staged_report],
+        output_folder=tmp_path,
+        file_stems=["Global_Resync_14_SEP_2026"],
+        archive_prefixes=["Global_Resync_"],
+    )
+
+    assert published == [tmp_path / "Global_Resync_14_SEP_2026.xlsx"]
+    assert not old_report.exists()
+    assert (tmp_path / "History" / old_report.name).exists()
+    assert published[0].exists()
+    make_writable(tmp_path / "History" / old_report.name)
+    make_writable(published[0])
 
 
 def test_build_report_file_prefix_uses_release_and_move_date() -> None:

@@ -105,6 +105,7 @@ class GlobalResyncReport:
                 staged_files=[output_path],
                 output_folder=self.output_folder,
                 file_stems=[file_stem],
+                archive_prefixes=["Global_Resync_"],
             )
 
     def build_rows(

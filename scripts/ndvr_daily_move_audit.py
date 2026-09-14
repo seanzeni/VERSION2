@@ -169,6 +169,7 @@ class DailyMoveAudit:
                 staged_files=staged_files,
                 output_folder=self.output_folder,
                 file_stems=[file_stem],
+                archive_prefixes=["NDVR_Commercial_Audit_"],
             )
 
     def build_rows(
