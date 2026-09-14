@@ -5,7 +5,7 @@ from __future__ import annotations
 #
 # Usage:
 #     py -3.14 scripts/run_all_reports.py
-#     py -3.14 scripts/run_all_reports.py --date 2026-07-21 --output C:\Reports\Daily
+#     py -3.14 scripts/run_all_reports.py --date 2026-07-21 --output-folder C:\Reports\Daily
 
 import argparse
 import shutil
@@ -74,11 +74,17 @@ def parse_args(
         ),
     )
     parser.add_argument(
-        "--output",
+        "--output-folder",
+        dest="output_folder",
         help=(
             "Optional folder for a flat XLSX-only output drop. Existing XLSX "
             "files in this folder are moved to History after replacements are generated."
         ),
+    )
+    parser.add_argument(
+        "--output",
+        dest="output_folder",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--inventory-file",
@@ -301,7 +307,9 @@ def create_context(
         base_dir=base_dir,
         report_date=parse_report_date(args.date),
         date_provided=bool(args.date),
-        output_root=resolve_path(args.output, base_dir) if args.output else None,
+        output_root=(
+            resolve_path(args.output_folder, base_dir) if args.output_folder else None
+        ),
         staging_root=staging_root,
         inventory_file=Path(args.inventory_file) if args.inventory_file else None,
         ndvr_source=Path(args.ndvr_source) if args.ndvr_source else None,
@@ -339,9 +347,9 @@ def main(
 ) -> int:
     args = parse_args(argv)
 
-    if args.output:
+    if args.output_folder:
         output_root = resolve_path(
-            args.output,
+            args.output_folder,
             Path(args.settings).resolve().parent,
         )
         with tempfile.TemporaryDirectory(prefix="version2-report-runner-") as temp_dir:

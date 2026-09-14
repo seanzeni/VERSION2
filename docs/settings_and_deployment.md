@@ -161,9 +161,9 @@ Standalone operational scripts write directly to the configured output folder or
 the folder passed with `--output-folder`. Previous files for the same report/date
 stem are moved into `History` after the replacement file has been generated.
 
-`scripts/run_all_reports.py --output <folder>` creates a flat XLSX-only drop in
-the selected folder. It stages all new workbooks first, moves existing `.xlsx`
-files in the drop folder to `History`, then publishes the new workbooks.
+`scripts/run_all_reports.py --output-folder <folder>` creates a flat XLSX-only
+drop in the selected folder. It stages all new workbooks first, moves existing
+`.xlsx` files in the drop folder to `History`, then publishes the new workbooks.
 
 Current standalone file stems:
 

@@ -164,7 +164,7 @@ def test_main_output_override_archives_after_generation(
         [
             "--settings",
             str(settings_path),
-            "--output",
+            "--output-folder",
             str(output_root),
         ]
     )
@@ -185,3 +185,19 @@ def test_main_output_override_archives_after_generation(
             True,
         ),
     ]
+
+
+def test_parse_args_keeps_output_alias_for_compatibility(
+    tmp_path: Path,
+) -> None:
+    """Verifies old --output commands still map to the standardized option."""
+    output_root = tmp_path / "drop"
+
+    args = runner_module.parse_args(
+        [
+            "--output",
+            str(output_root),
+        ]
+    )
+
+    assert args.output_folder == str(output_root)

@@ -10,14 +10,14 @@ Use `--date YYYY-MM-DD` for date-driven reports. If omitted, date-driven
 reports use the previous calendar day, while FIXP daily compare uses the latest
 two available FIXP file dates.
 
-Use `--output <folder>` to create a flat XLSX-only output drop. Generated files
-are staged first, then existing `.xlsx` files in that folder are moved to
+Use `--output-folder <folder>` to create a flat XLSX-only output drop. Generated
+files are staged first, then existing `.xlsx` files in that folder are moved to
 `History`, then the new files are published. This keeps the previous copy
 available until the replacement is ready.
 
-When scripts are run individually, `--output-folder <folder>` writes directly to
-that folder. Existing files with the same report/date stem are moved to
-`History`.
+When scripts are run individually, `--output-folder <folder>` also writes
+directly to that folder. Existing files with the same report/date stem are moved
+to `History`.
 
 Standalone operational report names use `DD_MMM_YYYY` date stamps:
 
