@@ -48,6 +48,32 @@ def test_load_settings(tmp_path: Path) -> None:
     assert "database" in SettingsLoader(path).load()
 
 
+def test_load_settings_applies_personal_overrides(tmp_path: Path) -> None:
+    """Verifies settings.local.json overrides shared settings recursively."""
+    path = tmp_path / "settings.json"
+    personal_path = tmp_path / "settings.local.json"
+    path.write_text(json.dumps(make_settings()), encoding="utf-8")
+    personal_path.write_text(
+        json.dumps(
+            {
+                "files": {
+                    "default_input_file": "C:/Users/me/inventory.xlsx",
+                },
+                "reports": {
+                    "use_sharepoint": True,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    settings = SettingsLoader(path).load()
+
+    assert settings["files"]["default_input_file"] == "C:/Users/me/inventory.xlsx"
+    assert settings["files"]["default_ndvr_file"] == "test.txt"
+    assert settings["reports"]["use_sharepoint"] is True
+
+
 def test_missing_settings_file_raises(tmp_path: Path) -> None:
     """Verifies missing settings file raises."""
     with pytest.raises(FileNotFoundError):
@@ -106,3 +132,32 @@ def test_save_settings(tmp_path: Path) -> None:
     assert (
         loaded["files"]["default_input_file"] == settings["files"]["default_input_file"]
     )
+
+
+def test_update_override_value_preserves_existing_personal_settings(
+    tmp_path: Path,
+) -> None:
+    """Verifies single-value personal setting updates do not rewrite shared settings."""
+    path = tmp_path / "settings.local.json"
+    path.write_text(
+        json.dumps(
+            {
+                "files": {
+                    "default_output_folder": "C:/Reports",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    SettingsLoader.update_override_value(
+        settings_path=path,
+        section="files",
+        key="default_ndvr_file",
+        value="C:/NDVR/latest.txt",
+    )
+
+    loaded = json.loads(path.read_text(encoding="utf-8"))
+
+    assert loaded["files"]["default_output_folder"] == "C:/Reports"
+    assert loaded["files"]["default_ndvr_file"] == "C:/NDVR/latest.txt"

@@ -5,6 +5,32 @@
 `settings.json` is expected to live next to the application when running from
 source or from a packaged executable.
 
+Each user can also create a git-ignored `settings.local.json` beside
+`settings.json`. The app loads `settings.json` first, then recursively applies
+any values from `settings.local.json`. This keeps shared defaults in sync while
+allowing personal paths, SharePoint choices, and UI/report preferences to stay
+local.
+
+Example `settings.local.json`:
+
+```json
+{
+  "files": {
+    "default_input_file": "C:/Users/me/Documents/current_inventory.xlsx",
+    "default_ndvr_file": "C:/Users/me/Documents/ndvr",
+    "default_output_folder": "C:/Users/me/Documents/Reports"
+  },
+  "reports": {
+    "use_sharepoint": false
+  }
+}
+```
+
+Only include the values that should differ from shared `settings.json`. Nested
+objects are merged, while lists and simple values replace the shared value. When
+`files.remember_last_used_files` is enabled, the app writes remembered file paths
+to `settings.local.json` instead of changing shared `settings.json`.
+
 Important file settings:
 
 - `directory.person_lookup_url`: optional HTTP endpoint used by standalone FIXP

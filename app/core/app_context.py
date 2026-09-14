@@ -14,7 +14,7 @@ from __future__ import annotations
 #     - Load settings and resolve configured file paths.
 #     - Prompt for missing required or optional startup files.
 #     - Construct shared services used by the UI and reports.
-#     - Persist remembered file selections back to settings.json.
+#     - Persist remembered file selections back to personal settings.
 #
 # Notes:
 #     MainWindow should create UI widgets only.
@@ -44,9 +44,11 @@ class AppContext:
         self.base_dir = Path(base_dir)
         self.settings_path = Path(settings_path)
 
-        self.settings = SettingsLoader(
+        settings_loader = SettingsLoader(
             self.settings_path,
-        ).load()
+        )
+        self.personal_settings_path = settings_loader.personal_settings_path
+        self.settings = settings_loader.load()
 
         input_path = self.resolve_startup_file(
             key="default_input_file",
@@ -308,7 +310,14 @@ class AppContext:
 
         self.settings["files"][key] = new_value
 
-        SettingsLoader.save(
-            settings_path=self.settings_path,
-            settings=self.settings,
+        personal_settings_path = getattr(
+            self,
+            "personal_settings_path",
+            self.settings_path.with_name(SettingsLoader.PERSONAL_SETTINGS_NAME),
+        )
+        SettingsLoader.update_override_value(
+            settings_path=personal_settings_path,
+            section="files",
+            key=key,
+            value=new_value,
         )

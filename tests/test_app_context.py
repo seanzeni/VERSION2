@@ -49,6 +49,7 @@ def build_context(
     context = AppContext.__new__(AppContext)
     context.base_dir = tmp_path
     context.settings_path = settings_path
+    context.personal_settings_path = tmp_path / "settings.local.json"
     context.settings = settings
 
     return context
@@ -79,9 +80,13 @@ def test_missing_optional_startup_file_prompts_and_saves(
         required=False,
     )
 
-    saved_settings = json.loads(context.settings_path.read_text(encoding="utf-8"))
+    shared_settings = json.loads(context.settings_path.read_text(encoding="utf-8"))
+    saved_settings = json.loads(
+        context.personal_settings_path.read_text(encoding="utf-8")
+    )
 
     assert resolved == selected_file
+    assert shared_settings["files"]["default_ndvr_file"] == "missing-ndvr.txt"
     assert saved_settings["files"]["default_ndvr_file"] == str(selected_file)
 
 
@@ -178,9 +183,10 @@ def test_ndvr_directory_loads_latest_file_and_preserves_setting(
         required=False,
     )
     service = context.load_location_file(resolved)
-    saved_settings = json.loads(context.settings_path.read_text(encoding="utf-8"))
+    shared_settings = json.loads(context.settings_path.read_text(encoding="utf-8"))
 
     assert resolved == ndvr_folder
     assert context.state.current_ndvr_path == new_file
     assert service.records[0].element == "NEWPGM"
-    assert saved_settings["files"]["default_ndvr_file"] == str(ndvr_folder)
+    assert shared_settings["files"]["default_ndvr_file"] == str(ndvr_folder)
+    assert not context.personal_settings_path.exists()
