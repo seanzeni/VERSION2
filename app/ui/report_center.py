@@ -29,7 +29,6 @@ import customtkinter as ctk
 
 from app.reports.report_utils import archive_existing_reports
 from app.reports.report_utils import build_report_file_prefix
-from app.reports.report_utils import get_date_folder_path
 from app.reports.report_utils import get_release_mode_date_folder
 from app.reports.report_utils import prefix_report_files
 from app.reports.report_utils import safe_release_name
@@ -77,12 +76,7 @@ class ReportCenter(ctk.CTkToplevel):
         )
 
         self.output_folder_var = ctk.StringVar(
-            value=str(
-                get_date_folder_path(
-                    release=self.app_state.release,
-                    base_path=self.base_output_folder,
-                )
-            )
+            value=str(self.base_output_folder)
         )
 
         self.progress_var = ctk.DoubleVar(value=0)

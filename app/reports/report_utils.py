@@ -95,10 +95,10 @@ def get_release_mode_date_folder_path(
     move_date: str | object | None,
     base_path: str | Path,
 ) -> Path:
-    mode_name = safe_release_name(str(mode).strip().lower()) or "unknown_mode"
+    mode_name = safe_release_name(str(mode).strip().upper()) or "UNKNOWN_MODE"
     date_name = safe_release_name(_format_move_date(move_date))
 
-    return Path(base_path) / safe_release_name(release) / f"{mode_name}_{date_name}"
+    return Path(base_path) / safe_release_name(release) / f"{mode_name}-{date_name}"
 
 
 def get_release_mode_date_folder(

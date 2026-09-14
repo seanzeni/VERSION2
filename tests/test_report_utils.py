@@ -48,7 +48,7 @@ def test_get_release_mode_date_folder_path_does_not_create_folder(
         base_path=tmp_path,
     )
 
-    assert folder == tmp_path / "2026_09_Release" / "qual_2026-09-03"
+    assert folder == tmp_path / "2026_09_Release" / "QUAL-2026-09-03"
     assert not folder.exists()
 
 
@@ -62,7 +62,7 @@ def test_get_release_mode_date_folder_creates_folder(tmp_path: Path) -> None:
     )
 
     assert folder.exists()
-    assert folder == tmp_path / "2026_09_Release" / "prod_2026-09-04"
+    assert folder == tmp_path / "2026_09_Release" / "PROD-2026-09-04"
 
 
 def test_archive_existing_reports_moves_files(tmp_path: Path) -> None:

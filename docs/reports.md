@@ -25,6 +25,10 @@ from settings and either attach generated files or include SharePoint links for
 files under the configured synced SharePoint folder. Drafts are displayed only;
 they are not sent automatically.
 
+Report Center selected reports are written under:
+
+`<default output folder>/<release name>/<QUAL or PROD>-<release date>/`
+
 Standalone operational report names use `DD_MMM_YYYY` date stamps:
 
 - `Effort_Move_Status_DD_MMM_YYYY`
@@ -399,9 +403,9 @@ visible without resizing the window.
 
 Report Center offers `Local` and `SharePoint` destinations. When SharePoint is
 selected, the app converts `reports.sharepoint_url` to a Windows WebDAV path and
-uses the logged-on user's Microsoft 365 session. It creates a release folder,
-moves existing top-level report files into that folder's `History` directory,
-and names new files:
+uses the logged-on user's Microsoft 365 session. It creates a release folder
+with a `<QUAL or PROD>-<release date>` child folder, moves existing files in
+that child folder into its `History` directory, and names new files:
 
 `RELEASE_REPORT_NAME_YYYYMMDD_HHMMSS.ext`
 

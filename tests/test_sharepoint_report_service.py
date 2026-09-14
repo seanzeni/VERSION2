@@ -41,7 +41,7 @@ def test_prepare_release_mode_date_folder_archives_existing_files(
     """SharePoint selected reports write under release/mode-date and archive reruns."""
     service = SharePointReportService.__new__(SharePointReportService)
     service.root = tmp_path
-    folder = tmp_path / "2026_07_Release" / "qual_2026-07-24"
+    folder = tmp_path / "2026_07_Release" / "QUAL-2026-07-24"
     folder.mkdir(parents=True)
     old_report = folder / "2026_07_RELEASE_2026-07-24_ISSUES_REPORT.csv"
     old_report.write_text("old", encoding="utf-8")
