@@ -38,6 +38,7 @@ from app.reports.report_utils import report_date_stamp  # noqa: E402
 from app.services.data_loader import DataLoader  # noqa: E402
 from app.services.db_service import DBService  # noqa: E402
 from app.services.mainframe_location_service import MainframeLocationService  # noqa: E402
+from scripts.report_script_utils import create_configured_email_drafts  # noqa: E402
 
 
 TARGET_ENVS = {"QUAL1", "PROD1"}
@@ -576,6 +577,14 @@ def main(
     print("Generated:")
     for file_path in generated_files:
         print(f"- {file_path}")
+
+    created_drafts = create_configured_email_drafts(
+        settings=settings,
+        generated_files=generated_files,
+        base_dir=base_dir,
+    )
+    for report_name in created_drafts:
+        print(f"Email draft opened: {report_name}")
 
     return 0
 

@@ -5,3 +5,4 @@ customtkinter
 pyodbc
 reportlab
 requests
+pywin32

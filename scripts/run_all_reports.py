@@ -34,6 +34,7 @@ from scripts.fixp_daily_compare import FixpDailyCompare  # noqa: E402
 from scripts.global_resync_report import GlobalResyncReport  # noqa: E402
 from scripts.ndvr_daily_move_audit import DailyMoveAudit  # noqa: E402
 from scripts.region_inventory_audit import RegionInventoryAudit  # noqa: E402
+from scripts.report_script_utils import create_configured_email_drafts  # noqa: E402
 from scripts.report_script_utils import resolve_path  # noqa: E402
 from scripts.to_environment_report import ToEnvironmentReport  # noqa: E402
 
@@ -369,11 +370,25 @@ def main(
             print("Published XLSX files:")
             for file_path in published_files:
                 print(f"- {file_path}")
+            created_drafts = create_configured_email_drafts(
+                settings=context.settings,
+                generated_files=published_files,
+                base_dir=context.base_dir,
+            )
+            for report_name in created_drafts:
+                print(f"Email draft opened: {report_name}")
 
         return 1 if errors else 0
 
     context = create_context(args)
-    _generated_files, errors = run_all(context)
+    generated_files, errors = run_all(context)
+    created_drafts = create_configured_email_drafts(
+        settings=context.settings,
+        generated_files=generated_files,
+        base_dir=context.base_dir,
+    )
+    for report_name in created_drafts:
+        print(f"Email draft opened: {report_name}")
     return 1 if errors else 0
 
 

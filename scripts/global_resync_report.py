@@ -25,6 +25,7 @@ from app.reports.report_utils import export_xlsx  # noqa: E402
 from app.reports.report_utils import publish_staged_outputs  # noqa: E402
 from app.reports.report_utils import report_date_stamp  # noqa: E402
 from app.services.mainframe_location_service import MainframeLocationService  # noqa: E402
+from scripts.report_script_utils import create_configured_email_drafts  # noqa: E402
 from scripts.report_script_utils import latest_ndvr_file  # noqa: E402
 from scripts.report_script_utils import resolve_path  # noqa: E402
 
@@ -272,6 +273,14 @@ def main(
     print("Generated:")
     for file_path in generated_files:
         print(f"- {file_path}")
+
+    created_drafts = create_configured_email_drafts(
+        settings=settings,
+        generated_files=generated_files,
+        base_dir=base_dir,
+    )
+    for report_name in created_drafts:
+        print(f"Email draft opened: {report_name}")
 
     return 0
 

@@ -8,6 +8,92 @@
   "directory": {
     "person_lookup_url": ""
   },
+  "email": {
+    "enabled": false,
+    "reports": {
+      "Development Region Audit": {
+        "body": "Attached are the generated files for {report_name}.\n\n{file_names}",
+        "cc": [],
+        "delivery": "attachment",
+        "enabled": false,
+        "file_prefixes": [
+          "Development_Region_Audit_"
+        ],
+        "subject": "{report_name}",
+        "to": []
+      },
+      "Effort Move Status": {
+        "body": "Attached are the generated files for {report_name}.\n\n{file_names}",
+        "cc": [],
+        "delivery": "attachment",
+        "enabled": false,
+        "file_prefixes": [
+          "Effort_Move_Status_"
+        ],
+        "subject": "{report_name}",
+        "to": []
+      },
+      "FIXP Daily Stats": {
+        "body": "Attached are the generated files for {report_name}.\n\n{file_names}",
+        "cc": [],
+        "delivery": "attachment",
+        "enabled": false,
+        "file_prefixes": [
+          "FIXP_Daily_Stats_"
+        ],
+        "subject": "{report_name}",
+        "to": []
+      },
+      "Global Resync": {
+        "body": "Attached are the generated files for {report_name}.\n\n{file_names}",
+        "cc": [],
+        "delivery": "attachment",
+        "enabled": false,
+        "file_prefixes": [
+          "Global_Resync_"
+        ],
+        "subject": "{report_name}",
+        "to": []
+      },
+      "IN PROD": {
+        "body": "Attached are the generated files for {report_name}.\n\n{file_names}",
+        "cc": [],
+        "delivery": "attachment",
+        "enabled": false,
+        "file_prefixes": [
+          "IN_PROD_"
+        ],
+        "subject": "{report_name}",
+        "to": []
+      },
+      "IN QUAL": {
+        "body": "Attached are the generated files for {report_name}.\n\n{file_names}",
+        "cc": [],
+        "delivery": "attachment",
+        "enabled": false,
+        "file_prefixes": [
+          "IN_QUAL_"
+        ],
+        "subject": "{report_name}",
+        "to": []
+      },
+      "NDVR Commercial Audit": {
+        "body": "Attached are the generated files for {report_name}.\n\n{file_names}",
+        "cc": [],
+        "delivery": "attachment",
+        "enabled": false,
+        "file_prefixes": [
+          "NDVR_Commercial_Audit_"
+        ],
+        "subject": "{report_name}",
+        "to": []
+      }
+    },
+    "sharepoint": {
+      "sync_folder": "",
+      "web_url": ""
+    }
+  },
   "files": {
     "default_fixp_db": "",
     "default_fixp_folder": "",

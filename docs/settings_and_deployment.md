@@ -165,6 +165,41 @@ stem are moved into `History` after the replacement file has been generated.
 drop in the selected folder. It stages all new workbooks first, moves existing
 `.xlsx` files in the drop folder to `History`, then publishes the new workbooks.
 
+## Standalone Email Drafts
+
+Standalone scripts can open pre-addressed Outlook drafts after reports are
+generated. Draft creation is controlled by `settings.json` or each user's
+`settings.local.json`. The scripts never send email automatically.
+
+```json
+"email": {
+  "enabled": true,
+  "sharepoint": {
+    "sync_folder": "C:/Users/me/OneDrive - Company/Reports",
+    "web_url": "https://tenant.sharepoint.com/sites/site/Shared Documents/Reports"
+  },
+  "reports": {
+    "FIXP Daily Stats": {
+      "enabled": true,
+      "to": ["fixp-distro@example.com"],
+      "cc": [],
+      "delivery": "link",
+      "file_prefixes": ["FIXP_Daily_Stats_"],
+      "subject": "{report_name}",
+      "body": "Files are ready:\n{file_links}"
+    }
+  }
+}
+```
+
+Use `delivery: "attachment"` to attach matching generated files to the draft.
+Use `delivery: "link"` to put SharePoint links in the body. Link delivery uses
+the local synced SharePoint folder plus `web_url` to build stable file links; it
+does not use the older WebDAV SharePoint path.
+
+Available template fields are `{report_name}`, `{file_count}`, `{file_names}`,
+and `{file_links}`. Recipients can be lists or semicolon-separated strings.
+
 Current standalone file stems:
 
 - `Effort_Move_Status_DD_MMM_YYYY`

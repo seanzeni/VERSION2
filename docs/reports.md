@@ -19,6 +19,12 @@ When scripts are run individually, `--output-folder <folder>` also writes
 directly to that folder. Existing files with the same report/date stem are moved
 to `History`.
 
+If `email.enabled` and a matching report entry are enabled in settings, the
+standalone scripts open an Outlook draft after generation. Drafts are addressed
+from settings and either attach generated files or include SharePoint links for
+files under the configured synced SharePoint folder. Drafts are displayed only;
+they are not sent automatically.
+
 Standalone operational report names use `DD_MMM_YYYY` date stamps:
 
 - `Effort_Move_Status_DD_MMM_YYYY`
@@ -402,3 +408,8 @@ and names new files:
 Use a direct HTTPS URL to the target document-library folder. The workstation
 must have the Windows WebClient service available and the user must already
 have access to the SharePoint location.
+
+For standalone script email drafts, prefer the `email.sharepoint.sync_folder`
+and `email.sharepoint.web_url` settings instead. Those settings assume reports
+are written to a locally synced OneDrive/SharePoint folder and convert generated
+file paths into SharePoint links for the email body.

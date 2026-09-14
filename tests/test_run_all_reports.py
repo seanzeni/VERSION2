@@ -97,7 +97,11 @@ def test_main_output_override_archives_after_generation(
         args,
         staging_root=None,
     ):
-        return SimpleNamespace(staging_root=staging_root)
+        return SimpleNamespace(
+            staging_root=staging_root,
+            settings={},
+            base_dir=tmp_path,
+        )
 
     def fake_run_all(
         context,
@@ -158,6 +162,11 @@ def test_main_output_override_archives_after_generation(
         runner_module,
         "publish_xlsx_files",
         tracking_publish,
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "create_configured_email_drafts",
+        lambda settings, generated_files, base_dir: [],
     )
 
     exit_code = runner_module.main(
