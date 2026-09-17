@@ -28,10 +28,7 @@ def test_fixp_access_dump_reads_tbl_fixp1(
             ("Subsytem",),
             ("Issues_Fixes",),
             ("Comments",),
-            ("Effort_ID",),
-            ("Owner",),
-            ("Manager",),
-            ("PROD_DATE",),
+            ("Release Date",),
         ]
 
         def execute(
@@ -51,9 +48,6 @@ def test_fixp_access_dump_reads_tbl_fixp1(
                     "sub1",
                     "Issue text",
                     "Comment text",
-                    "EFF123",
-                    "Owner Name",
-                    "Manager Name",
                     "2026-08-29",
                 )
             ]
@@ -91,9 +85,6 @@ def test_fixp_access_dump_reads_tbl_fixp1(
             "subsystem": "SUB1",
             "issues_fixes": "Issue text",
             "comments": "Comment text",
-            "effort_id": "EFF123",
-            "owner": "Owner Name",
-            "manager": "Manager Name",
-            "prod_date": "2026-08-29",
+            "release_date": "2026-08-29",
         }
     ]

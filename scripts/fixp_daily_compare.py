@@ -73,10 +73,7 @@ DETAIL_HEADERS = [
     "Remarks",
     "DB_Issues_Fixes",
     "DB_Comments",
-    "DB_Effort_ID",
-    "DB_Owner",
-    "DB_Manager",
-    "DB_PROD_DATE",
+    "DB_Release_Date",
 ]
 
 OVERVIEW_HEADERS = [
@@ -122,10 +119,7 @@ class OwnerManagerInfo:
 class FixpDatabaseReference:
     issues_fixes: str = ""
     comments: str = ""
-    effort_id: str = ""
-    owner: str = ""
-    manager: str = ""
-    prod_date: str = ""
+    release_date: str = ""
 
     def as_columns(
         self,
@@ -133,10 +127,7 @@ class FixpDatabaseReference:
         return [
             self.issues_fixes,
             self.comments,
-            self.effort_id,
-            self.owner,
-            self.manager,
-            self.prod_date,
+            self.release_date,
         ]
 
 
@@ -937,10 +928,7 @@ class AccessFixpReferenceLoader:
                 lookup[key] = FixpDatabaseReference(
                     issues_fixes=self._clean(row_data.get("issuesfixes", "")),
                     comments=self._clean(row_data.get("comments", "")),
-                    effort_id=self._clean(row_data.get("effortid", "")),
-                    owner=self._clean(row_data.get("owner", "")),
-                    manager=self._clean(row_data.get("manager", "")),
-                    prod_date=self._clean(row_data.get("proddate", "")),
+                    release_date=self._clean(row_data.get("releasedate", "")),
                 )
 
         return lookup
@@ -998,10 +986,7 @@ class AccessFixpReferenceLoader:
                 "subsystem": key[3],
                 "issues_fixes": reference.issues_fixes,
                 "comments": reference.comments,
-                "effort_id": reference.effort_id,
-                "owner": reference.owner,
-                "manager": reference.manager,
-                "prod_date": reference.prod_date,
+                "release_date": reference.release_date,
             }
             for key, reference in self._load_with_pyodbc().items()
         ]
@@ -1028,10 +1013,7 @@ class AccessFixpReferenceLoader:
             lookup[key] = FixpDatabaseReference(
                 issues_fixes=self._clean(item.get("issues_fixes", "")),
                 comments=self._clean(item.get("comments", "")),
-                effort_id=self._clean(item.get("effort_id", "")),
-                owner=self._clean(item.get("owner", "")),
-                manager=self._clean(item.get("manager", "")),
-                prod_date=self._clean(item.get("prod_date", "")),
+                release_date=self._clean(item.get("release_date", "")),
             )
 
         return lookup

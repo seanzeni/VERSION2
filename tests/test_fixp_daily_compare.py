@@ -676,10 +676,7 @@ def test_fixp_daily_compare_enriches_rows_from_access_database(
             ("Subsytem",),
             ("Issues_Fixes",),
             ("Comments",),
-            ("Effort_ID",),
-            ("Owner",),
-            ("Manager",),
-            ("PROD_DATE",),
+            ("Release Date",),
         ]
 
         def execute(
@@ -699,9 +696,6 @@ def test_fixp_daily_compare_enriches_rows_from_access_database(
                     "SUB1",
                     "Issue text",
                     "Comment text",
-                    "EFF123",
-                    "Owner Name",
-                    "Manager Name",
                     "2026-08-29",
                 )
             ]
@@ -748,9 +742,6 @@ def test_fixp_daily_compare_enriches_rows_from_access_database(
     assert mod_row[14:] == [
         "Issue text",
         "Comment text",
-        "EFF123",
-        "Owner Name",
-        "Manager Name",
         "2026-08-29",
     ]
 
@@ -794,9 +785,7 @@ def test_fixp_database_lookup_falls_back_to_32bit_python(
             stdout=(
                 '[{"element":"MOD001","type":"OCOB","system":"SYSTEM01",'
                 '"subsystem":"SUB1","issues_fixes":"Issue text",'
-                '"comments":"Comment text","effort_id":"EFF123",'
-                '"owner":"Owner Name","manager":"Manager Name",'
-                '"prod_date":"2026-08-29"}]'
+                '"comments":"Comment text","release_date":"2026-08-29"}]'
             ),
             stderr="",
         )
@@ -820,9 +809,6 @@ def test_fixp_database_lookup_falls_back_to_32bit_python(
     assert reference.as_columns() == [
         "Issue text",
         "Comment text",
-        "EFF123",
-        "Owner Name",
-        "Manager Name",
         "2026-08-29",
     ]
 
@@ -846,10 +832,7 @@ def test_fixp_database_lookup_dump_json_uses_direct_access_driver(
             ("Subsystem",),
             ("Issues_Fixes",),
             ("Comments",),
-            ("Effort_ID",),
-            ("Owner",),
-            ("Manager",),
-            ("PROD_DATE",),
+            ("Release Date",),
         ]
 
         def execute(
@@ -869,9 +852,6 @@ def test_fixp_database_lookup_dump_json_uses_direct_access_driver(
                     "SUB1",
                     "Issue text",
                     "Comment text",
-                    "EFF123",
-                    "Owner Name",
-                    "Manager Name",
                     "2026-08-29",
                 )
             ]
@@ -914,10 +894,7 @@ def test_fixp_database_lookup_dump_json_uses_direct_access_driver(
             "subsystem": "SUB1",
             "issues_fixes": "Issue text",
             "comments": "Comment text",
-            "effort_id": "EFF123",
-            "owner": "Owner Name",
-            "manager": "Manager Name",
-            "prod_date": "2026-08-29",
+            "release_date": "2026-08-29",
         }
     ]
 
@@ -978,10 +955,7 @@ def test_fixp_daily_compare_writes_xlsx(
     assert headers[14:] == [
         "DB_Issues_Fixes",
         "DB_Comments",
-        "DB_Effort_ID",
-        "DB_Owner",
-        "DB_Manager",
-        "DB_PROD_DATE",
+        "DB_Release_Date",
     ]
     workbook.close()
 

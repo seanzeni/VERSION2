@@ -345,7 +345,7 @@ CCID values. Owner and Manager are resolved from the FIXP user when directory
 lookup is configured; inventory TL values are also translated to display names
 when possible. The optional Access database enrichment joins `tblFIXP1` by
 Element, Type, System, and Subsystem and adds `DB_Issues_Fixes`, `DB_Comments`,
-`DB_Effort_ID`, `DB_Owner`, `DB_Manager`, and `DB_PROD_DATE`.
+and `DB_Release_Date` from the Access `Release Date` field.
 
 If the workstation only has 32-bit Access drivers, configure
 `files.fixp_32bit_python`; the 64-bit script will run the small 32-bit helper

@@ -90,10 +90,7 @@ def build_output_row(
         "subsystem": subsystem,
         "issues_fixes": clean(row_data.get("issuesfixes", "")),
         "comments": clean(row_data.get("comments", "")),
-        "effort_id": clean(row_data.get("effortid", "")),
-        "owner": clean(row_data.get("owner", "")),
-        "manager": clean(row_data.get("manager", "")),
-        "prod_date": clean(row_data.get("proddate", "")),
+        "release_date": clean(row_data.get("releasedate", "")),
     }
 
 
