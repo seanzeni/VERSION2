@@ -107,6 +107,21 @@
     "remember_last_used_files": true
   },
   "reports": {
+    "default_formats": {
+      "csv": true,
+      "pdf": true,
+      "xlsx": true
+    },
+    "default_selected_reports": {
+      "Effort Summary Report": true,
+      "HIPPA Listeners": true,
+      "Issues Report": true,
+      "ODS Elements": true,
+      "OSG/COPS Report": true,
+      "Release Estimate Report": true,
+      "Release Inventory Report": true,
+      "Resync Report": true
+    },
     "forecast_formats": {
       "csv": true,
       "pdf": true,

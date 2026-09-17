@@ -90,6 +90,16 @@ Report Center checkboxes.
 
 ```json
 "reports": {
+  "default_formats": {
+    "csv": true,
+    "pdf": true,
+    "xlsx": true
+  },
+  "default_selected_reports": {
+    "Effort Summary Report": true,
+    "Issues Report": true,
+    "Release Estimate Report": true
+  },
   "forecast_formats": {
     "csv": true,
     "pdf": true,
@@ -110,6 +120,12 @@ Report Center checkboxes.
   "use_sharepoint": false
 }
 ```
+
+`reports.default_formats` controls the initially checked CSV/XLSX/PDF boxes for
+normal Report Center generation. `reports.default_selected_reports` controls
+which report checkboxes are initially selected. Reports omitted from
+`default_selected_reports` default to selected so newly added reports stay
+visible unless a user explicitly disables them.
 
 Set a report or format to `false` to exclude it from forecast generation.
 `reports.include_empty_reports_default` controls whether Report Center creates

@@ -58,13 +58,16 @@ class ReportCenter(ctk.CTkToplevel):
         self.minsize(680, 560)
         self.transient(parent)
 
-        self.report_vars: dict[str, ctk.BooleanVar] = {}
-        self.csv_var = ctk.BooleanVar(value=True)
-        self.xlsx_var = ctk.BooleanVar(value=True)
-        self.pdf_var = ctk.BooleanVar(value=True)
-        self.include_empty_var = ctk.BooleanVar(value=False)
         reports_settings = (
             self.context.settings.get("reports", {}) if self.context is not None else {}
+        )
+        self.reports_settings = reports_settings
+        self.report_vars: dict[str, ctk.BooleanVar] = {}
+        self.csv_var = ctk.BooleanVar(value=self._default_format_enabled("csv"))
+        self.xlsx_var = ctk.BooleanVar(value=self._default_format_enabled("xlsx"))
+        self.pdf_var = ctk.BooleanVar(value=self._default_format_enabled("pdf"))
+        self.include_empty_var = ctk.BooleanVar(
+            value=bool(reports_settings.get("include_empty_reports_default", False))
         )
         self.destination_var = ctk.StringVar(
             value=(
@@ -184,7 +187,7 @@ class ReportCenter(ctk.CTkToplevel):
         for row_index, report_name in enumerate(
             self.report_registry.get_names(), start=1
         ):
-            var = ctk.BooleanVar(value=True)
+            var = ctk.BooleanVar(value=self._default_report_enabled(report_name))
             self.report_vars[report_name] = var
 
             ctk.CTkCheckBox(
@@ -327,6 +330,26 @@ class ReportCenter(ctk.CTkToplevel):
     ) -> None:
         for var in self.report_vars.values():
             var.set(False)
+
+    def _default_format_enabled(
+        self,
+        output_format: str,
+    ) -> bool:
+        default_formats = self.reports_settings.get("default_formats", {})
+        if not isinstance(default_formats, dict):
+            return True
+
+        return bool(default_formats.get(output_format.lower(), True))
+
+    def _default_report_enabled(
+        self,
+        report_name: str,
+    ) -> bool:
+        default_reports = self.reports_settings.get("default_selected_reports", {})
+        if not isinstance(default_reports, dict):
+            return True
+
+        return bool(default_reports.get(report_name, True))
 
     def browse_folder(
         self,
