@@ -113,12 +113,17 @@ class DataLoader:
         self,
         release: str,
         projects: set[str],
+        assigned_elsewhere_projects: set[str] | None = None,
     ) -> pd.DataFrame:
         release_df = self.filter_release_projects(
             release=release,
             projects=projects,
         )
-        project_df = self.filter_projects(projects)
+        project_df = self.filter_projects(
+            projects
+            if assigned_elsewhere_projects is None
+            else assigned_elsewhere_projects
+        )
         clean_release = str(release).strip().upper()
         assigned_elsewhere_df = project_df[
             project_df["Release"].astype(str).str.strip().str.upper() != clean_release

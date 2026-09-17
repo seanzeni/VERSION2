@@ -13,7 +13,7 @@ from app.core.release_rules import mode_date
 from app.core.release_rules import month_key
 from app.core.release_rules import parse_release_month
 from app.reports.report_utils import archive_existing_reports
-from app.reports.report_utils import safe_release_name
+from app.reports.report_utils import get_release_mode_date_folder
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,16 +187,14 @@ class ForecastService:
                 forecast_release=forecast_release,
             )
 
-            output_folder = (
-                Path(base_output_folder)
-                / "3 Month Forecast"
-                / forecast_release.month_key
-                / forecast_release.mode
-                / safe_release_name(forecast_release.release)
-            )
-            output_folder.mkdir(
-                parents=True,
-                exist_ok=True,
+            output_folder = get_release_mode_date_folder(
+                release=forecast_release.release,
+                mode=forecast_release.mode,
+                move_date=self._forecast_move_date(
+                    forecast_release=forecast_release,
+                    state=state,
+                ),
+                base_path=Path(base_output_folder) / "3 Month Forecast",
             )
             archive_existing_reports(output_folder)
 
@@ -227,6 +225,29 @@ class ForecastService:
             )
 
         return results
+
+    def _forecast_move_date(
+        self,
+        forecast_release: ForecastRelease,
+        state: AppState,
+    ) -> str:
+        selected_dates = {
+            state.effort_dates.get(effort_id, "").strip()
+            for effort_id in forecast_release.effort_ids
+            if state.effort_dates.get(effort_id, "").strip()
+        }
+
+        if not selected_dates:
+            selected_dates = {
+                str(value).strip()
+                for value in state.effort_dates.values()
+                if str(value).strip()
+            }
+
+        if not selected_dates:
+            return "Unknown"
+
+        return sorted(selected_dates)[0]
 
     def _build_state(
         self,

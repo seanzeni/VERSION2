@@ -45,6 +45,28 @@ def write_inventory(
     return data_loader
 
 
+def write_withdrawn_inventory(
+    tmp_path: Path,
+) -> DataLoader:
+    path = tmp_path / "inventory.xlsx"
+    pd.DataFrame(
+        [
+            {
+                "Release": "2026/08 release",
+                "Project": "abc",
+                "Element": "NEWPGM",
+                "Type": "OCOB",
+                "Subsys": "SYS1",
+                "System": "PRIVATE0",
+                "Act Rgn": "DV",
+            }
+        ]
+    ).to_excel(path, index=False)
+    data_loader = DataLoader(path, REQUIRED_COLUMNS)
+    data_loader.load()
+    return data_loader
+
+
 def test_assignment_error_releases_show_inventory_assigned_to_wrong_release(
     tmp_path: Path,
 ) -> None:
@@ -62,6 +84,26 @@ def test_assignment_error_releases_show_inventory_assigned_to_wrong_release(
     releases = window._build_assignment_error_releases({"ABC"})
 
     assert releases == {"ABC": ["2026/08 release"]}
+
+
+def test_assignment_error_releases_ignore_withdrawn_efforts_without_old_inventory(
+    tmp_path: Path,
+) -> None:
+    """Verifies withdrawn efforts do not point at their newer inventory release."""
+    window = MainWindow.__new__(MainWindow)
+    window.app_state = AppState(
+        release="2026/07 release",
+        inventory_effort_ids=set(),
+        release_efforts=[ReleaseEffort(effort_id="ABC", exit_date="2026-07-01")],
+    )
+    window.context = SimpleNamespace(
+        data_loader=write_withdrawn_inventory(tmp_path),
+        element_service=ElementService(),
+    )
+
+    releases = window._build_assignment_error_releases({"ABC"})
+
+    assert releases == {}
 
 
 class FakeElementTable:
@@ -130,3 +172,32 @@ def test_assignment_error_elements_load_into_element_table(
     assert validation_service.received_effort_release_lookup == {
         "ABC": "2026/07 release"
     }
+
+
+def test_withdrawn_effort_does_not_load_new_release_inventory(
+    tmp_path: Path,
+) -> None:
+    """Verifies withdrawn efforts only load rows still tied to the selected release."""
+    validation_service = FakeValidationService()
+    element_table = FakeElementTable()
+    window = MainWindow.__new__(MainWindow)
+    window.app_state = AppState(
+        release="2026/07 release",
+        mode="QUAL",
+        selected_effort_ids={"ABC"},
+        inventory_effort_ids=set(),
+        release_efforts=[ReleaseEffort(effort_id="ABC", exit_date="2026-07-01")],
+    )
+    window.context = SimpleNamespace(
+        data_loader=write_withdrawn_inventory(tmp_path),
+        element_service=ElementService(),
+        validation_service=validation_service,
+        location_service=None,
+        stats_service=FakeStatsService(),
+    )
+    window.element_table = element_table
+    window.stats_panel = FakeStatsPanel()
+
+    window.refresh_selected_elements()
+
+    assert element_table.elements == []

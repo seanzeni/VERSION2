@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.core.app_state import AppState
+from app.core.release_rules import ForecastRelease
 from app.core.models import ReleaseEffort
+from app.reports.report_utils import make_writable
 from app.services.forecast_service import ForecastService
 
 
@@ -57,7 +60,19 @@ class FakeContext:
 
 class FakeReportRegistry:
     def get_names(self) -> list[str]:
-        return []
+        return ["Summary"]
+
+    def generate(
+        self,
+        name,
+        output_format,
+        state,
+        output_folder,
+        include_empty,
+    ):
+        output_path = output_folder / f"{name}.{output_format}"
+        output_path.write_text(state.release, encoding="utf-8")
+        return output_path
 
 
 def test_forecast_includes_inventory_not_in_sql_projects() -> None:
@@ -169,3 +184,49 @@ def test_forecast_thread_count_uses_settings_value() -> None:
     )
 
     assert service.get_forecast_thread_count() == 7
+
+
+def test_generate_forecast_uses_release_mode_date_folder(tmp_path) -> None:
+    """Verifies forecast files are grouped by release and move date."""
+
+    class ContextWithReports(FakeContext):
+        settings = {
+            "reports": {
+                "forecast_formats": {},
+                "forecast_reports": {
+                    "Summary": True,
+                },
+            }
+        }
+
+    service = ForecastService(
+        context=ContextWithReports(),
+        report_registry=FakeReportRegistry(),
+    )
+    service.build_forecast_releases = lambda today: [
+        ForecastRelease(
+            release="2026/09 release",
+            month_key="2026-09",
+            mode="QUAL",
+            bypass_location_validation=False,
+            bypass_location_validation_effort_ids=set(),
+            effort_ids={"ABC"},
+        )
+    ]
+    service._build_state = lambda forecast_release: AppState(
+        release=forecast_release.release,
+        mode=forecast_release.mode,
+        effort_dates={"ABC": "2026-09-17"},
+    )
+
+    results = service.generate_forecast(
+        base_output_folder=tmp_path,
+        formats=["xlsx"],
+        include_empty=True,
+        today=date(2026, 9, 1),
+    )
+
+    output_folder = tmp_path / "3 Month Forecast" / "2026_09_release" / "QUAL-2026-09-17"
+    assert results[0].output_folder == output_folder
+    assert results[0].generated_files == [output_folder / "Summary.xlsx"]
+    make_writable(results[0].generated_files[0])

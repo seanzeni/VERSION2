@@ -184,7 +184,7 @@ a schedule for it.
 
 Output is written under:
 
-`<default output folder>/Inventory Issues Forecast/<yyyy-mm-dd>/`
+`<default output folder>/Inventory Issues Forecast/`
 
 ## Resync Report
 
@@ -265,6 +265,10 @@ higher-environment evidence. Older expected-environment history is reported as
 
 The report supports CSV, XLSX, and PDF using the Report Center format
 checkboxes.
+
+Report Center after-action output is written under:
+
+`<default output folder>/After Action/`
 
 The standalone script writes directly to the selected/default output folder:
 
@@ -391,7 +395,7 @@ Set any format or report to `false` to exclude it from forecast generation.
 
 Forecast output is written under:
 
-`<default output folder>/3 Month Forecast/<yyyy-mm>/<QUAL or PROD>/<release name>/`
+`<default output folder>/3 Month Forecast/<release name>/<QUAL or PROD>-<release date>/`
 
 Despite the folder name, the current forecast window is the current month plus
 the following three months for non-Special `YYYY/MM...` releases.

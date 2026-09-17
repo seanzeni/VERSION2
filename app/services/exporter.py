@@ -21,7 +21,7 @@ from typing import Any
 
 from app.core.formatter import build_record
 from app.core.models import Element
-from app.reports.report_utils import get_date_folder
+from app.reports.report_utils import get_release_mode_date_folder
 from app.reports.report_utils import make_read_only
 from app.reports.report_utils import make_writable
 
@@ -64,6 +64,8 @@ class Exporter:
     def build_default_output_path(
         self,
         release: str,
+        mode: str,
+        move_date: str | object | None,
     ) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_folder = self.base_dir / str(
@@ -76,8 +78,10 @@ class Exporter:
             )
         )
 
-        return get_date_folder(
+        return get_release_mode_date_folder(
             release=release,
+            mode=mode,
+            move_date=move_date,
             base_path=output_folder,
         ) / f"{release}_export_{timestamp}.txt"
 
@@ -87,11 +91,16 @@ class Exporter:
         mode: str,
         release: str,
         output_path: str | Path | None = None,
+        move_date: str | object | None = None,
     ) -> Path:
         path = (
             Path(output_path)
             if output_path is not None
-            else self.build_default_output_path(release)
+            else self.build_default_output_path(
+                release=release,
+                mode=mode,
+                move_date=move_date,
+            )
         )
 
         lines = self.build_lines(

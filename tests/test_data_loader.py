@@ -47,3 +47,12 @@ def test_filter_release_projects_with_assigned_elsewhere(tmp_path: Path) -> None
     loader.load()
     df=loader.filter_release_projects_with_assigned_elsewhere('REL1', {'KEEP', 'MISS'})
     assert list(df['Element']) == ['PGM001', 'PGM002']
+
+def test_filter_release_projects_with_assigned_elsewhere_can_limit_projects(tmp_path: Path) -> None:
+    """Verifies assigned-elsewhere rows can exclude withdrawn projects."""
+    path=tmp_path/'inventory.xlsx'
+    pd.DataFrame([{'Release':'REL1','Project':'KEEP','Element':'PGM001','Type':'OCOB','Subsys':'SUB1','System':'SYS1','Act Rgn':'DV'},{'Release':'REL2','Project':'MISS','Element':'PGM002','Type':'JCL','Subsys':'SUB2','System':'SYS2','Act Rgn':'LO'}]).to_excel(path,index=False)
+    loader=DataLoader(path, REQUIRED_COLUMNS)
+    loader.load()
+    df=loader.filter_release_projects_with_assigned_elsewhere('REL1', {'KEEP', 'MISS'}, assigned_elsewhere_projects={'KEEP'})
+    assert list(df['Element']) == ['PGM001']

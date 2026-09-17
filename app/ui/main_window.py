@@ -334,7 +334,11 @@ class MainWindow(ctk.CTk):
         self,
         sql_effort_ids: set[str],
     ) -> dict[str, list[str]]:
-        candidate_effort_ids = sql_effort_ids - self.app_state.inventory_effort_ids
+        candidate_effort_ids = (
+            sql_effort_ids
+            - self.app_state.inventory_effort_ids
+            - self._withdrawn_effort_ids()
+        )
         if not candidate_effort_ids:
             return {}
 
@@ -448,11 +452,13 @@ class MainWindow(ctk.CTk):
             self.refresh_statistics()
             return
 
-        release_df = (
-            self.context.data_loader.filter_release_projects_with_assigned_elsewhere(
-                release=self.app_state.release,
-                projects=self.app_state.selected_effort_ids,
-            )
+        selected_assigned_elsewhere_ids = (
+            self.app_state.selected_effort_ids - self._withdrawn_effort_ids()
+        )
+        release_df = self.context.data_loader.filter_release_projects_with_assigned_elsewhere(
+            release=self.app_state.release,
+            projects=self.app_state.selected_effort_ids,
+            assigned_elsewhere_projects=selected_assigned_elsewhere_ids,
         )
 
         selected_elements = self.context.element_service.build_elements(
@@ -466,6 +472,11 @@ class MainWindow(ctk.CTk):
                     effort.effort_id.strip()
                     for effort in self.app_state.release_efforts
                     if effort.effort_id.strip()
+                },
+                assigned_elsewhere_projects={
+                    effort.effort_id.strip()
+                    for effort in self.app_state.release_efforts
+                    if effort.effort_id.strip() and not effort.withdrawn
                 },
             )
         )
@@ -502,6 +513,15 @@ class MainWindow(ctk.CTk):
                 lookup[effort_id] = self.app_state.release
 
         return lookup
+
+    def _withdrawn_effort_ids(
+        self,
+    ) -> set[str]:
+        return {
+            effort.effort_id.strip()
+            for effort in self.app_state.release_efforts
+            if effort.withdrawn and effort.effort_id.strip()
+        }
 
     def refresh_statistics(
         self,
@@ -543,6 +563,7 @@ class MainWindow(ctk.CTk):
                 elements=self.app_state.loaded_elements,
                 mode=self.app_state.mode,
                 release=self.app_state.release,
+                move_date=self._selected_move_date(),
             )
 
             messagebox.showinfo(
@@ -696,3 +717,24 @@ class MainWindow(ctk.CTk):
             )
 
             messagebox.showerror("NDVR Load Error", str(exc))
+
+    def _selected_move_date(
+        self,
+    ) -> str:
+        selected_dates = {
+            self.app_state.effort_dates.get(effort_id, "").strip()
+            for effort_id in self.app_state.selected_effort_ids
+            if self.app_state.effort_dates.get(effort_id, "").strip()
+        }
+
+        if not selected_dates:
+            selected_dates = {
+                str(value).strip()
+                for value in self.app_state.effort_dates.values()
+                if str(value).strip()
+            }
+
+        if not selected_dates:
+            return "Unknown"
+
+        return sorted(selected_dates)[0]

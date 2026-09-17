@@ -28,7 +28,8 @@ def test_export_writes_file(tmp_path: Path) -> None:
 
 def test_export_default_path_uses_settings_output_folder(tmp_path: Path) -> None:
     """Verifies export default path uses settings output folder."""
-    result = Exporter({"files": {"default_output_folder": "Reports"}}, tmp_path).export([make_element('AAA')], 'PROD', 'REL1')
+    result = Exporter({"files": {"default_output_folder": "Reports"}}, tmp_path).export([make_element('AAA')], 'PROD', 'REL1', move_date='2026-09-17')
+    assert result.parent.name == 'PROD-2026-09-17'
     assert result.parent.parent.name == 'REL1'
     assert result.parent.parent.parent == tmp_path / 'Reports'
     assert result.name.startswith('REL1_export_')

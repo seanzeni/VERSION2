@@ -31,7 +31,6 @@ from app.reports.report_utils import archive_existing_reports
 from app.reports.report_utils import build_report_file_prefix
 from app.reports.report_utils import get_release_mode_date_folder
 from app.reports.report_utils import prefix_report_files
-from app.reports.report_utils import safe_release_name
 from app.services.after_action_service import AfterActionService
 from app.services.forecast_service import ForecastService
 from app.services.inventory_forecast_service import InventoryForecastService
@@ -580,9 +579,7 @@ class ReportCenter(ctk.CTkToplevel):
             if sharepoint_service is not None
             else self.base_output_folder
         )
-        output_folder = (
-            output_root / "Inventory Issues Forecast" / date.today().isoformat()
-        )
+        output_folder = output_root / "Inventory Issues Forecast"
         output_folder.mkdir(
             parents=True,
             exist_ok=True,
@@ -676,9 +673,7 @@ class ReportCenter(ctk.CTkToplevel):
             if sharepoint_service is not None
             else self.base_output_folder
         )
-        output_folder = (
-            output_root / "After Action" / safe_release_name(selected_date.isoformat())
-        )
+        output_folder = output_root / "After Action"
 
         self.progress_bar.set(0)
         self.current_report_var.set("Generating after-action report...")
