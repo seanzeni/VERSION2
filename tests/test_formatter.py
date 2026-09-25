@@ -39,3 +39,14 @@ def test_build_record_sets_archive_prod_move_source_to_prod() -> None:
 def test_build_record_sets_qual_env_from_dv_region() -> None:
     """Verifies build record sets QUAL env from dv region."""
     assert build_record(base_row(), "QUAL")[60:65] == "DEVL1"
+
+
+def test_build_record_replaces_application_spaces_after_exclamation() -> None:
+    """Verifies application spaces after ! become period padding."""
+    row = base_row()
+    row["Application"] = "APP NAME! COMMENT VALUE"
+
+    application_field = build_record(row, "PROD")[75:113]
+
+    assert application_field.startswith("APP NAME!.COMMENT.VALUE")
+    assert " " not in application_field[application_field.index("!") + 1 :]

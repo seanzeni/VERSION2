@@ -51,6 +51,17 @@ def fixed(
     return clean(value).ljust(length)[:length]
 
 
+def replace_spaces_after_marker(
+    value: str,
+    marker: str = "!",
+) -> str:
+    before_marker, separator, after_marker = value.partition(marker)
+    if not separator:
+        return value
+
+    return before_marker + separator + after_marker.replace(" ", ".")
+
+
 def build_record(
     source_row: dict[str, Any],
     mode: str,
@@ -108,6 +119,7 @@ def build_record(
 
     application = clean(source_row.get("Application", ""))
     application = application.replace("~", ".")
+    application = replace_spaces_after_marker(application)
     application = application + ("." * 40)
 
     write(75, 38, application)
