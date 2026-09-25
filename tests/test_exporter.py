@@ -34,3 +34,15 @@ def test_export_default_path_uses_settings_output_folder(tmp_path: Path) -> None
     assert result.parent.parent.parent == tmp_path / 'Reports'
     assert result.name.startswith('REL1_export_')
     make_writable(result)
+
+
+def test_build_labeled_output_path_adds_label_before_export_marker() -> None:
+    """Verifies companion exports retain the timestamp and add their label."""
+    exporter = Exporter({}, Path("."))
+
+    result = exporter.build_labeled_output_path(
+        Path("REL1_export_20260918_030000.txt"),
+        "ODS",
+    )
+
+    assert result.name == "REL1_ODS_export_20260918_030000.txt"

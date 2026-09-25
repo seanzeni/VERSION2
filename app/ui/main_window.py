@@ -26,6 +26,8 @@ import customtkinter as ctk
 
 from app.core.app_context import AppContext
 from app.core.app_state import AppState
+from app.core.models import Element
+from app.core.package_rules import is_archive_package
 from app.core.release_rules import next_release_choice
 from app.core.release_rules import next_available_effort_ids
 from app.ui.action_bar import ActionBar
@@ -35,6 +37,33 @@ from app.ui.report_center import ReportCenter
 from app.ui.stats_panel import StatsPanel
 from app.ui.status_bar import StatusBar
 from app.ui.toolbar import Toolbar
+from app.services.reference_element_service import ReferenceElementService
+
+
+def partition_ods_export_elements(
+    elements: list[Element],
+    mode: str,
+    reference_element_service: ReferenceElementService,
+) -> tuple[list[Element], list[Element]]:
+    if mode.upper() != "PROD":
+        return elements, []
+
+    standard_elements = []
+    ods_elements = []
+
+    for element in elements:
+        is_ods_move = reference_element_service.matches(
+            "ods",
+            element.element,
+            element.type,
+        ) and not is_archive_package(element.source_row.get("Package", ""))
+
+        if is_ods_move:
+            ods_elements.append(element)
+        else:
+            standard_elements.append(element)
+
+    return standard_elements, ods_elements
 
 
 class MainWindow(ctk.CTk):
@@ -559,16 +588,40 @@ class MainWindow(ctk.CTk):
         self,
     ) -> None:
         try:
-            output_path = self.context.exporter.export(
+            standard_elements, ods_elements = partition_ods_export_elements(
                 elements=self.app_state.loaded_elements,
+                mode=self.app_state.mode,
+                reference_element_service=(
+                    self.context.reference_element_service
+                ),
+            )
+            output_path = self.context.exporter.export(
+                elements=standard_elements,
                 mode=self.app_state.mode,
                 release=self.app_state.release,
                 move_date=self._selected_move_date(),
             )
 
+            created_paths = [output_path]
+            if any(
+                element.visible and element.selected
+                for element in ods_elements
+            ):
+                ods_output_path = self.context.exporter.build_labeled_output_path(
+                    output_path,
+                    "ODS",
+                )
+                self.context.exporter.export(
+                    elements=ods_elements,
+                    mode=self.app_state.mode,
+                    release=self.app_state.release,
+                    output_path=ods_output_path,
+                )
+                created_paths.append(ods_output_path)
+
             messagebox.showinfo(
                 "Generate Complete",
-                f"Export created:\n{output_path}",
+                "Exports created:\n" + "\n".join(str(path) for path in created_paths),
             )
 
         except Exception as exc:

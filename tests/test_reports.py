@@ -13,6 +13,7 @@ from app.core.models import ScheduleStatus
 from app.reports.effort_summary_report import EffortSummaryReport
 from app.reports.issues_report import IssuesReport
 from app.reports.osg_cops_report import OsgCopsReport
+from app.reports.planbind_report import PlanbindReport
 from app.reports.report_utils import make_writable
 from app.reports.release_estimate_report import ReleaseEstimateReport
 from app.reports.release_inventory_report import ReleaseInventoryReport
@@ -283,6 +284,33 @@ def test_osg_cops_is_empty_outside_prod() -> None:
     """OSG/COPS is only applicable to PROD movement."""
     rows = OsgCopsReport()._build_rows(
         [make_element(name="OPGM001")],
+        "QUAL",
+    )
+
+    assert rows == []
+
+
+def test_planbind_report_includes_only_non_archive_planbind_moves() -> None:
+    """PLANBIND report excludes other types, archives, and unselected rows."""
+    planbind = make_element(name="PLAN001", type_="PLANBIND")
+    archive = make_element(name="PLAN002", type_="PLANBIND")
+    archive.source_row["Package"] = "ARCHIVE"
+    other = make_element(name="PLAN003", type_="PACKBIND")
+    unselected = make_element(name="PLAN004", type_="PLANBIND", selected=False)
+
+    rows = PlanbindReport()._build_rows(
+        [planbind, archive, other, unselected],
+        "PROD",
+    )
+
+    assert len(rows) == 1
+    assert rows[0][2:4] == ["PLAN001", "PLANBIND"]
+
+
+def test_planbind_report_is_empty_outside_prod() -> None:
+    """PLANBIND report follows the PROD-only OSG/COPS lifecycle."""
+    rows = PlanbindReport()._build_rows(
+        [make_element(name="PLAN001", type_="PLANBIND")],
         "QUAL",
     )
 

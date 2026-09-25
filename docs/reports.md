@@ -224,6 +224,17 @@ element, type, submitter, and movement note. A package archive is suppressed
 when its configured APS/COB counterpart is also moving; an unpaired archive
 remains in the report with `Package archive` in `Movement Note`.
 
+## PLANBIND Report
+
+The PLANBIND report supports XLSX and PDF only and is generated only for PROD
+moves. It consolidates selected, visible rows whose type equals `PLANBIND` into
+one report with release, project, element, type, and submitter. PLANBIND rows
+whose package contains an archive marker are excluded.
+
+The report is enabled by default for normal Report Center and three-month
+forecast generation. It can be disabled independently in
+`reports.default_selected_reports` or `reports.forecast_reports`.
+
 ## HIPPA Listeners And ODS Elements
 
 The HIPPA Listeners and ODS Elements reports match selected, visible movement
@@ -383,6 +394,7 @@ Use `settings.json`:
     "Issues Report": true,
     "ODS Elements": true,
     "OSG/COPS Report": true,
+    "PLANBIND Report": true,
     "Release Estimate Report": true,
     "Release Inventory Report": true,
     "Resync Report": true

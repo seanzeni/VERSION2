@@ -131,6 +131,7 @@ def test_get_names_contains_core_reports() -> None:
     assert "HIPPA Listeners" in names
     assert "Issues Report" in names
     assert "OSG/COPS Report" in names
+    assert "PLANBIND Report" in names
     assert "ODS Elements" in names
     assert "Release Estimate Report" in names
     assert "Release Inventory Report" in names
@@ -285,6 +286,46 @@ def test_generate_osg_cops_csv_is_not_supported(tmp_path: Path) -> None:
     with pytest.raises(NotImplementedError):
         make_registry().generate(
             "OSG/COPS Report",
+            "csv",
+            make_state(),
+            tmp_path,
+            True,
+        )
+
+
+def test_generate_planbind_xlsx(tmp_path: Path) -> None:
+    """Verifies PLANBIND Report can generate XLSX output."""
+    output = make_registry().generate(
+        "PLANBIND Report",
+        "xlsx",
+        make_state(),
+        tmp_path,
+        True,
+    )
+
+    assert output is not None and output.suffix == ".xlsx" and output.exists()
+    make_writable(output)
+
+
+def test_generate_planbind_pdf(tmp_path: Path) -> None:
+    """Verifies PLANBIND Report can generate PDF output."""
+    output = make_registry().generate(
+        "PLANBIND Report",
+        "pdf",
+        make_state(),
+        tmp_path,
+        True,
+    )
+
+    assert output is not None and output.suffix == ".pdf" and output.exists()
+    make_writable(output)
+
+
+def test_generate_planbind_csv_is_not_supported(tmp_path: Path) -> None:
+    """PLANBIND intentionally supports only XLSX and PDF."""
+    with pytest.raises(NotImplementedError):
+        make_registry().generate(
+            "PLANBIND Report",
             "csv",
             make_state(),
             tmp_path,

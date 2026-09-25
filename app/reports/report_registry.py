@@ -23,6 +23,7 @@ from typing import Any
 from app.reports.effort_summary_report import EffortSummaryReport
 from app.reports.issues_report import IssuesReport
 from app.reports.osg_cops_report import OsgCopsReport
+from app.reports.planbind_report import PlanbindReport
 from app.reports.reference_match_report import ReferenceMatchReport
 from app.reports.report_utils import export_xlsx
 from app.reports.report_utils import make_writable
@@ -107,6 +108,12 @@ class ReportRegistry:
                     xlsx_name="OSG_COPS_Report.xlsx",
                     pdf_generator=self._generate_osg_cops_pdf,
                     xlsx_generator=self._generate_osg_cops_xlsx,
+                ),
+                ReportDefinition(
+                    name="PLANBIND Report",
+                    xlsx_name="PLANBIND_Report.xlsx",
+                    pdf_generator=self._generate_planbind_pdf,
+                    xlsx_generator=self._generate_planbind_xlsx,
                 ),
                 ReportDefinition(
                     name="Resync Report",
@@ -343,6 +350,32 @@ class ReportRegistry:
         include_empty: bool,
     ) -> Path:
         return OsgCopsReport(self.archive_pairs).generate_pdf(
+            elements=state.loaded_elements,
+            output_folder=output_folder,
+            mode=state.mode,
+            include_empty=include_empty,
+        )
+
+    def _generate_planbind_xlsx(
+        self,
+        state,
+        output_folder: Path,
+        include_empty: bool,
+    ) -> Path:
+        return PlanbindReport().generate_xlsx(
+            elements=state.loaded_elements,
+            output_folder=output_folder,
+            mode=state.mode,
+            include_empty=include_empty,
+        )
+
+    def _generate_planbind_pdf(
+        self,
+        state,
+        output_folder: Path,
+        include_empty: bool,
+    ) -> Path:
+        return PlanbindReport().generate_pdf(
             elements=state.loaded_elements,
             output_folder=output_folder,
             mode=state.mode,

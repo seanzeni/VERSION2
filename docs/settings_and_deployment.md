@@ -111,6 +111,7 @@ Report Center checkboxes.
     "Issues Report": true,
     "ODS Elements": true,
     "OSG/COPS Report": true,
+    "PLANBIND Report": true,
     "Release Estimate Report": true,
     "Release Inventory Report": true,
     "Resync Report": true

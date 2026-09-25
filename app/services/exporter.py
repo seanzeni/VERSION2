@@ -85,6 +85,26 @@ class Exporter:
             base_path=output_folder,
         ) / f"{release}_export_{timestamp}.txt"
 
+    def build_labeled_output_path(
+        self,
+        output_path: str | Path,
+        label: str,
+    ) -> Path:
+        path = Path(output_path)
+        clean_label = str(label).strip().upper()
+        export_marker = "_export_"
+
+        if export_marker in path.stem:
+            stem = path.stem.replace(
+                export_marker,
+                f"_{clean_label}{export_marker}",
+                1,
+            )
+        else:
+            stem = f"{path.stem}_{clean_label}"
+
+        return path.with_name(f"{stem}{path.suffix}")
+
     def export(
         self,
         elements: list[Element],
