@@ -24,6 +24,7 @@ from app.core.models import Element
 from app.reports.report_utils import get_release_mode_date_folder
 from app.reports.report_utils import make_read_only
 from app.reports.report_utils import make_writable
+from app.reports.report_utils import safe_release_name
 
 
 class Exporter:
@@ -68,6 +69,7 @@ class Exporter:
         move_date: str | object | None,
     ) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        release_name = safe_release_name(release) or "UNKNOWN_RELEASE"
         output_folder = self.base_dir / str(
             self.settings.get(
                 "files",
@@ -83,7 +85,7 @@ class Exporter:
             mode=mode,
             move_date=move_date,
             base_path=output_folder,
-        ) / f"{release}_export_{timestamp}.txt"
+        ) / f"{release_name}_export_{timestamp}.txt"
 
     def build_labeled_output_path(
         self,

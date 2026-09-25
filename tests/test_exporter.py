@@ -36,6 +36,28 @@ def test_export_default_path_uses_settings_output_folder(tmp_path: Path) -> None
     make_writable(result)
 
 
+def test_export_default_path_sanitizes_release_in_folder_and_filename(
+    tmp_path: Path,
+) -> None:
+    """Verifies slash-separated release names cannot create extra folders."""
+    result = Exporter(
+        {"files": {"default_output_folder": "Reports"}},
+        tmp_path,
+    ).export(
+        [make_element("AAA")],
+        "PROD",
+        "2026/11 Release",
+        move_date="2026-11-20",
+    )
+
+    assert result.parent == (
+        tmp_path / "Reports" / "2026_11_Release" / "PROD-2026-11-20"
+    )
+    assert result.name.startswith("2026_11_Release_export_")
+    assert result.parent.parent.parent == tmp_path / "Reports"
+    make_writable(result)
+
+
 def test_build_labeled_output_path_adds_label_before_export_marker() -> None:
     """Verifies companion exports retain the timestamp and add their label."""
     exporter = Exporter({}, Path("."))
